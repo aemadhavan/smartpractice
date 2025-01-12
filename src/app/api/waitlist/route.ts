@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { waitlist } from '@/db/schema';
 import { nanoid } from 'nanoid';
+import { sendWaitlistConfirmationEmail } from '@/lib/email';
 
 // Rate limiting implementation
 const rateLimit = new Map();
@@ -114,6 +115,13 @@ export async function POST(request: Request) {
       })
       .returning();
 
+      // Send confirmation email
+    const emailResult = await sendWaitlistConfirmationEmail(email);
+    if (!emailResult.success) {
+      console.error('Failed to send confirmation email:', emailResult.error);
+      // Note: We don't return an error to the user since they're already added to the waitlist
+    }
+    
     // Log signup for analytics (implement your logging solution)
     console.log('New waitlist signup:', {
       email,
