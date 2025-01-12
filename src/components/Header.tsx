@@ -10,17 +10,18 @@ export default function Header() {
         <Container>
             <div className="flex justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
-                <p className="font-bold"><Link href="/questions">Smart Practise</Link></p>                    
-                    <SignedIn>                        
-                    </SignedIn>
+                <p className="font-bold"><Link href="/">Smart Practise</Link></p>                    
+                    {/* <SignedIn>                        
+                    </SignedIn> */}
                 </div>                
                 <div className="flex justify-between">
-                    <SignedOut>
-                        <SignInButton />
+                    <div className="text-gray-500 bolder text-sm">Sign in (coming soon)</div>
+                    {/* <SignedOut>
+                        <SignInButton  />
                     </SignedOut>
                     <SignedIn>
                         <UserButton />
-                    </SignedIn>
+                    </SignedIn> */}
                 </div>                
             </div>
         </Container>

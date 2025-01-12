@@ -69,4 +69,11 @@ export const questionTopics = pgTable('questionTopics', {
     isActive:boolean('is_active').notNull().default(true)
 })
 
-
+export const waitlist = pgTable('waitlist', {
+    id: text('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    timestamp: timestamp('timestamp').notNull().defaultNow(),
+    consent: boolean('consent').notNull().default(false),
+    referralSource: text('referral_source'),
+    status: text('status').notNull().default('pending'), // pending, confirmed, unsubscribed
+  });
