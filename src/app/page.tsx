@@ -1,61 +1,61 @@
 // app/page.tsx
 'use client';
 
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast"
+//import { useState } from 'react';
+// import { Button } from "@/components/ui/button";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
+// import { Textarea } from "@/components/ui/textarea";
+//import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster";
 import Container from '@/components/Container';
 import WaitlistSignup from '@/components/waitlist-signup';
 
 export default function Home() {
-  const [loading, setLoading] = useState(false);
-  const [category, setCategory] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const { toast } = useToast();
+  //const [loading, setLoading] = useState(false);
+  // const [category, setCategory] = useState('');
+  // const [prompt, setPrompt] = useState('');
+  // const { toast } = useToast();
 
-  const generateQuestions = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category,
-          prompt,
-        }),
-      });
+  // const generateQuestions = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const response = await fetch('/api/generate', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         category,
+  //         prompt,
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate questions');
-      }
+  //     if (!response.ok) {
+  //       throw new Error('Failed to generate questions');
+  //     }
 
-      const data = await response.json();
-      toast({
-        title: "Success",
-        description: "Questions generated successfully",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate questions",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     const data = await response.json();
+  //     toast({
+  //       title: "Success",
+  //       description: "Questions generated successfully",
+  //     });
+  //   } catch (error) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "Error",
+  //       description: "Failed to generate questions",
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <Container>

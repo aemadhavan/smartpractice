@@ -44,7 +44,7 @@ const WaitlistSignup = () => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to join waitlist');
       }
-      const data = await response.json();
+      await response.json(); // Remove data variable since it's not used
       setStatus('success');
       setEmail('');
       setConsent(false);
@@ -55,9 +55,9 @@ const WaitlistSignup = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-12">
+    <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Early Access Badge */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-4">
         <div className="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-4 py-2 rounded-full">
           <GraduationCap className="w-4 h-4" />
           <span>Early Access</span>
@@ -65,23 +65,25 @@ const WaitlistSignup = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl lg:text-4xl font-bold mb-3">
           Master the Victorian Selective Entry High School Exam
         </h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Smart Practise uses AI to create practise tests, helping students achieve 
-          their best in the Victorian Selective Entry High School exam.
+        <p className="text-lg lg:text-xl text-gray-600 mb-6">
+          Smart Practise is building an AI-powered platform to help students prepare effectively 
+          for the Victorian Selective Entry High School exam. Join our waitlist to get early access 
+          and special launch benefits.
         </p>
       </div>
 
       {/* Features List */}
-      <div className="space-y-6 mb-12">
+      <div className="space-y-4 mb-8">
         <div className="flex items-start gap-3">
           <div className="mt-1 text-green-500">✓</div>
           <div>
-            <p className="text-gray-900">
-              Personalized practice tests aligned with Victorian Selective Entry exam
+            <p className="font-medium text-gray-900">Personalized Learning Experience</p>
+            <p className="text-sm text-gray-600">
+              Practice tests that adapt to your skill level and focus on areas where you need the most improvement
             </p>
           </div>
         </div>
@@ -89,10 +91,10 @@ const WaitlistSignup = () => {
         <div className="flex items-start gap-3">
           <div className="mt-1 text-green-500">✓</div>
           <div>
-            <p className="text-gray-900">
-              Comprehensive coverage of all test areas: Reasoning – Reading, 
-              Reasoning – Mathematics, General ability – Verbal, General ability – 
-              Quantitative and Writing
+            <p className="font-medium text-gray-900">Complete Exam Coverage</p>
+            <p className="text-sm text-gray-600">
+              Comprehensive practice materials covering all exam areas: Reading, Mathematics, 
+              Verbal Reasoning, and Writing skills
             </p>
           </div>
         </div>
@@ -100,8 +102,9 @@ const WaitlistSignup = () => {
         <div className="flex items-start gap-3">
           <div className="mt-1 text-green-500">✓</div>
           <div>
-            <p className="text-gray-900">
-              Real-time performance tracking and progress insights
+            <p className="font-medium text-gray-900">Progress Tracking</p>
+            <p className="text-sm text-gray-600">
+              Monitor your improvement with detailed performance insights and progress reports
             </p>
           </div>
         </div>
@@ -109,16 +112,17 @@ const WaitlistSignup = () => {
         <div className="flex items-start gap-3">
           <div className="mt-1 text-green-500">✓</div>
           <div>
-            <p className="text-gray-900">
-              AI-designed questions matching actual exam difficulty
+            <p className="font-medium text-gray-900">Smart Practice System</p>
+            <p className="text-sm text-gray-600">
+              AI-powered question generation that matches real exam patterns and difficulty levels
             </p>
           </div>
         </div>
       </div>
 
-      {/* Waitlist Form - Moved to middle */}
-      <div className="mb-16">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Waitlist Form */}
+      <div className="mb-8">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex gap-2">
             <Input
               type="email"
@@ -131,7 +135,7 @@ const WaitlistSignup = () => {
             />
             <Button 
               type="submit"
-              disabled={status === 'loading'  || !consent}
+              disabled={status === 'loading' || !consent}
               className="inline-flex items-center gap-2 whitespace-nowrap"
             >
               {status === 'loading' ? 'Joining...' : 'Join Waitlist'}
@@ -164,34 +168,41 @@ const WaitlistSignup = () => {
           {status === 'success' && (
             <Alert className="bg-green-50 text-green-700 border-green-200">
               <AlertDescription>
-                Thanks for joining! We'll notify you when early access is available.
-                You can unsubscribe at any time.
+                Welcome to Smart Practise! You&apos;re now on our exclusive early access list. 
+                We&apos;ll keep you updated on our launch progress and notify you when we&apos;re ready. 
+                Keep an eye on your inbox for important updates!
               </AlertDescription>
             </Alert>
           )}
         </form>
       </div>
 
-      {/* Stats Section */}
-      <div className="bg-purple-50 rounded-xl p-8 mb-12">
-        <h2 className="text-2xl font-bold text-center mb-4">
-          Why Smart Practise?
+      {/* Early Access Benefits Section */}
+      <div className="bg-purple-50 rounded-xl p-6 mb-8">
+        <h2 className="text-xl font-bold text-center mb-3">
+          Early Access Benefits
         </h2>
-        <p className="text-center text-gray-600 mb-8">
-          Join hundreds of students already preparing smarter
+        <p className="text-center text-sm text-gray-600 mb-6">
+          Be among the first to experience our innovative learning platform
         </p>
-        <div className="flex justify-center gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-700">2000+</div>
-            <div className="text-sm text-gray-600">Practice Questions</div>
+            <div className="text-lg font-semibold text-purple-700 mb-1">
+              Founding Member Access
+            </div>
+            <div className="text-sm text-gray-600">Get exclusive features and priority support</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-700">95%</div>
-            <div className="text-sm text-gray-600">Student Satisfaction</div>
+            <div className="text-lg font-semibold text-purple-700 mb-1">
+              Launch Pricing
+            </div>
+            <div className="text-sm text-gray-600">Special rates for early members</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-700">30%</div>
-            <div className="text-sm text-gray-600">Score Improvement</div>
+            <div className="text-lg font-semibold text-purple-700 mb-1">
+              Shape Our Platform
+            </div>
+            <div className="text-sm text-gray-600">Provide feedback and influence development</div>
           </div>
         </div>
       </div>

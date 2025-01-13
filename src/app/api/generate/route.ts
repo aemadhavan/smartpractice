@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { questions, categories, difficultyLevels, questionType, answers } from '@/db/schema';
-import { eq, ilike } from 'drizzle-orm';
+import { ilike } from 'drizzle-orm';
 import Anthropic from '@anthropic-ai/sdk';
 
 interface ParsedQuestion {

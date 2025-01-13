@@ -38,12 +38,13 @@ export function GenerateQuestions() {
         throw new Error('Failed to generate questions');
       }
 
-      const data = await response.json();
+      await response.json(); // Remove the unused data variable
       toast({
         title: "Success",
         description: "Questions generated successfully",
       });
-    } catch (error) {
+    } catch (err) { // Rename error to err to avoid the unused variable
+      console.error('Failed to generate questions:', err); // Log the error
       toast({
         variant: "destructive",
         title: "Error",

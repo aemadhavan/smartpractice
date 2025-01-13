@@ -21,7 +21,7 @@ export default function TermsOfService() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">2. Waitlist Service</h2>
           <p>
-            Our waitlist service allows you to express interest in Smart Practise's upcoming educational 
+            Our waitlist service allows you to express interest in Smart Practise&apos;s upcoming educational 
             platform. By joining the waitlist:
           </p>
           <ul className="list-disc pl-6 mt-2 space-y-2">

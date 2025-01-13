@@ -1,7 +1,7 @@
 // app/api/questions/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { questions, categories, difficultyLevels, answers } from '@/db/schema';
+import { questions, categories, difficultyLevels} from '@/db/schema';
 import { and, eq, ilike } from 'drizzle-orm';
 import { SQL } from 'drizzle-orm';
 

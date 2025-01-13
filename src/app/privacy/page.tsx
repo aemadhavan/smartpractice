@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
           <p>
-            Smart Practise ("we," "our," or "us") is committed to protecting your privacy. 
+            Smart Practise (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. 
             This Privacy Policy explains how we collect, use, and protect your personal information 
             when you join our waitlist or interact with our website.
           </p>
@@ -76,7 +76,7 @@ export default function PrivacyPolicy() {
           <h2 className="text-2xl font-semibold mb-4">7. Changes to This Policy</h2>
           <p>
             We may update this Privacy Policy from time to time. We will notify you of any changes 
-            by posting the new Privacy Policy on this page and updating the "Last updated" date.
+            by posting the new Privacy Policy on this page and updating the &quot;Last updated&quot; date.
           </p>
         </section>
       </div>

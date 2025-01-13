@@ -18,7 +18,7 @@ const validateEmail = (email: string): boolean => {
 };
 
 // API Security middleware
-const validateRequest = async (request: Request) => {
+const validateRequest = async () => {
   const headersList = await headers();
   const origin = headersList.get('origin');
   const allowedOrigins = [
@@ -55,7 +55,7 @@ const validateRequest = async (request: Request) => {
 export async function POST(request: Request) {
   try {
     // Validate request
-    const validation = await validateRequest(request);
+    const validation = await validateRequest();
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error },
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     const newEntry = await db
       .insert(waitlist)
       .values({
-        id: nanoid(), // Generate unique ID
+        id: nanoid(),
         email,
         consent,
         referralSource: referralSource || null,
@@ -115,14 +115,13 @@ export async function POST(request: Request) {
       })
       .returning();
 
-      // Send confirmation email
+    // Send confirmation email
     const emailResult = await sendWaitlistConfirmationEmail(email);
     if (!emailResult.success) {
       console.error('Failed to send confirmation email:', emailResult.error);
-      // Note: We don't return an error to the user since they're already added to the waitlist
     }
-    
-    // Log signup for analytics (implement your logging solution)
+
+    // Log signup for analytics
     console.log('New waitlist signup:', {
       email,
       ip,
@@ -154,7 +153,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const validation = await validateRequest(request);
+    const validation = await validateRequest();
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error },
@@ -201,7 +200,7 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const validation = await validateRequest(request);
+    const validation = await validateRequest();
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error },

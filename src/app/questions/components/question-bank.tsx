@@ -1,6 +1,6 @@
 'use client';
 // app/questions/components/question-bank.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -33,11 +33,7 @@ export function QuestionBank() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
 
-  useEffect(() => {
-    fetchQuestions();
-  }, [categoryFilter, difficultyFilter]);
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (categoryFilter !== 'all') params.append('category', categoryFilter);
@@ -53,7 +49,11 @@ export function QuestionBank() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [categoryFilter, difficultyFilter]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const clearFilters = () => {
     setCategoryFilter('all');
