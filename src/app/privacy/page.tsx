@@ -7,7 +7,7 @@ export default function PrivacyPolicy() {
       <h1 className="text-3xl font-bold mb-8">Privacy Policy</h1>
       
       <div className="prose prose-slate max-w-none">
-        <p className="text-sm text-gray-500 mb-8">Last updated: January 12, 2025</p>
+        <p className="text-sm text-gray-500 mb-8">Last updated: January 13, 2025</p>
 
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
@@ -26,6 +26,16 @@ export default function PrivacyPolicy() {
             <li>Referral source (if applicable)</li>
             <li>Timestamp of signup</li>
             <li>Your consent to receive updates</li>
+          </ul>
+          <p>Website usage data through Google Analytics, including:</p>
+          <ul className="list-disc pl-6 mt-2 space-y-2">
+            <li>IP address</li>
+            <li>Browser type and version</li>
+            <li>Device information</li>
+            <li>Pages visited</li>
+            <li>Time and duration of visits</li>
+            <li>Referral sources</li>
+            <li>General location data</li>
           </ul>
         </section>
 
@@ -46,6 +56,20 @@ export default function PrivacyPolicy() {
             Your data is stored securely using industry-standard security measures. 
             We retain your information only for as long as necessary to fulfill the purposes outlined 
             in this privacy policy or until you request its deletion.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Third-Party Analytics</h2>
+          <p>
+            We use Google Analytics to analyze the use of our website. Google Analytics gathers 
+            information about website use by means of cookies. The information gathered is used 
+            to create reports about the use of our website. Google&apos;s privacy policy is available at: 
+            https://www.google.com/policies/privacy/
+          </p>
+          <p className="mt-2">
+            You can opt out of Google Analytics by using the Google Analytics Opt-out Browser Add-on: 
+            https://tools.google.com/dlpage/gaoptout
           </p>
         </section>
 

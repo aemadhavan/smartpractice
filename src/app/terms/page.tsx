@@ -16,6 +16,10 @@ export default function TermsOfService() {
             Service and our Privacy Policy. If you disagree with any part of the terms, you may not 
             access our service.
           </p>
+          <p className="mt-2">
+            By using our website, you also consent to our use of Google Analytics and the processing 
+            of your data as described in our Privacy Policy for analytics purposes.
+          </p>
         </section>
 
         <section className="mb-8">
@@ -59,9 +63,18 @@ export default function TermsOfService() {
             or punitive damages resulting from your use or inability to use our service or website.
           </p>
         </section>
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">6. Cookies and Tracking</h2>
+          <p>
+            We use cookies and similar tracking technologies, including Google Analytics, to improve 
+            and analyze our website. By using our website, you consent to the use of these 
+            technologies as described in our Privacy Policy. You can control cookies through your 
+            browser settings and other tools.
+          </p>
+        </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">6. Changes to Terms</h2>
+          <h2 className="text-2xl font-semibold mb-4">7. Changes to Terms</h2>
           <p>
             We reserve the right to modify these terms at any time. We will notify users of any 
             material changes via email or through our website.
@@ -69,7 +82,7 @@ export default function TermsOfService() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">7. Governing Law</h2>
+          <h2 className="text-2xl font-semibold mb-4">8. Governing Law</h2>
           <p>
             These terms shall be governed by and construed in accordance with the laws of Australia, 
             without regard to its conflict of law provisions.
@@ -77,7 +90,7 @@ export default function TermsOfService() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">8. Contact Information</h2>
+          <h2 className="text-2xl font-semibold mb-4">9. Contact Information</h2>
           <p>
             For any questions about these Terms of Service, please contact us at:
           </p>
