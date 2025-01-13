@@ -91,10 +91,40 @@ export async function POST(request: Request) {
       .execute();
 
     if (existingUser.length > 0) {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 409 }
-      );
+      // Check if user was previously unsubscribed
+      if (existingUser[0].status === 'unsubscribed') {
+        // Re-activate the subscription
+        await db
+          .update(waitlist)
+          .set({
+            status: 'pending',
+            consent: consent,
+            referralSource: referralSource || existingUser[0].referralSource,
+            timestamp: new Date() // Update timestamp to mark re-subscription time
+          })
+          .where(eq(waitlist.email, email))
+          .execute();
+
+        // Send confirmation email
+        const emailResult = await sendWaitlistConfirmationEmail(email);
+        if (!emailResult.success) {
+          console.error('Failed to send confirmation email:', emailResult.error);
+        }
+
+        return NextResponse.json(
+          {
+            message: 'Successfully rejoined waitlist',
+            id: existingUser[0].id
+          },
+          { status: 200 }
+        );
+      } else {
+        // User is already actively subscribed
+        return NextResponse.json(
+          { error: 'Email already registered' },
+          { status: 409 }
+        );
+      }
     }
 
     // Get request metadata
@@ -130,11 +160,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { 
+      {
         message: 'Successfully joined waitlist',
         id: newEntry[0].id
       },
-      { 
+      {
         status: 201,
         headers: {
           'Cache-Control': 'no-store'

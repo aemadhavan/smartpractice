@@ -10,7 +10,7 @@ export default function Header() {
         <div className="flex justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <Image src="/sp-logo.png" alt="Logo" width={130} height={130} />
+              <Image src="/sp-logo-1.png" alt="Logo" width={130} height={130} />
             </Link>                    
             {/* <SignedIn>                        
             </SignedIn> */}

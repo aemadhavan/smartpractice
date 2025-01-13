@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendWaitlistConfirmationEmail(email: string) {
   try {
-    const unsubscribeUrl = `https://smartpractise.com/api/waitlist?email=${encodeURIComponent(email)}`;
+    const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe?email=${encodeURIComponent(email)}`;
     
     const data = await resend.emails.send({
       from: 'Smart Practise <hello@mail.smartpractise.com>',

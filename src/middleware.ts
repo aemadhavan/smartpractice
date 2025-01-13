@@ -7,6 +7,7 @@ const isPublic = createRouteMatcher([
   "/sign-up(.*)",
   "/privacy(.*)",
   "/terms(.*)",
+  "/unsubscribe(.*)",
   "/api/waitlist(.*)"
 ]);
 
