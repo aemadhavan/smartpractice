@@ -34,7 +34,7 @@ export default function UnsubscribePage() {
         setStatus('error');
         setMessage(data.error || 'Failed to unsubscribe. Please try again.');
       }
-    } catch (error) {
+    } catch (_) {
       setStatus('error');
       setMessage('An error occurred. Please try again later.');
     }

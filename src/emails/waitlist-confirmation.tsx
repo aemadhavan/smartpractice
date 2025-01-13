@@ -55,39 +55,46 @@ export const WaitlistConfirmationEmail = ({
               </Text>
               
               <Text className="mb-4 text-gray-600">
-                You&apos;ll be among the first to know when we launch and get exclusive early access to:
+                As an early supporter, you&apos;ll get exclusive benefits when we launch:
               </Text>
 
               <ul className="list-disc pl-6 mb-4 text-gray-600">
-                <li>AI-powered practice tests</li>
-                <li>Personalized learning insights</li>
-                <li>Comprehensive exam coverage</li>
-                <li>Real-time performance tracking</li>
+                <li>Early access to our platform</li>
+                <li>Special founding member pricing</li>
+                <li>Priority support during exam preparation</li>
+                <li>First access to new features</li>
               </ul>
 
               <Text className="mb-6 text-gray-600">
-                We&apos;ll keep you updated on our progress and let you know as soon as early access becomes available.
+                We&apos;re working hard to create the best preparation experience for Victorian Selective Entry exams, 
+                and we&apos;ll keep you updated on our progress.
               </Text>
 
-              <Button className="bg-purple-600 text-white px-6 py-3 rounded-md font-medium"
-                href="https://smartpractise.com/">
+              <Button 
+                className="bg-purple-600 text-white px-6 py-3 rounded-md font-medium"
+                href="https://smartpractise.com/"
+              >
                 Learn More About Smart Practise
               </Button>
             </Section>
 
-            {/* Social Proof */}
+            {/* Timeline Instead of Social Proof */}
             <Section className="mb-8 bg-gray-50 p-6 rounded-lg">
-              <Text className="text-center text-gray-600 font-medium">
-                Join hundreds of students already preparing smarter
+              <Text className="text-center font-medium text-gray-800 mb-4">
+                What&apos;s Next?
               </Text>
-              <div className="flex justify-center space-x-12 mt-4">
-                <div className="text-center">
-                  <Text className="text-2xl font-bold text-purple-600">2000+</Text>
-                  <Text className="text-sm text-gray-600">Practice Questions</Text>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <Text className="text-purple-600 font-medium">1.</Text>
+                  <Text className="text-gray-600">We&apos;ll send you regular updates on our development progress</Text>
                 </div>
-                <div className="text-center">
-                  <Text className="text-2xl font-bold text-purple-600">95%</Text>
-                  <Text className="text-sm text-gray-600">Student Satisfaction</Text>
+                <div className="flex items-start space-x-3">
+                  <Text className="text-purple-600 font-medium">2.</Text>
+                  <Text className="text-gray-600">You&apos;ll be first to know when early access is available</Text>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Text className="text-purple-600 font-medium">3.</Text>
+                  <Text className="text-gray-600">Get exclusive founding member benefits when we launch</Text>
                 </div>
               </div>
             </Section>
