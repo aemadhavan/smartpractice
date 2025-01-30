@@ -1,4 +1,5 @@
-import {integer, pgTable, serial, text, timestamp,boolean } from 'drizzle-orm/pg-core';
+import { eq, relations } from 'drizzle-orm';
+import {integer, pgTable, serial, text, timestamp,boolean, char } from 'drizzle-orm/pg-core';
 
 export const categories = pgTable('categories', {
     id: serial('id').primaryKey(),
@@ -77,3 +78,45 @@ export const waitlist = pgTable('waitlist', {
     referralSource: text('referral_source'),
     status: text('status').notNull().default('pending'), // pending, confirmed, unsubscribed
   });
+
+  export const alphabetCategories = pgTable('alphabetCategories', {
+    id: serial('id').primaryKey(),
+    letter: char('letter', { length: 1 }).notNull().unique(),
+    description: text('description'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+})
+
+export const vocabulary = pgTable('vocabulary', {
+    id: serial('id').primaryKey(),
+    word: text('word').notNull(),
+    definition: text('definition').notNull(),
+    synonyms: text('synonyms').notNull(),
+    antonyms: text('antonyms').notNull(),
+    partOfSpeech: text('part_of_speech').notNull(),
+    categoryId: integer('category_id').references(() => alphabetCategories.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+// Relations
+// Relations
+export const alphabetCategoriesRelations = relations(alphabetCategories, ({ many }) => ({
+    words: many(vocabulary)
+}));
+
+export const vocabularyRelations = relations(vocabulary, ({ one }) => ({
+    category: one(alphabetCategories, {
+        fields: [vocabulary.categoryId],
+        references: [alphabetCategories.id],
+    })
+}));
+
+// Types
+export type AlphabetCategory = typeof alphabetCategories.$inferSelect;
+export type NewAlphabetCategory = typeof alphabetCategories.$inferInsert;
+
+export type Vocabulary = typeof vocabulary.$inferSelect;
+export type NewVocabulary = typeof vocabulary.$inferInsert;
