@@ -15,5 +15,9 @@ export default defineConfig({
     out: "./src/db/migrations",
     dbCredentials: {
         url: process.env.XATA_DATABASE_URL,    
-    }
+    },
+    strict: true,
+    verbose: true,
+    // Add the initial migration
+    breakpoints: true,
 });
