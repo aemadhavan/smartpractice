@@ -1,8 +1,10 @@
+//src/app/vocabulary/components/VocabularyCard.tsx
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Volume2, ChevronLeft, ChevronRight, Book } from 'lucide-react';
-import { VocabularyTest } from './VocabularyTest';
+import VocabularyTest from './VocabularyTest';
 
 interface VocabularyWord {
   id: number;
@@ -19,6 +21,7 @@ interface VocabularyCardProps {
   word: VocabularyWord;
   onNext: () => void;
   onPrevious: () => void;
+  onTest: () => void;  // Added onTest prop
   hasNext: boolean;
   hasPrevious: boolean;
 }
@@ -27,6 +30,7 @@ export const VocabularyCard = ({
   word,
   onNext,
   onPrevious,
+  onTest,  // Added to props destructuring
   hasNext,
   hasPrevious,
 }: VocabularyCardProps) => {
@@ -121,7 +125,7 @@ export const VocabularyCard = ({
           </Button>
 
           <Button
-            onClick={() => setShowTest(true)}
+            onClick={onTest}  // Changed from setShowTest(true) to use the prop
             className="flex items-center gap-2"
           >
             <Book className="h-4 w-4" />

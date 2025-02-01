@@ -1,5 +1,6 @@
 import { eq, relations } from 'drizzle-orm';
-import {integer, pgTable, serial, text, timestamp,boolean, char } from 'drizzle-orm/pg-core';
+import {integer, pgTable, serial, text, timestamp,boolean, char, jsonb } from 'drizzle-orm/pg-core';
+
 
 export const categories = pgTable('categories', {
     id: serial('id').primaryKey(),
@@ -122,3 +123,70 @@ export type NewAlphabetCategory = typeof alphabetCategories.$inferInsert;
 
 export type Vocabulary = typeof vocabulary.$inferSelect;
 export type NewVocabulary = typeof vocabulary.$inferInsert;
+
+// Vocabulary Metrics Tables
+export const vocabularyAttempts = pgTable('vocabularyAttempts', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    vocabularyId: integer('vocabulary_id').notNull().references(() => vocabulary.id),
+    stepType: text('step_type').notNull(),
+    isSuccessful: boolean('is_successful').notNull().default(false),
+    response: text('response'),
+    timeSpent: integer('time_spent'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+export const vocabularyProgress = pgTable('vocabularyProgress', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    vocabularyId: integer('vocabulary_id').notNull().references(() => vocabulary.id),
+    masteryLevel: integer('mastery_level').notNull().default(0),
+    lastAttemptAt: timestamp('last_attempt_at').notNull().defaultNow(),
+    stepCompletion: jsonb('step_completion').notNull().default({
+        definition: false,
+        usage: false,
+        synonym: false,
+        antonym: false
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+export const userStreaks = pgTable('userStreaks', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull().unique(),
+    currentStreak: integer('current_streak').notNull().default(0),
+    longestStreak: integer('longest_streak').notNull().default(0),
+    lastActivityAt: timestamp('last_activity_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+// Vocabulary Metrics Relations
+export const vocabularyAttemptsRelations = relations(vocabularyAttempts, ({ one }) => ({
+    vocabulary: one(vocabulary, {
+        fields: [vocabularyAttempts.vocabularyId],
+        references: [vocabulary.id],
+    })
+}));
+
+export const vocabularyProgressRelations = relations(vocabularyProgress, ({ one }) => ({
+    vocabulary: one(vocabulary, {
+        fields: [vocabularyProgress.vocabularyId],
+        references: [vocabulary.id],
+    })
+}));
+
+// Vocabulary Metrics Types
+export type VocabularyAttempt = typeof vocabularyAttempts.$inferSelect;
+export type NewVocabularyAttempt = typeof vocabularyAttempts.$inferInsert;
+
+export type VocabularyProgress = typeof vocabularyProgress.$inferSelect;
+export type NewVocabularyProgress = typeof vocabularyProgress.$inferInsert;
+
+export type UserStreak = typeof userStreaks.$inferSelect;
+export type NewUserStreak = typeof userStreaks.$inferInsert;

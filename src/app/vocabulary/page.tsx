@@ -2,8 +2,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
 import { VocabularyCard } from './components/VocabularyCard';
+import VocabularyTest from './components/VocabularyTest'; // Changed to default import
 
 interface AlphabetCategory {
   id: number;
@@ -18,16 +20,18 @@ interface VocabularyWord {
   synonyms: string;
   antonyms: string;
   partOfSpeech: string;
-  sentence: string; 
+  sentence: string;
 }
 
 export default function VocabularyPage() {
+  const { user, isLoaded } = useUser();
   const [categories, setCategories] = useState<AlphabetCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [vocabularies, setVocabularies] = useState<VocabularyWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingVocabulary, setLoadingVocabulary] = useState(false);
+  const [showTest, setShowTest] = useState(false);
 
   useEffect(() => {
     async function fetchCategories() {
@@ -74,10 +78,18 @@ export default function VocabularyPage() {
     fetchVocabularies();
   }, [selectedCategory]);
 
-  if (loading) {
+  if (!isLoaded || loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <p className="text-gray-600">Loading categories...</p>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-gray-600">Please sign in to access vocabulary practice.</p>
       </div>
     );
   }
@@ -96,6 +108,11 @@ export default function VocabularyPage() {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
+  };
+
+  const handleTestComplete = () => {
+    setShowTest(false);
+    handleNext();
   };
 
   return (
@@ -131,11 +148,19 @@ export default function VocabularyPage() {
             <div className="flex justify-center items-center h-64">
               <p className="text-gray-600">No vocabulary words found for this category.</p>
             </div>
+          ) : showTest ? (
+            <VocabularyTest
+              word={vocabularies[currentIndex]}
+              userId={user.id}
+              onComplete={handleTestComplete}
+              onClose={() => setShowTest(false)}
+            />
           ) : (
             <VocabularyCard
               word={vocabularies[currentIndex]}
               onNext={handleNext}
               onPrevious={handlePrevious}
+              onTest={() => setShowTest(true)}
               hasNext={currentIndex < vocabularies.length - 1}
               hasPrevious={currentIndex > 0}
             />
