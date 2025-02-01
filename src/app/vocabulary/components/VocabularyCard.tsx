@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Volume2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Volume2, ChevronLeft, ChevronRight, Book } from 'lucide-react';
+import { VocabularyTest } from './VocabularyTest';
 
 interface VocabularyWord {
   id: number;
@@ -11,7 +12,7 @@ interface VocabularyWord {
   antonyms: string;
   partOfSpeech: string;
   sentence: string;
-  audioUrl?: string; // New optional field for audio URL
+  audioUrl?: string;
 }
 
 interface VocabularyCardProps {
@@ -30,13 +31,13 @@ export const VocabularyCard = ({
   hasPrevious,
 }: VocabularyCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showTest, setShowTest] = useState(false);
 
   const handlePronunciation = async () => {
     try {
       setIsPlaying(true);
-      // Using the Web Speech API for basic pronunciation
       const utterance = new SpeechSynthesisUtterance(word.word);
-      utterance.rate = 0.8; // Slightly slower for clarity
+      utterance.rate = 0.8;
       utterance.onend = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);
     } catch (error) {
@@ -44,6 +45,21 @@ export const VocabularyCard = ({
       setIsPlaying(false);
     }
   };
+
+  const handleTestComplete = () => {
+    setShowTest(false);
+    onNext();
+  };
+
+  if (showTest) {
+    return (
+      <VocabularyTest
+        word={word}
+        onComplete={handleTestComplete}
+        onClose={() => setShowTest(false)}
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -72,23 +88,29 @@ export const VocabularyCard = ({
             <p className="text-gray-700">{word.definition}</p>
           </div>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-1">Synonyms</h3>
-            <p className="text-gray-700">{word.synonyms}</p>
-          </div>
+          {word.synonyms && (
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Synonyms</h3>
+              <p className="text-gray-700">{word.synonyms}</p>
+            </div>
+          )}
 
-          <div>
-            <h3 className="font-semibold text-lg mb-1">Antonyms</h3>
-            <p className="text-gray-700">{word.antonyms}</p>
-          </div>
+          {word.antonyms && (
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Antonyms</h3>
+              <p className="text-gray-700">{word.antonyms}</p>
+            </div>
+          )}
 
-          <div>
-            <h3 className="font-semibold text-lg mb-1">Example Sentence</h3>
-            <p className="text-gray-700 italic">{word.sentence}</p>
-          </div>
+          {word.sentence && (
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Example Sentence</h3>
+              <p className="text-gray-700 italic">{word.sentence}</p>
+            </div>
+          )}
         </div>
 
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between items-center mt-6">
           <Button
             onClick={onPrevious}
             disabled={!hasPrevious}
@@ -97,6 +119,15 @@ export const VocabularyCard = ({
           >
             <ChevronLeft size={16} /> Previous
           </Button>
+
+          <Button
+            onClick={() => setShowTest(true)}
+            className="flex items-center gap-2"
+          >
+            <Book className="h-4 w-4" />
+            Test Knowledge
+          </Button>
+
           <Button
             onClick={onNext}
             disabled={!hasNext}
