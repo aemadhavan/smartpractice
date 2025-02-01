@@ -4,9 +4,11 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VocabularyCard } from './components/VocabularyCard';
-import VocabularyTest from './components/VocabularyTest'; // Changed to default import
-import VocabularyMetricsDashboard from './components/VocabularyMetricsDashboard'; // Added import
+import VocabularyTest from './components/VocabularyTest';
+import VocabularyMetricsDashboard from './components/VocabularyMetricsDashboard';
+import { BarChart, BookOpen } from 'lucide-react';
 
 interface AlphabetCategory {
   id: number;
@@ -117,57 +119,81 @@ export default function VocabularyPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Vocabulary</h1>
-      <VocabularyMetricsDashboard  userId={user.id} />
-      {!selectedCategory ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-          {categories.map((category) => (
-            <Card 
-              key={category.id}
-              className="p-4 text-center cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => handleCategoryClick(category.id)}
-            >
-              <div className="text-2xl font-bold mb-2">{category.letter}</div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className="text-blue-600 hover:underline mb-4"
-          >
-            ← Back to categories
-          </button>
-          
-          {loadingVocabulary ? (
-            <div className="flex justify-center items-center h-64">
-              <p className="text-gray-600">Loading vocabulary...</p>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Vocabulary Practice</h1>
+      </div>
+
+      <Tabs defaultValue="practice" className="space-y-6">
+        <TabsList className="w-full md:w-auto">
+          <TabsTrigger value="practice" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Practice
+          </TabsTrigger>
+          <TabsTrigger value="progress" className="flex items-center gap-2">
+            <BarChart className="h-4 w-4" />
+            Progress
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="practice" className="space-y-6">
+          {!selectedCategory ? (
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Select a Category</h2>
+              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
+                {categories.map((category) => (
+                  <Card 
+                    key={category.id}
+                    className="p-4 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleCategoryClick(category.id)}
+                  >
+                    <div className="text-2xl font-bold">{category.letter}</div>
+                  </Card>
+                ))}
+              </div>
             </div>
-          ) : vocabularies.length === 0 ? (
-            <div className="flex justify-center items-center h-64">
-              <p className="text-gray-600">No vocabulary words found for this category.</p>
-            </div>
-          ) : showTest ? (
-            <VocabularyTest
-              word={vocabularies[currentIndex]}
-              userId={user.id}
-              onComplete={handleTestComplete}
-              onClose={() => setShowTest(false)}
-            />
           ) : (
-            <VocabularyCard
-              word={vocabularies[currentIndex]}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
-              onTest={() => setShowTest(true)}
-              hasNext={currentIndex < vocabularies.length - 1}
-              hasPrevious={currentIndex > 0}
-            />
+            <div className="space-y-6">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="text-blue-600 hover:underline mb-4"
+              >
+                ← Back to categories
+              </button>
+              
+              {loadingVocabulary ? (
+                <div className="flex justify-center items-center h-64">
+                  <p className="text-gray-600">Loading vocabulary...</p>
+                </div>
+              ) : vocabularies.length === 0 ? (
+                <div className="flex justify-center items-center h-64">
+                  <p className="text-gray-600">No vocabulary words found for this category.</p>
+                </div>
+              ) : showTest ? (
+                <VocabularyTest
+                  word={vocabularies[currentIndex]}
+                  userId={user.id}
+                  onComplete={handleTestComplete}
+                  onClose={() => setShowTest(false)}
+                />
+              ) : (
+                <VocabularyCard
+                  word={vocabularies[currentIndex]}
+                  onNext={handleNext}
+                  onPrevious={handlePrevious}
+                  onTest={() => setShowTest(true)}
+                  hasNext={currentIndex < vocabularies.length - 1}
+                  hasPrevious={currentIndex > 0}
+                />
+              )}
+            </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="progress">
+          <VocabularyMetricsDashboard userId={user.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
