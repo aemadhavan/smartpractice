@@ -6,6 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
 import { VocabularyCard } from './components/VocabularyCard';
 import VocabularyTest from './components/VocabularyTest'; // Changed to default import
+import VocabularyMetricsDashboard from './components/VocabularyMetricsDashboard'; // Added import
 
 interface AlphabetCategory {
   id: number;
@@ -118,7 +119,7 @@ export default function VocabularyPage() {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Vocabulary</h1>
-      
+      <VocabularyMetricsDashboard  userId={user.id} />
       {!selectedCategory ? (
         <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
           {categories.map((category) => (
