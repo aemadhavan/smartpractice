@@ -27,6 +27,7 @@ export default function VocabularyPage() {
   const [vocabularies, setVocabularies] = useState<VocabularyWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingVocabulary, setLoadingVocabulary] = useState(false);
 
   useEffect(() => {
     async function fetchCategories() {
@@ -46,18 +47,27 @@ export default function VocabularyPage() {
 
   useEffect(() => {
     async function fetchVocabularies() {
-      if (selectedCategory === null) return;
+      if (selectedCategory === null) {
+        setVocabularies([]);
+        return;
+      }
       
       try {
-        setLoading(true);
+        setLoadingVocabulary(true);
         const response = await fetch(`/api/vocabulary/${selectedCategory}`);
         const data = await response.json();
-        setVocabularies(data.words);
-        setCurrentIndex(0);
+        
+        if (Array.isArray(data.words) && data.words.length > 0) {
+          setVocabularies(data.words);
+          setCurrentIndex(0);
+        } else {
+          setVocabularies([]);
+        }
       } catch (error) {
         console.error('Error fetching vocabularies:', error);
+        setVocabularies([]);
       } finally {
-        setLoading(false);
+        setLoadingVocabulary(false);
       }
     }
 
@@ -65,7 +75,11 @@ export default function VocabularyPage() {
   }, [selectedCategory]);
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-gray-600">Loading categories...</p>
+      </div>
+    );
   }
 
   const handleCategoryClick = (categoryId: number) => {
@@ -97,7 +111,6 @@ export default function VocabularyPage() {
               onClick={() => handleCategoryClick(category.id)}
             >
               <div className="text-2xl font-bold mb-2">{category.letter}</div>
-              {/* <div className="text-sm text-gray-600">{category.description}</div> */}
             </Card>
           ))}
         </div>
@@ -110,13 +123,23 @@ export default function VocabularyPage() {
             ← Back to categories
           </button>
           
-          <VocabularyCard
-            word={vocabularies[currentIndex]}
-            onNext={handleNext}
-            onPrevious={handlePrevious}
-            hasNext={currentIndex < vocabularies.length - 1}
-            hasPrevious={currentIndex > 0}
-          />
+          {loadingVocabulary ? (
+            <div className="flex justify-center items-center h-64">
+              <p className="text-gray-600">Loading vocabulary...</p>
+            </div>
+          ) : vocabularies.length === 0 ? (
+            <div className="flex justify-center items-center h-64">
+              <p className="text-gray-600">No vocabulary words found for this category.</p>
+            </div>
+          ) : (
+            <VocabularyCard
+              word={vocabularies[currentIndex]}
+              onNext={handleNext}
+              onPrevious={handlePrevious}
+              hasNext={currentIndex < vocabularies.length - 1}
+              hasPrevious={currentIndex > 0}
+            />
+          )}
         </div>
       )}
     </div>
