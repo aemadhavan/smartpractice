@@ -28,15 +28,7 @@ interface TestProps {
 type TestStep = 'definition' | 'usage' | 'synonym' | 'antonym';
 
 const VocabularyTest: React.FC<Partial<TestProps>> = ({ 
-  word = {
-    id: 0,
-    word: '',
-    definition: '',
-    synonyms: '',
-    antonyms: '',
-    partOfSpeech: '',
-    sentence: ''
-  },
+  word={ id: 0, word: '', definition: '', synonyms: '', antonyms: '', partOfSpeech: '', sentence: '' },
   userId = 0,
   onComplete = () => {}, 
   onClose = () => {} 
@@ -63,81 +55,82 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
 
   const trackAttempt = async (step: TestStep, isSuccessful: boolean) => {
     try {
-        const timeSpent = Math.round((new Date().getTime() - startTime.getTime()) / 1000);
-        
-        // First track the attempt
-        const response = await fetch('/api/vocabulary/track-attempt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                vocabularyId: word.id,
-                stepType: step,
-                isSuccessful,
-                response: answers[step],
-                timeSpent,
-            }),
-        });
+      const timeSpent = Math.round((new Date().getTime() - startTime.getTime()) / 1000);
+      
+      const response = await fetch('/api/vocabulary/track-attempt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,      // Add userId to the payload
+          vocabularyId: word.id,
+          stepType: step,
+          isSuccessful,
+          response: answers[step],
+          timeSpent,
+        }),
+      });
 
-        if (!response.ok) {
-            throw new Error('Failed to track attempt');
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to track attempt');
+      }
 
-        // If successful, update mastery
-        if (isSuccessful) {
-            await updateMasteryProgress(step, isSuccessful);
-        }
+      // If successful, update mastery
+      if (isSuccessful) {
+        await updateMasteryProgress(step, isSuccessful);
+      }
     } catch (error) {
-        console.error('Error tracking attempt:', error);
+      console.error('Error tracking attempt:', error);
+      setError('Failed to save progress. Please try again.');
     }
-};
+  };
 
-const updateMasteryProgress = async (step: TestStep, isSuccessful: boolean) => {
-  try {
+  const updateMasteryProgress = async (step: TestStep, isSuccessful: boolean) => {
+    try {
       const response = await fetch('/api/vocabulary/update-mastery', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-              vocabularyId: word.id,
-              stepType: step,
-              isSuccessful
-          }),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,        // Add userId to the payload
+          vocabularyId: word.id,
+          stepType: step,
+          isSuccessful
+        }),
       });
 
       if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Mastery update failed:', errorData);
-          throw new Error(`Failed to update mastery: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update mastery');
       }
-  } catch (error) {
+    } catch (error) {
       console.error('Error updating mastery:', error);
-  }
-};
+    }
+  };
 
-const updateStreak = async () => {
-  try {
+  const updateStreak = async () => {
+    try {
       const response = await fetch('/api/vocabulary/update-streak', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json'
-          }
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId    // Add userId to the payload
+        })
       });
 
       if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Streak update failed:', errorData);
-          throw new Error(`Failed to update streak: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update streak');
       }
-
-      const data = await response.json();
-      console.log('Streak updated successfully:', data);
-  } catch (error) {
+    } catch (error) {
       console.error('Error updating streak:', error);
-  }
-};
+    }
+  };
 
   const hints = {
     definition: `Try to explain what "${word.word}" means in your own words. Think about its core meaning.`,
@@ -168,7 +161,7 @@ const updateStreak = async () => {
           isValid = true;
         }
         break;
-
+  
       case 'usage':
         if (!answer.toLowerCase().includes(word.word.toLowerCase())) {
           setError(`Your sentence must include the word "${word.word}".`);
@@ -178,7 +171,7 @@ const updateStreak = async () => {
           isValid = true;
         }
         break;
-
+  
       case 'synonym':
         const validSynonyms = word.synonyms ? word.synonyms.toLowerCase().split(',').map(s => s.trim()) : [];
         if (validSynonyms.length === 0) {
@@ -189,7 +182,7 @@ const updateStreak = async () => {
           isValid = true;
         }
         break;
-
+  
       case 'antonym':
         const validAntonyms = word.antonyms ? word.antonyms.toLowerCase().split(',').map(s => s.trim()) : [];
         if (validAntonyms.length === 0) {
@@ -202,13 +195,36 @@ const updateStreak = async () => {
         break;
     }
     
-    // Track attempt (which will also update mastery if successful)
-    await trackAttempt(step, isValid);
-    
-    if (isValid) {
+    try {
+      // Track attempt (which will also update mastery if successful)
+      const response = await fetch('/api/vocabulary/track-attempt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          vocabularyId: word.id,
+          stepType: step,
+          isSuccessful: isValid,
+          response: answer,
+          timeSpent: Math.round((new Date().getTime() - startTime.getTime()) / 1000),
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to track attempt');
+      }
+  
+      if (isValid) {
         setIsCorrect(true);
+      }
+    } catch (error) {
+      console.error('Error tracking attempt:', error);
+      setError('Failed to save progress. Please try again.');
     }
-
+  
     return isValid;
   };
 

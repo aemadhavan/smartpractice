@@ -1,5 +1,5 @@
 import { eq, relations } from 'drizzle-orm';
-import {integer, pgTable, serial, text, timestamp,boolean, char, jsonb } from 'drizzle-orm/pg-core';
+import {integer, pgTable, serial, text, timestamp,boolean, char, jsonb, unique } from 'drizzle-orm/pg-core';
 
 
 export const categories = pgTable('categories', {
@@ -190,3 +190,39 @@ export type NewVocabularyProgress = typeof vocabularyProgress.$inferInsert;
 
 export type UserStreak = typeof userStreaks.$inferSelect;
 export type NewUserStreak = typeof userStreaks.$inferInsert;
+
+// Add an enum for status types
+export const CategoryStatusTypes = {
+    SUCCESS: 'success',
+    WARNING: 'warning',
+    ERROR: 'error'
+} as const;
+
+export type CategoryStatusType = typeof CategoryStatusTypes[keyof typeof CategoryStatusTypes];
+export const categoryStatus = pgTable('categoryStatus', {
+    id: serial('id').primaryKey(),
+    categoryId: integer('category_id').notNull().references(() => alphabetCategories.id),
+    userId: text('user_id').notNull(),
+    status: text('status').notNull().default('success'), // 'success', 'warning', 'error'
+    lastUpdated: timestamp('last_updated').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+}, (table) => {
+    return {
+        uniqueUserCategory: unique().on(table.userId, table.categoryId)
+    };
+});
+
+  // Add these to your existing relations
+export const categoryStatusRelations = relations(categoryStatus, ({ one }) => ({
+    category: one(alphabetCategories, {
+        fields: [categoryStatus.categoryId],
+        references: [alphabetCategories.id],
+    })
+}));
+
+// Add these to your existing types
+export type CategoryStatus = typeof categoryStatus.$inferSelect;
+export type NewCategoryStatus = typeof categoryStatus.$inferInsert;
+

@@ -15,6 +15,13 @@
       "when": 1738399352407,
       "tag": "0004_dizzy_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1738555821006,
+      "tag": "0005_dark_meltdown",
+      "breakpoints": true
     }
   ]
 }

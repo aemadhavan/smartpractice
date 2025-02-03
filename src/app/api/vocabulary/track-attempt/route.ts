@@ -1,37 +1,187 @@
-// app/api/vocabulary/track-attempt/route.ts
-import { NextResponse, NextRequest } from 'next/server';
+//src/app/api/vocabulary/track-attempt/route.ts
+import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { vocabularyAttempts } from '@/db/schema';
-import { getAuth } from '@clerk/nextjs/server';
+import { and, eq, sql } from 'drizzle-orm';
+import { 
+  vocabularyAttempts, 
+  vocabularyProgress,
+  vocabulary,
+  userStreaks 
+} from '@/db/schema';
 
-export async function POST(req: NextRequest) {
-    try {
-        const { userId } = getAuth(req);
-        if (!userId) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+interface StepCompletion {
+  definition: boolean;
+  usage: boolean;
+  synonym: boolean;
+  antonym: boolean;
+}
 
-        const body = await req.json();
-        const { vocabularyId, stepType, isSuccessful, response, timeSpent } = body;
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, vocabularyId, stepType, isSuccessful, response, timeSpent } = body;
 
-        // Validate required fields
-        if (!vocabularyId || !stepType) {
-            return new NextResponse("Missing required fields", { status: 400 });
-        }
+    console.log('Received attempt:', { userId, vocabularyId, stepType, isSuccessful }); // Debug log
 
-        // Insert attempt
-        const [attempt] = await db.insert(vocabularyAttempts).values({
+    if (!userId || !vocabularyId || !stepType) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Begin transaction
+    const result = await db.transaction(async (tx) => {
+      // Record the attempt
+      const [attempt] = await tx
+        .insert(vocabularyAttempts)
+        .values({
+          userId,
+          vocabularyId,
+          stepType,
+          isSuccessful,
+          response,
+          timeSpent,
+        })
+        .returning();
+
+      console.log('Recorded attempt:', attempt); // Debug log
+
+      // Get or create progress record
+      let [progress] = await tx
+        .select()
+        .from(vocabularyProgress)
+        .where(
+          and(
+            eq(vocabularyProgress.userId, userId),
+            eq(vocabularyProgress.vocabularyId, vocabularyId)
+          )
+        );
+
+      const defaultStepCompletion: StepCompletion = {
+        definition: false,
+        usage: false,
+        synonym: false,
+        antonym: false
+      };
+
+      if (!progress) {
+        [progress] = await tx
+          .insert(vocabularyProgress)
+          .values({
             userId,
             vocabularyId,
-            stepType,
-            isSuccessful,
-            response,
-            timeSpent,
-        }).returning();
+            masteryLevel: 0,
+            stepCompletion: defaultStepCompletion
+          })
+          .returning();
+      }
 
-        return NextResponse.json(attempt);
-    } catch (error) {
-        console.error('Error tracking attempt:', error);
-        return new NextResponse("Internal Server Error", { status: 500 });
-    }
+      console.log('Current progress:', progress); // Debug log
+
+      // Update progress if attempt was successful
+      if (isSuccessful) {
+        // Ensure we have valid current step completion
+        const currentStepCompletion = (progress.stepCompletion as StepCompletion) || defaultStepCompletion;
+        
+        // Create updated step completion, preserving existing progress
+        const updatedStepCompletion: StepCompletion = {
+          ...defaultStepCompletion, // Start with defaults
+          ...currentStepCompletion, // Override with current progress
+          [stepType]: true // Add new success
+        };
+
+        console.log('Updated step completion:', updatedStepCompletion); // Debug log
+
+        // Calculate new mastery level based on completed steps
+        const completedSteps = Object.values(updatedStepCompletion).filter(Boolean).length;
+        const masteryLevel = Math.round((completedSteps / 4) * 100);
+
+        console.log('New mastery level:', masteryLevel); // Debug log
+
+        // Update progress record
+        [progress] = await tx
+          .update(vocabularyProgress)
+          .set({
+            masteryLevel,
+            stepCompletion: updatedStepCompletion,
+            lastAttemptAt: sql`CURRENT_TIMESTAMP`
+          })
+          .where(
+            and(
+              eq(vocabularyProgress.userId, userId),
+              eq(vocabularyProgress.vocabularyId, vocabularyId)
+            )
+          )
+          .returning();
+
+        console.log('Updated progress:', progress); // Debug log
+
+        // Update user streak
+        await tx
+          .insert(userStreaks)
+          .values({
+            userId,
+            currentStreak: 1,
+            lastActivityAt: new Date()
+          })
+          .onConflictDoUpdate({
+            target: userStreaks.userId,
+            set: {
+              currentStreak: sql`
+                CASE
+                  WHEN date(${userStreaks.lastActivityAt}) = CURRENT_DATE - INTERVAL '1 day'
+                  THEN ${userStreaks.currentStreak} + 1
+                  WHEN date(${userStreaks.lastActivityAt}) < CURRENT_DATE - INTERVAL '1 day'
+                  THEN 1
+                  ELSE ${userStreaks.currentStreak}
+                END
+              `,
+              lastActivityAt: new Date(),
+              longestStreak: sql`
+                GREATEST(
+                  ${userStreaks.longestStreak},
+                  CASE
+                    WHEN date(${userStreaks.lastActivityAt}) = CURRENT_DATE - INTERVAL '1 day'
+                    THEN ${userStreaks.currentStreak} + 1
+                    WHEN date(${userStreaks.lastActivityAt}) < CURRENT_DATE - INTERVAL '1 day'
+                    THEN 1
+                    ELSE ${userStreaks.currentStreak}
+                  END
+                )
+              `
+            }
+          });
+      }
+
+      // Get daily progress
+      const [todayProgress] = await tx
+        .select({
+          dailyCount: sql<number>`
+            count(distinct case 
+              when date(${vocabularyAttempts.createdAt}) = CURRENT_DATE 
+              then ${vocabularyAttempts.vocabularyId} 
+            end)
+          `
+        })
+        .from(vocabularyAttempts)
+        .where(eq(vocabularyAttempts.userId, userId));
+
+      return {
+        attempt,
+        progress,
+        dailyProgress: todayProgress.dailyCount
+      };
+    });
+
+    console.log('Final result:', result); // Debug log
+    return NextResponse.json(result);
+
+  } catch (error) {
+    console.error('Error tracking attempt:', error);
+    return NextResponse.json(
+      { error: 'Failed to track attempt' },
+      { status: 500 }
+    );
+  }
 }

@@ -24,6 +24,7 @@ interface VocabularyCardProps {
   onTest: () => void;  // Added onTest prop
   hasNext: boolean;
   hasPrevious: boolean;
+  userId: string;  // Add userId to the interface
 }
 
 export const VocabularyCard = ({
@@ -33,6 +34,7 @@ export const VocabularyCard = ({
   onTest,  // Added to props destructuring
   hasNext,
   hasPrevious,
+  userId,  // Add userId prop
 }: VocabularyCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showTest, setShowTest] = useState(false);
@@ -59,6 +61,7 @@ export const VocabularyCard = ({
     return (
       <VocabularyTest
         word={word}
+        userId={userId}  // Pass userId
         onComplete={handleTestComplete}
         onClose={() => setShowTest(false)}
       />
