@@ -175,10 +175,8 @@ export default function VocabularyPage() {
           <div className="space-y-4">
             {!selectedCategory && (
               <>
-                <h2 className="text-lg font-semibold">Select a Category</h2>
-                
                 {/* Stats Cards */}
-                <div className="grid gap-4 mb-6">
+                <div className="grid  grid-cols-1 md:grid-cols-3  gap-4 mb-6">
                   <StatCard
                     icon={BookOpen}
                     label="Total Words"
@@ -209,9 +207,9 @@ export default function VocabularyPage() {
                     />
                   </div>
                 </div>
-
+                <h2 className="text-lg font-semibold">Select a Category</h2>
                 {/* Category Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
                   {categories.map((category) => (
                     <CategoryCard
                       key={category.id}
