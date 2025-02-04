@@ -1,4 +1,3 @@
-//src/app/api/vocabulary/track-attempt/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -16,17 +15,62 @@ interface StepCompletion {
   antonym: boolean;
 }
 
+// Define the expected request body type
+interface TrackAttemptRequest {
+  userId: string;
+  vocabularyId: number;
+  stepType: 'definition' | 'usage' | 'synonym' | 'antonym';
+  isSuccessful: boolean;
+  response?: string;
+  timeSpent?: number;
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await request.json() as TrackAttemptRequest;
     const { userId, vocabularyId, stepType, isSuccessful, response, timeSpent } = body;
 
-    console.log('Received attempt:', { userId, vocabularyId, stepType, isSuccessful }); // Debug log
+    console.log('Received attempt:', { userId, vocabularyId, stepType, isSuccessful });
 
-    if (!userId || !vocabularyId || !stepType) {
+    // Enhanced validation
+    if (!userId || userId.trim() === '') {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Invalid user ID - must be a non-empty string' },
         { status: 400 }
+      );
+    }
+
+    if (!vocabularyId || vocabularyId <= 0) {
+      return NextResponse.json(
+        { error: 'Invalid vocabulary ID - must be a positive number' },
+        { status: 400 }
+      );
+    }
+
+    if (!['definition', 'usage', 'synonym', 'antonym'].includes(stepType)) {
+      return NextResponse.json(
+        { error: 'Invalid step type - must be one of: definition, usage, synonym, antonym' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof isSuccessful !== 'boolean') {
+      return NextResponse.json(
+        { error: 'isSuccessful must be a boolean value' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the vocabulary item exists
+    const [vocabularyExists] = await db
+      .select({ id: vocabulary.id })
+      .from(vocabulary)
+      .where(eq(vocabulary.id, vocabularyId));
+
+    if (!vocabularyExists) {
+      return NextResponse.json(
+        { error: 'Vocabulary item not found' },
+        { status: 404 }
       );
     }
 
@@ -45,7 +89,7 @@ export async function POST(request: Request) {
         })
         .returning();
 
-      console.log('Recorded attempt:', attempt); // Debug log
+      console.log('Recorded attempt:', attempt);
 
       // Get or create progress record
       let [progress] = await tx
@@ -77,29 +121,19 @@ export async function POST(request: Request) {
           .returning();
       }
 
-      console.log('Current progress:', progress); // Debug log
-
       // Update progress if attempt was successful
       if (isSuccessful) {
-        // Ensure we have valid current step completion
         const currentStepCompletion = (progress.stepCompletion as StepCompletion) || defaultStepCompletion;
         
-        // Create updated step completion, preserving existing progress
         const updatedStepCompletion: StepCompletion = {
-          ...defaultStepCompletion, // Start with defaults
-          ...currentStepCompletion, // Override with current progress
-          [stepType]: true // Add new success
+          ...defaultStepCompletion,
+          ...currentStepCompletion,
+          [stepType]: true
         };
 
-        console.log('Updated step completion:', updatedStepCompletion); // Debug log
-
-        // Calculate new mastery level based on completed steps
         const completedSteps = Object.values(updatedStepCompletion).filter(Boolean).length;
         const masteryLevel = Math.round((completedSteps / 4) * 100);
 
-        console.log('New mastery level:', masteryLevel); // Debug log
-
-        // Update progress record
         [progress] = await tx
           .update(vocabularyProgress)
           .set({
@@ -114,8 +148,6 @@ export async function POST(request: Request) {
             )
           )
           .returning();
-
-        console.log('Updated progress:', progress); // Debug log
 
         // Update user streak
         await tx
@@ -174,7 +206,6 @@ export async function POST(request: Request) {
       };
     });
 
-    console.log('Final result:', result); // Debug log
     return NextResponse.json(result);
 
   } catch (error) {

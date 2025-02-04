@@ -11,6 +11,7 @@ import VocabularyTest from './components/VocabularyTest';
 import VocabularyMetricsDashboard from './components/VocabularyMetricsDashboard';
 import { BookOpen, BarChart, Award, Target } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
+import CategoryHome from './components/CategoryHome';
 
 
 interface AlphabetCategory {
@@ -225,8 +226,15 @@ export default function VocabularyPage() {
                 </div>
               </>
             )}
-
             {selectedCategory && (
+                <CategoryHome
+                  categoryId={selectedCategory}
+                  categoryLetter={categories.find(c => c.id === selectedCategory)?.letter || ''}
+                  userId={user.id}  // Add this
+                  onBack={() => setSelectedCategory(null)}
+                />
+              )}
+              {/* {selectedCategory && (
               <div className="space-y-6">
                 <button
                   onClick={() => setSelectedCategory(null)}
@@ -262,7 +270,7 @@ export default function VocabularyPage() {
                   />
                 )}
               </div>
-            )}
+            )} */}
           </div>
         </TabsContent>
 

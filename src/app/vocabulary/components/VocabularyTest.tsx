@@ -29,7 +29,7 @@ type TestStep = 'definition' | 'usage' | 'synonym' | 'antonym';
 
 const VocabularyTest: React.FC<Partial<TestProps>> = ({ 
   word={ id: 0, word: '', definition: '', synonyms: '', antonyms: '', partOfSpeech: '', sentence: '' },
-  userId = 0,
+  userId = '',
   onComplete = () => {}, 
   onClose = () => {} 
 }) => {
@@ -49,6 +49,15 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
   const steps: TestStep[] = ['definition', 'usage', 'synonym', 'antonym'];
   const currentStepIndex = steps.indexOf(currentStep);
 
+  
+  useEffect(() => {
+    // Validate userId on component mount
+    if (!userId) {
+      console.error('No userId provided to VocabularyTest component');
+      onClose(); // Close the test if no valid userId
+    }
+  }, [userId, onClose]);
+  
   useEffect(() => {
     setStartTime(new Date());
   }, [currentStep]);
