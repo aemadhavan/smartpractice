@@ -306,11 +306,17 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardContent className="p-6">
-        <div className="w-full h-2 bg-gray-200 rounded-full mb-6">
-          <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-300"
-            style={{ width: `${getProgress()}%` }}
-          />
+        <div className="flex w-full gap-1 mb-6">
+          {steps.map((step, index) => (
+            <div 
+              key={step}
+              className={`h-2 flex-1 rounded-full ${
+                index <= currentStepIndex 
+                  ? 'bg-blue-500' 
+                  : 'bg-gray-200'
+              }`}
+            />
+          ))}
         </div>
 
         <div className="space-y-4">

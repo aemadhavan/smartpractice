@@ -1,4 +1,4 @@
-//import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Container from "./Container";
 import Link from "next/link";
 import Image from "next/image";
@@ -12,17 +12,17 @@ export default function Header() {
             <Link href="/">
               <Image src="/sp-logo-1.png" alt="Logo" width={130} height={130} />
             </Link>                    
-            {/* <SignedIn>                        
-            </SignedIn> */}
+            <SignedIn>                        
+            </SignedIn> 
           </div>                
           <div className="flex justify-between">
-            <div className="text-gray-500 bolder text-sm">Sign in (coming soon)</div>
-            {/* <SignedOut>
+            {/* <div className="text-gray-500 bolder text-sm">Sign in (coming soon)</div> */}
+            <SignedOut>
                 <SignInButton  />
             </SignedOut>
             <SignedIn>
                 <UserButton />
-            </SignedIn> */}
+            </SignedIn> 
           </div>                
         </div>
       </Container>

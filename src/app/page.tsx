@@ -15,7 +15,9 @@
 //import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster";
 import Container from '@/components/Container';
-import WaitlistSignup from '@/components/waitlist-signup';
+//import WaitlistSignup from '@/components/waitlist-signup';
+//import VocabularyHome from "@/components/PracticeAreas";
+import PracticeAreas from "@/components/PracticeAreas";
 
 export default function Home() {
   //const [loading, setLoading] = useState(false);
@@ -60,7 +62,8 @@ export default function Home() {
   return (
     <Container>
       <div className="space-y-6">
-        <WaitlistSignup/>
+        <PracticeAreas/>
+         {/* <WaitlistSignup/>  */}
         {/* <Card>
           <CardHeader>
             <CardTitle>Generate Questions</CardTitle>

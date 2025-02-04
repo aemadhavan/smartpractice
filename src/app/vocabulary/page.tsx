@@ -166,10 +166,10 @@ export default function VocabularyPage() {
             <BookOpen className="h-4 w-4" />
             Practice
           </TabsTrigger>
-          <TabsTrigger value="progress" className="flex items-center gap-2">
+          {/* <TabsTrigger value="progress" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
             Progress
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="practice" className="space-y-6">
@@ -274,9 +274,9 @@ export default function VocabularyPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="progress">
+        {/* <TabsContent value="progress">
           <VocabularyMetricsDashboard userId={user.id} />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );
