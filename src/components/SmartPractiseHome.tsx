@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Clock, Lock, BookOpen, Brain, Zap, RefreshCw } from 'lucide-react';
+import { ArrowRight, Sparkles, Clock, Lock, Brain, Zap, RefreshCw } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 
 const SmartPractiseHome = () => {

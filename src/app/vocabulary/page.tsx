@@ -3,13 +3,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { VocabularyCard } from './components/VocabularyCard';
-import VocabularyTest from './components/VocabularyTest';
-import VocabularyMetricsDashboard from './components/VocabularyMetricsDashboard';
-import { BookOpen, BarChart, Award, Target } from 'lucide-react';
+import { BookOpen, Award, Target, LucideIcon } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
 import CategoryHome from './components/CategoryHome';
 
@@ -24,15 +20,15 @@ interface AlphabetCategory {
   status: 'success' | 'warning' | 'error';  // Added status property
 }
 
-interface VocabularyWord {
-  id: number;
-  word: string;
-  definition: string;
-  synonyms: string;
-  antonyms: string;
-  partOfSpeech: string;
-  sentence: string;
-}
+// interface VocabularyWord {
+//   id: number;
+//   word: string;
+//   definition: string;
+//   synonyms: string;
+//   antonyms: string;
+//   partOfSpeech: string;
+//   sentence: string;
+// }
 
 interface Stats {
   totalWords: number;
@@ -41,8 +37,14 @@ interface Stats {
   dailyProgress: number;
   currentStreak: number;
 }
-
-const StatCard = ({ icon: Icon, label, value, bgColor, textColor }: any) => (
+interface StatCardProps {
+  icon: LucideIcon;
+  label: string;
+  value: number | string;
+  bgColor: string;
+  textColor: string;
+}
+const StatCard = ({ icon: Icon, label, value, bgColor, textColor }: StatCardProps) => (
   <div className={`p-4 rounded-lg ${bgColor}`}>
     <div className="flex items-center gap-3">
       <Icon className={`h-5 w-5 ${textColor}`} />
@@ -58,11 +60,11 @@ export default function VocabularyPage() {
   const { user, isLoaded } = useUser();
   const [categories, setCategories] = useState<AlphabetCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [vocabularies, setVocabularies] = useState<VocabularyWord[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  //const [vocabularies, setVocabularies] = useState<VocabularyWord[]>([]);
+  //const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingVocabulary, setLoadingVocabulary] = useState(false);
-  const [showTest, setShowTest] = useState(false);
+  //const [loadingVocabulary, setLoadingVocabulary] = useState(false);
+  //const [showTest, setShowTest] = useState(false);
   const [stats, setStats] = useState<Stats>({
     totalWords: 0,
     masteredWords: 0,
@@ -103,42 +105,14 @@ export default function VocabularyPage() {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    async function fetchVocabularies() {
-      if (selectedCategory === null) {
-        setVocabularies([]);
-        return;
-      }
-      
-      try {
-        setLoadingVocabulary(true);
-        const response = await fetch(`/api/vocabulary/${selectedCategory}`);
-        const data = await response.json();
-        
-        if (Array.isArray(data.words) && data.words.length > 0) {
-          setVocabularies(data.words);
-          setCurrentIndex(0);
-        } else {
-          setVocabularies([]);
-        }
-      } catch (error) {
-        console.error('Error fetching vocabularies:', error);
-        setVocabularies([]);
-      } finally {
-        setLoadingVocabulary(false);
-      }
-    }
-
-    fetchVocabularies();
-  }, [selectedCategory]);
-  
-  const handleTestComplete = useCallback(async () => {
-    setShowTest(false);
-    await fetchData(); // Refresh data after test completion
-    if (currentIndex < vocabularies.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  }, [currentIndex, vocabularies.length, fetchData]);
+ 
+  // const handleTestComplete = useCallback(async () => {
+  //   setShowTest(false);
+  //   await fetchData(); // Refresh data after test completion
+  //   if (currentIndex < vocabularies.length - 1) {
+  //     setCurrentIndex(currentIndex + 1);
+  //   }
+  // }, [currentIndex, vocabularies.length, fetchData]);
   
   if (!isLoaded || loading) {
     return (

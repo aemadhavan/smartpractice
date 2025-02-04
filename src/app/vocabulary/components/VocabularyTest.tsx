@@ -62,63 +62,63 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
     setStartTime(new Date());
   }, [currentStep]);
 
-  const trackAttempt = async (step: TestStep, isSuccessful: boolean) => {
-    try {
-      const timeSpent = Math.round((new Date().getTime() - startTime.getTime()) / 1000);
+  // const trackAttempt = async (step: TestStep, isSuccessful: boolean) => {
+  //   try {
+  //     const timeSpent = Math.round((new Date().getTime() - startTime.getTime()) / 1000);
       
-      const response = await fetch('/api/vocabulary/track-attempt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,      // Add userId to the payload
-          vocabularyId: word.id,
-          stepType: step,
-          isSuccessful,
-          response: answers[step],
-          timeSpent,
-        }),
-      });
+  //     const response = await fetch('/api/vocabulary/track-attempt', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         userId,      // Add userId to the payload
+  //         vocabularyId: word.id,
+  //         stepType: step,
+  //         isSuccessful,
+  //         response: answers[step],
+  //         timeSpent,
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to track attempt');
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || 'Failed to track attempt');
+  //     }
 
-      // If successful, update mastery
-      if (isSuccessful) {
-        await updateMasteryProgress(step, isSuccessful);
-      }
-    } catch (error) {
-      console.error('Error tracking attempt:', error);
-      setError('Failed to save progress. Please try again.');
-    }
-  };
+  //     // If successful, update mastery
+  //     if (isSuccessful) {
+  //       await updateMasteryProgress(step, isSuccessful);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error tracking attempt:', error);
+  //     setError('Failed to save progress. Please try again.');
+  //   }
+  // };
 
-  const updateMasteryProgress = async (step: TestStep, isSuccessful: boolean) => {
-    try {
-      const response = await fetch('/api/vocabulary/update-mastery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,        // Add userId to the payload
-          vocabularyId: word.id,
-          stepType: step,
-          isSuccessful
-        }),
-      });
+  // const updateMasteryProgress = async (step: TestStep, isSuccessful: boolean) => {
+  //   try {
+  //     const response = await fetch('/api/vocabulary/update-mastery', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         userId,        // Add userId to the payload
+  //         vocabularyId: word.id,
+  //         stepType: step,
+  //         isSuccessful
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update mastery');
-      }
-    } catch (error) {
-      console.error('Error updating mastery:', error);
-    }
-  };
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || 'Failed to update mastery');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error updating mastery:', error);
+  //   }
+  // };
 
   const updateStreak = async () => {
     try {
@@ -186,7 +186,7 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
         if (validSynonyms.length === 0) {
           setError('No synonyms available for this word.');
         } else if (!validSynonyms.includes(answer.toLowerCase().trim())) {
-          setError('That\'s not a correct synonym. Try another word.');
+          setError('That&apos;s not a correct synonym. Try another word.');
         } else {
           isValid = true;
         }
@@ -197,7 +197,7 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
         if (validAntonyms.length === 0) {
           setError('No antonyms available for this word.');
         } else if (!validAntonyms.includes(answer.toLowerCase().trim())) {
-          setError('That\'s not a correct antonym. Try another word.');
+          setError('That&apos;s not a correct antonym. Try another word.');
         } else {
           isValid = true;
         }
@@ -256,9 +256,9 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
     }
   };
 
-  const getProgress = () => {
-    return ((currentStepIndex + 1) / steps.length) * 100;
-  };
+  // const getProgress = () => {
+  //   return ((currentStepIndex + 1) / steps.length) * 100;
+  // };
 
   const renderInput = () => {
     if (currentStep === 'definition' || currentStep === 'usage') {
@@ -296,7 +296,7 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
           <Trophy className="h-16 w-16 mx-auto text-yellow-500 mb-4" />
           <h2 className="text-2xl font-bold mb-2">Congratulations!</h2>
           <p className="text-gray-600">
-            You've successfully completed all exercises for "{word.word}"
+            You have successfully completed all exercises for  &quot;{word.word} &quot;
           </p>
         </CardContent>
       </Card>

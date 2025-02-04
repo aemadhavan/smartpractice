@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Clock, Play, Volume2 } from "lucide-react";
+import { CheckCircle, Clock, LucideIcon, Play, Volume2 } from "lucide-react";
 import { VocabularyCard } from "./VocabularyCard";
 import VocabularyTest from "./VocabularyTest";
 
@@ -42,8 +42,25 @@ interface WordCardProps {
   onPractice: (word: WordEntry) => void;
   onPronounce: (word: string) => void;
 }
+interface StatsCardProps {
+  title: string;
+  count: number;
+  icon: LucideIcon;
+  color: string;
+}
+interface VocabularyWordDetails {
+  id: number;
+  word: string;
+  definition: string;
+  synonyms: string;
+  antonyms: string;
+  partOfSpeech: string;
+  sentence: string;
+  difficultyLevel?: string;
+  masteryLevel?: number;
+}
 
-const StatsCard = ({ title, count, icon: Icon, color }: any) => (
+const StatsCard = ({ title, count, icon: Icon, color }: StatsCardProps) => (
   <Card className="bg-white p-6">
     <div className="space-y-2">
       <h3 className="text-lg text-gray-600">{title}</h3>
@@ -54,6 +71,7 @@ const StatsCard = ({ title, count, icon: Icon, color }: any) => (
     </div>
   </Card>
 );
+
 
 const WordCard = ({ word, onPractice, onPronounce }: WordCardProps) => {
   const getDifficultyColor = (difficulty: string) => {
@@ -127,7 +145,7 @@ const CategoryHome = ({
     toStartCount: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [selectedWord, setSelectedWord] = useState<any>(null);
+  const [selectedWord, setSelectedWord] = useState<VocabularyWordDetails | null>(null);
   const [showTest, setShowTest] = useState(false);
 
   const fetchCategoryData = useCallback(async () => {
@@ -249,7 +267,7 @@ const CategoryHome = ({
         <button onClick={onBack} className="text-blue-600 hover:underline mb-4">
           ← Back to categories
         </button>
-        <h1 className="text-3xl font-bold">Category '{categoryLetter}'</h1>
+        <h1 className="text-3xl font-bold">Category &apos;{categoryLetter}&apos;</h1>
         <p className="text-gray-600 mt-2">{stats.totalWords} words to learn</p>
       </div>
 

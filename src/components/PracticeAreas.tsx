@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Clock, Lock, Check, Bell, Star, Zap, RefreshCw } from 'lucide-react';
+import { ArrowRight, Sparkles, Clock, Lock, Bell, Star, Zap, RefreshCw } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 
 const PracticeAreas = () => {
