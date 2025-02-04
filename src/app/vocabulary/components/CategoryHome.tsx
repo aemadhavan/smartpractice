@@ -1,18 +1,18 @@
 //src/app/vocabulary/components/CategoryHome.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Clock, Play, Volume2 } from 'lucide-react';
-import { VocabularyCard } from './VocabularyCard';
-import VocabularyTest from './VocabularyTest';
+import React, { useState, useEffect, useCallback } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { CheckCircle, Clock, Play, Volume2 } from "lucide-react";
+import { VocabularyCard } from "./VocabularyCard";
+import VocabularyTest from "./VocabularyTest";
 
 interface WordEntry {
   id: number;
   word: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  status: 'Mastered' | 'Learning' | 'To Start';
+  difficulty: "Easy" | "Medium" | "Hard";
+  status: "Mastered" | "Learning" | "To Start";
   progress: number;
 }
 
@@ -26,7 +26,7 @@ interface CategoryStats {
 interface CategoryHomeProps {
   categoryId: number;
   categoryLetter: string;
-  userId: string;  // Add this to the interface
+  userId: string; // Add this to the interface
   onBack: () => void;
 }
 
@@ -58,10 +58,14 @@ const StatsCard = ({ title, count, icon: Icon, color }: any) => (
 const WordCard = ({ word, onPractice, onPronounce }: WordCardProps) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
-      case 'easy': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "easy":
+        return "bg-green-100 text-green-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "hard":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -80,34 +84,47 @@ const WordCard = ({ word, onPractice, onPronounce }: WordCardProps) => {
               <Volume2 className="h-4 w-4" />
             </Button>
           </div>
-          <span className={`inline-block px-2 py-1 rounded-full text-sm mt-2 ${getDifficultyColor(word.difficulty)}`}>
+          <span
+            className={`inline-block px-2 py-1 rounded-full text-sm mt-2 ${getDifficultyColor(word.difficulty)}`}
+          >
             {word.difficulty}
           </span>
         </div>
-        {word.status === 'Mastered' && <CheckCircle className="h-5 w-5 text-green-500" />}
-        {word.status === 'Learning' && <Clock className="h-5 w-5 text-yellow-500" />}
-        {word.status === 'To Start' && <Play className="h-5 w-5 text-blue-500" />}
+        {word.status === "Mastered" && (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        )}
+        {word.status === "Learning" && (
+          <Clock className="h-5 w-5 text-yellow-500" />
+        )}
+        {word.status === "To Start" && (
+          <Play className="h-5 w-5 text-blue-500" />
+        )}
       </div>
       <Progress value={word.progress} className="h-2 mb-4" />
-      <Button 
+      <Button
         className="w-full"
-        variant={word.status === 'Mastered' ? 'outline' : 'default'}
+        variant={word.status === "Mastered" ? "outline" : "default"}
         onClick={() => onPractice(word)}
       >
-        {word.status === 'Mastered' ? 'Review' : 'Practice'}
+        {word.status === "Mastered" ? "Review" : "Practice"}
       </Button>
     </Card>
   );
 };
 
-const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHomeProps) => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+const CategoryHome = ({
+  categoryId,
+  categoryLetter,
+  userId,
+  onBack,
+}: CategoryHomeProps) => {
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [words, setWords] = useState<WordEntry[]>([]);
   const [stats, setStats] = useState<CategoryStats>({
     totalWords: 0,
     masteredCount: 0,
     learningCount: 0,
-    toStartCount: 0
+    toStartCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [selectedWord, setSelectedWord] = useState<any>(null);
@@ -116,29 +133,38 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
   const fetchCategoryData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/vocabulary/${categoryId}?userId=${userId}`);
+      const response = await fetch(
+        `/api/vocabulary/${categoryId}?userId=${userId}`
+      );
       const data = await response.json();
-      
-      const transformedWords = data.words.map((word: ApiWord): WordEntry => ({
-        id: word.id,
-        word: word.word,
-        difficulty: word.difficultyLevel as 'Easy' | 'Medium' | 'Hard' || 'Medium',
-        status: determineStatus(word.masteryLevel || 0),
-        progress: word.masteryLevel || 0
-      }));
 
-      const masteredCount = transformedWords.filter((w: WordEntry) => w.status === 'Mastered').length;
-      const learningCount = transformedWords.filter((w: WordEntry) => w.status === 'Learning').length;
-      
+      const transformedWords = data.words.map(
+        (word: ApiWord): WordEntry => ({
+          id: word.id,
+          word: word.word,
+          difficulty:
+            (word.difficultyLevel as "Easy" | "Medium" | "Hard") || "Medium",
+          status: determineStatus(word.masteryLevel || 0),
+          progress: word.masteryLevel || 0,
+        })
+      );
+
+      const masteredCount = transformedWords.filter(
+        (w: WordEntry) => w.status === "Mastered"
+      ).length;
+      const learningCount = transformedWords.filter(
+        (w: WordEntry) => w.status === "Learning"
+      ).length;
+
       setWords(transformedWords);
       setStats({
         totalWords: transformedWords.length,
         masteredCount,
         learningCount,
-        toStartCount: transformedWords.length - (masteredCount + learningCount)
+        toStartCount: transformedWords.length - (masteredCount + learningCount),
       });
     } catch (error) {
-      console.error('Error fetching category data:', error);
+      console.error("Error fetching category data:", error);
     } finally {
       setLoading(false);
     }
@@ -148,10 +174,12 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
     fetchCategoryData();
   }, [fetchCategoryData]);
 
-  const determineStatus = (masteryLevel: number): 'Mastered' | 'Learning' | 'To Start' => {
-    if (masteryLevel >= 80) return 'Mastered';
-    if (masteryLevel > 0) return 'Learning';
-    return 'To Start';
+  const determineStatus = (
+    masteryLevel: number
+  ): "Mastered" | "Learning" | "To Start" => {
+    if (masteryLevel >= 80) return "Mastered";
+    if (masteryLevel > 0) return "Learning";
+    return "To Start";
   };
 
   const handlePronunciation = (word: string) => {
@@ -162,18 +190,20 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
 
   const handlePractice = async (word: WordEntry) => {
     try {
-      const response = await fetch(`/api/vocabulary/${categoryId}/${word.id}?userId=${userId}`);
+      const response = await fetch(
+        `/api/vocabulary/${categoryId}/${word.id}?userId=${userId}`
+      );
       const data = await response.json();
       setSelectedWord(data.word);
     } catch (error) {
-      console.error('Error fetching word details:', error);
+      console.error("Error fetching word details:", error);
     }
   };
 
   const handleTestComplete = async () => {
     setShowTest(false);
     setSelectedWord(null);
-    await fetchCategoryData();  // Refresh the word list
+    await fetchCategoryData(); // Refresh the word list
   };
 
   if (loading) {
@@ -202,8 +232,8 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
           <VocabularyCard
             word={selectedWord}
             userId={userId}
-            onNext={() => { }}
-            onPrevious={() => { }}
+            onNext={() => {}}
+            onPrevious={() => {}}
             onTest={() => setShowTest(true)}
             hasNext={false}
             hasPrevious={false}
@@ -212,7 +242,7 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
       </div>
     );
   }
-
+  /* lint */
   return (
     <div className="space-y-6">
       <div>
@@ -224,34 +254,34 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button 
-          variant={viewMode === 'grid' ? 'default' : 'outline'} 
-          onClick={() => setViewMode('grid')}
+        <Button
+          variant={viewMode === "grid" ? "default" : "outline"}
+          onClick={() => setViewMode("grid")}
         >
           Grid
         </Button>
-        <Button 
-          variant={viewMode === 'list' ? 'default' : 'outline'} 
-          onClick={() => setViewMode('list')}
+        <Button
+          variant={viewMode === "list" ? "default" : "outline"}
+          onClick={() => setViewMode("list")}
         >
           List
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatsCard 
+        <StatsCard
           title="Mastered"
           count={stats.masteredCount}
           icon={CheckCircle}
           color="text-green-500"
         />
-        <StatsCard 
+        <StatsCard
           title="Learning"
           count={stats.learningCount}
           icon={Clock}
           color="text-yellow-500"
         />
-        <StatsCard 
+        <StatsCard
           title="To Start"
           count={stats.toStartCount}
           icon={Play}
@@ -259,13 +289,15 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
         />
       </div>
 
-      <div className={`grid ${
-        viewMode === 'grid' 
-          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-          : 'grid-cols-1'
-      } gap-4`}>
+      <div
+        className={`grid ${
+          viewMode === "grid"
+            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            : "grid-cols-1"
+        } gap-4`}
+      >
         {words.map((word) => (
-          <WordCard 
+          <WordCard
             key={word.id}
             word={word}
             onPractice={handlePractice}
@@ -278,4 +310,3 @@ const CategoryHome = ({ categoryId, categoryLetter, userId, onBack }: CategoryHo
 };
 
 export default CategoryHome;
-
