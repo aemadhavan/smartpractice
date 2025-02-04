@@ -1,7 +1,7 @@
 //src/app/api/vocabulary/metrics/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { and, eq, sql, gt, not, isNull } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { 
   vocabularyProgress,
   vocabulary,
