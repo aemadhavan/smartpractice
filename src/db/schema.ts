@@ -92,12 +92,12 @@ export const waitlist = pgTable('waitlist', {
 export const vocabulary = pgTable('vocabulary', {
     id: serial('id').primaryKey(),
     word: text('word').notNull(),
+    phonetics: text('phonetics'),
     definition: text('definition').notNull(),
     synonyms: text('synonyms'),//.notNull(),
     antonyms: text('antonyms'),//.notNull(),
     partOfSpeech: text('part_of_speech').notNull(),
     sentence: text('sentence'),
-
     categoryId: integer('category_id').references(() => alphabetCategories.id),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

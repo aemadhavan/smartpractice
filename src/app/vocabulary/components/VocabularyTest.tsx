@@ -155,6 +155,10 @@ const VocabularyTest: React.FC<Partial<TestProps>> = ({
     let isValid = false;
     switch (step) {
       case 'definition':
+        if (!word.definition) {
+          setError('No definition available for this word.');
+          return false;
+        }
         const keyWords = word.definition
           .toLowerCase()
           .split(' ')
