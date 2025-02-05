@@ -263,14 +263,35 @@ const CategoryHome = ({
   /* lint */
   return (
     <div className="space-y-6">
-      <div>
-        <button onClick={onBack} className="text-blue-600 hover:underline mb-4">
-          ← Back to categories
-        </button>
-        <h1 className="text-3xl font-bold">Category &apos;{categoryLetter}&apos;</h1>
-        <p className="text-gray-600 mt-2">{stats.totalWords} words to learn</p>
+      <div className="flex justify-between items-start">  
+        <div>
+          <button onClick={onBack} className="text-blue-600 hover:underline mb-4">
+            ← Back to categories
+          </button>
+          <h1 className="text-3xl font-bold">Category &apos;{categoryLetter}&apos;</h1>
+          <p className="text-gray-600 mt-2">{stats.totalWords} words to learn</p>
+        </div>
+        <div  className="flex gap-3">
+          <StatsCard
+            title="Mastered"
+            count={stats.masteredCount}
+            icon={CheckCircle}
+            color="text-green-500"
+          />
+          <StatsCard
+            title="Learning"
+            count={stats.learningCount}
+            icon={Clock}
+            color="text-yellow-500"
+          />
+          <StatsCard
+            title="To Start"
+            count={stats.toStartCount}
+            icon={Play}
+            color="text-blue-500"
+          />
+        </div>
       </div>
-
       <div className="flex justify-end gap-2">
         <Button
           variant={viewMode === "grid" ? "default" : "outline"}
@@ -285,32 +306,10 @@ const CategoryHome = ({
           List
         </Button>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatsCard
-          title="Mastered"
-          count={stats.masteredCount}
-          icon={CheckCircle}
-          color="text-green-500"
-        />
-        <StatsCard
-          title="Learning"
-          count={stats.learningCount}
-          icon={Clock}
-          color="text-yellow-500"
-        />
-        <StatsCard
-          title="To Start"
-          count={stats.toStartCount}
-          icon={Play}
-          color="text-blue-500"
-        />
-      </div>
-
       <div
         className={`grid ${
           viewMode === "grid"
-            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-5"
             : "grid-cols-1"
         } gap-4`}
       >
