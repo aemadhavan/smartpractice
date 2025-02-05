@@ -1,10 +1,15 @@
 'use client';
 import React, { useEffect } from 'react';
 
+// Define a type for an empty object
+type EmptyObject = {
+  [key: string]: never; // Represents an object with no properties
+};
+
 // Extend the Window interface to include adsbygoogle
 declare global {
   interface Window {
-    adsbygoogle?: {}[]; // Array of objects
+    adsbygoogle?: EmptyObject[]; // Array of empty objects
   }
 }
 
@@ -25,7 +30,7 @@ const AdBanner: React.FC<AdBannerProps> = ({
     // Safely initialize adsbygoogle
     if (typeof window !== 'undefined') {
       window.adsbygoogle = window.adsbygoogle || [];
-      window.adsbygoogle.push({}); // Push an empty object
+      window.adsbygoogle.push({} as EmptyObject); // Push an empty object
     }
   }, []);
 
