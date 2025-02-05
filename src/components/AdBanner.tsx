@@ -1,18 +1,34 @@
-import React from "react";
+'use client';
+
+import React, { useEffect } from "react";
 
 type AdBannerTypes = {
     adSense: string;
+    dataadslot: string;
+    dataadformat: string;
+    datafullwidthresponsive: boolean;
 };
 
-const AdBanner = ({ adSense }: AdBannerTypes) => {
+const AdBanner = ({ adSense,dataadslot,dataadformat,datafullwidthresponsive }: AdBannerTypes) => {
+
+    useEffect(() => {
+        try {
+          ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push(
+            {}
+          );
+        } catch (error: any) {
+          console.log(error.message);
+        }
+      }, []);
+    
     return (
         <div>
             <ins className="adsbygoogle"
                 style={{ display: 'block' }}
                 data-ad-client={adSense}
-                data-ad-slot="7806394673"
-                data-ad-format="auto"
-                data-full-width-responsive="true">
+                data-ad-slot={dataadslot}
+                data-ad-format={dataadformat}
+                data-full-width-responsive={datafullwidthresponsive.toString()}>
             </ins>
         </div>
     );

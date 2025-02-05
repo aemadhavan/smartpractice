@@ -19,6 +19,7 @@ import Container from '@/components/Container';
 //import VocabularyHome from "@/components/PracticeAreas";
 //import PracticeAreas from "@/components/PracticeAreas";
 import SmartPractiseHome from "@/components/SmartPractiseHome";
+import AdBanner from "@/components/AdBanner";
 
 export default function Home() {
   //const [loading, setLoading] = useState(false);
@@ -64,6 +65,12 @@ export default function Home() {
     <Container>
       <div className="space-y-6">
         <SmartPractiseHome/>
+        <AdBanner 
+            adSense="ca-pub-2425712839519303" 
+            dataadformat="auto" 
+            datafullwidthresponsive={true} 
+            dataadslot="6530624066" />
+
          {/* <WaitlistSignup/>  */}
         {/* <Card>
           <CardHeader>
