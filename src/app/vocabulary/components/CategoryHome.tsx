@@ -1,4 +1,4 @@
-//src/app/vocabulary/components/CategoryHome.tsx
+// src/app/vocabulary/components/CategoryHome.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle, Clock, LucideIcon, Play, Volume2 } from "lucide-react";
 import { VocabularyCard } from "./VocabularyCard";
 import VocabularyTest from "./VocabularyTest";
+import Flashcard from "./FlashCard";
 
 interface WordEntry {
   id: number;
@@ -26,7 +27,7 @@ interface CategoryStats {
 interface CategoryHomeProps {
   categoryId: number;
   categoryLetter: string;
-  userId: string; // Add this to the interface
+  userId: string;
   onBack: () => void;
 }
 
@@ -42,12 +43,14 @@ interface WordCardProps {
   onPractice: (word: WordEntry) => void;
   onPronounce: (word: string) => void;
 }
+
 interface StatsCardProps {
   title: string;
   count: number;
   icon: LucideIcon;
   color: string;
 }
+
 interface VocabularyWordDetails {
   id: number;
   word: string;
@@ -56,6 +59,8 @@ interface VocabularyWordDetails {
   antonyms: string;
   partOfSpeech: string;
   sentence: string;
+  difficulty: string;
+  status: string;
   difficultyLevel?: string;
   masteryLevel?: number;
 }
@@ -71,7 +76,6 @@ const StatsCard = ({ title, count, icon: Icon, color }: StatsCardProps) => (
     </div>
   </Card>
 );
-
 
 const WordCard = ({ word, onPractice, onPronounce }: WordCardProps) => {
   const getDifficultyColor = (difficulty: string) => {
@@ -145,8 +149,40 @@ const CategoryHome = ({
     toStartCount: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [flashcardsLoading, setFlashcardsLoading] = useState(false);
   const [selectedWord, setSelectedWord] = useState<VocabularyWordDetails | null>(null);
   const [showTest, setShowTest] = useState(false);
+  const [showFlashcards, setShowFlashcards] = useState(false);
+  const [flashcardWords, setFlashcardWords] = useState<VocabularyWordDetails[]>([]);
+
+  const fetchFlashcardData = async () => {
+    try {
+      setFlashcardsLoading(true);
+      const promises = words.map(word => 
+        fetch(`/api/vocabulary/${categoryId}/${word.id}?userId=${userId}`)
+          .then(res => res.json())
+          .then(data => {
+            const status = determineStatus(data.word.masteryLevel || 0);
+            const difficulty = data.word.difficultyLevel || "Medium";
+            return {
+              ...data.word,
+              difficulty,
+              status,
+              definition: data.word.definition || "",
+              synonyms: data.word.synonyms || "",
+              antonyms: data.word.antonyms || "",
+            };
+          })
+      );
+      const wordDetails = await Promise.all(promises);
+      setFlashcardWords(wordDetails);
+      setShowFlashcards(true);
+    } catch (error) {
+      console.error("Error fetching flashcard details:", error);
+    } finally {
+      setFlashcardsLoading(false);
+    }
+  };
 
   const fetchCategoryData = useCallback(async () => {
     try {
@@ -260,7 +296,7 @@ const CategoryHome = ({
       </div>
     );
   }
-  /* lint */
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">  
@@ -271,27 +307,62 @@ const CategoryHome = ({
           <h1 className="text-3xl font-bold">Category &apos;{categoryLetter}&apos;</h1>
           <p className="text-gray-600 mt-2">{stats.totalWords} words to learn</p>
         </div>
-        <div  className="flex gap-3">
-          <StatsCard
-            title="Mastered"
-            count={stats.masteredCount}
-            icon={CheckCircle}
-            color="text-green-500"
-          />
-          <StatsCard
-            title="Learning"
-            count={stats.learningCount}
-            icon={Clock}
-            color="text-yellow-500"
-          />
-          <StatsCard
-            title="To Start"
-            count={stats.toStartCount}
-            icon={Play}
-            color="text-blue-500"
-          />
+        <div className="flex items-start gap-3">
+          <div className="flex gap-3">
+            <StatsCard
+              title="Mastered"
+              count={stats.masteredCount}
+              icon={CheckCircle}
+              color="text-green-500"
+            />
+            <StatsCard
+              title="Learning"
+              count={stats.learningCount}
+              icon={Clock}
+              color="text-yellow-500"
+            />
+            <StatsCard
+              title="To Start"
+              count={stats.toStartCount}
+              icon={Play}
+              color="text-blue-500"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => fetchFlashcardData()}
+            className="px-4 h-10 ml-3"
+            disabled={flashcardsLoading}
+          >
+            {flashcardsLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-b-transparent border-white rounded-full animate-spin"></div>
+                Loading...
+              </div>
+            ) : (
+              "Flashcards"
+            )}
+          </Button>
         </div>
       </div>
+      
+      {flashcardsLoading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-white/80 z-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-b-transparent border-blue-600 rounded-full animate-spin"></div>
+            <p className="text-lg text-gray-600">Loading flashcards...</p>
+          </div>
+        </div>
+      )}
+      
+      {showFlashcards && flashcardWords.length > 0 && !flashcardsLoading && (
+        <Flashcard
+          words={flashcardWords}
+          onClose={() => setShowFlashcards(false)}
+          onPronounce={handlePronunciation}
+        />
+      )}
+
       <div className="flex justify-end gap-2">
         <Button
           variant={viewMode === "grid" ? "default" : "outline"}
@@ -306,6 +377,7 @@ const CategoryHome = ({
           List
         </Button>
       </div>
+
       <div
         className={`grid ${
           viewMode === "grid"
