@@ -36,6 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <AdSense adSense="pub-2425712839519303" />
+        <meta name="google-adsense-account" content="ca-pub-2425712839519303"></meta>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
