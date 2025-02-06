@@ -271,15 +271,37 @@ const CategoryHome = ({
     window.speechSynthesis.speak(utterance);
   };
 
+  const [selectedWordIndex, setSelectedWordIndex] = useState<number>(-1);
+
   const handlePractice = async (word: WordEntry) => {
     try {
       const response = await fetch(
-        `/api/vocabulary/${categoryId}/${word.id}?userId=${userId}`
+        `/api/vocabulary/${categoryId}/${word.id}`
       );
       const data = await response.json();
-      setSelectedWord(data.word);
+      const index = words.findIndex(w => w.id === word.id);
+      setSelectedWordIndex(index);
+      
+      // Add difficulty and status to the word details
+      setSelectedWord({
+        ...data.word,
+        difficulty: word.difficulty,
+        status: word.status
+      });
     } catch (error) {
       console.error("Error fetching word details:", error);
+    }
+  };
+
+  const handleNextWord = async () => {
+    if (selectedWordIndex < words.length - 1) {
+      await handlePractice(words[selectedWordIndex + 1]);
+    }
+  };
+
+  const handlePreviousWord = async () => {
+    if (selectedWordIndex > 0) {
+      await handlePractice(words[selectedWordIndex - 1]);
     }
   };
 
@@ -315,11 +337,11 @@ const CategoryHome = ({
           <VocabularyCard
             word={selectedWord}
             userId={userId}
-            onNext={() => {}}
-            onPrevious={() => {}}
+            onNext={handleNextWord}
+            onPrevious={handlePreviousWord}
             onTest={() => setShowTest(true)}
-            hasNext={false}
-            hasPrevious={false}
+            hasNext={selectedWordIndex < words.length - 1}
+            hasPrevious={selectedWordIndex > 0}
           />
         )}
       </div>

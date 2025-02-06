@@ -1,7 +1,4 @@
-import {
-  ClerkProvider,
- 
-} from '@clerk/nextjs'
+import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -31,26 +28,26 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const adSenseId = "pub-2425712839519303";
+  
   return (
     <ClerkProvider>
-    <html lang="en">
-      <head>
-        <AdSense adSense="pub-2425712839519303" />
-        <meta name="google-adsense-account" content="ca-pub-2425712839519303"></meta>
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Suspense fallback={null}>
+      <html lang="en">
+        <head>
+          <AdSense adSense={adSenseId} />
+          <meta name="google-adsense-account" content={`ca-${adSenseId}`} />
+        </head>
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <Suspense fallback={null}>
             {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
               <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
             )}
           </Suspense>
-        <Header/>
-        {children}
-        <Footer/>
-      </body>
-    </html>
+          <Header />
+          {children}
+          <Footer />
+        </body>
+      </html>
     </ClerkProvider>
   );
 }

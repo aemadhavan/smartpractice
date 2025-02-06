@@ -1,15 +1,15 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 // Define a type for an empty object
 type EmptyObject = {
-  [key: string]: never; // Represents an object with no properties
+  [key: string]: never;
 };
 
 // Extend the Window interface to include adsbygoogle
 declare global {
   interface Window {
-    adsbygoogle?: EmptyObject[]; // Array of empty objects
+    adsbygoogle?: EmptyObject[];
   }
 }
 
@@ -17,7 +17,7 @@ type AdBannerProps = {
   adSense: string;
   dataadslot: string;
   dataadformat: string;
-  datafullwidthresponsive: string | boolean; // Allow both string and boolean
+  datafullwidthresponsive: string | boolean;
 };
 
 const AdBanner: React.FC<AdBannerProps> = ({
@@ -26,23 +26,36 @@ const AdBanner: React.FC<AdBannerProps> = ({
   dataadformat,
   datafullwidthresponsive,
 }) => {
+  const adRef = useRef<HTMLDivElement>(null);
+  const isAdPushed = useRef(false);
+
   useEffect(() => {
-    // Safely initialize adsbygoogle
-    if (typeof window !== 'undefined') {
-      window.adsbygoogle = window.adsbygoogle || [];
-      window.adsbygoogle.push({} as EmptyObject); // Push an empty object
+    // Only push the ad if it hasn't been pushed before
+    if (typeof window !== 'undefined' && !isAdPushed.current && adRef.current) {
+      try {
+        window.adsbygoogle = window.adsbygoogle || [];
+        window.adsbygoogle.push({} as EmptyObject);
+        isAdPushed.current = true;
+      } catch (error) {
+        console.error('Error initializing AdSense:', error);
+      }
     }
+
+    // Cleanup function
+    return () => {
+      isAdPushed.current = false;
+    };
   }, []);
 
   return (
-    <div>
+    <div ref={adRef}>
       <ins
         className="adsbygoogle"
         style={{ display: 'block' }}
         data-ad-client={adSense}
         data-ad-slot={dataadslot}
         data-ad-format={dataadformat}
-        data-full-width-responsive={String(datafullwidthresponsive)} // Convert to string
+        data-full-width-responsive={String(datafullwidthresponsive)}
       ></ins>
     </div>
   );
