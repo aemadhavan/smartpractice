@@ -158,27 +158,56 @@ const CategoryHome = ({
   const fetchFlashcardData = async () => {
     try {
       setFlashcardsLoading(true);
-      const promises = words.map(word => 
-        fetch(`/api/vocabulary/${categoryId}/${word.id}?userId=${userId}`)
-          .then(res => res.json())
-          .then(data => {
-            const status = determineStatus(data.word.masteryLevel || 0);
-            const difficulty = data.word.difficultyLevel || "Medium";
-            return {
-              ...data.word,
-              difficulty,
-              status,
-              definition: data.word.definition || "",
-              synonyms: data.word.synonyms || "",
-              antonyms: data.word.antonyms || "",
-            };
-          })
-      );
+      const promises = words.map(async word => {
+        try {
+          // Update the API endpoint to match the route structure
+          const response = await fetch(`/api/vocabulary/${categoryId}/${word.id}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          if (!data.word) {
+            throw new Error('Word data not found in response');
+          }
+          const status = determineStatus(data.word.masteryLevel || 0);
+          const difficulty = data.word.difficultyLevel || "Medium";
+          return {
+            ...data.word,
+            difficulty,
+            status,
+            definition: data.word.definition || "",
+            synonyms: data.word.synonyms || "",
+            antonyms: data.word.antonyms || "",
+          };
+        } catch (error) {
+          console.error(`Error fetching word ${word.id}:`, error);
+          return {
+            id: word.id,
+            word: word.word,
+            difficulty: word.difficulty,
+            status: word.status,
+            definition: "Failed to load definition",
+            synonyms: "Failed to load synonyms",
+            antonyms: "Failed to load antonyms",
+            partOfSpeech: "",
+            sentence: "",
+          };
+        }
+      });
+
       const wordDetails = await Promise.all(promises);
-      setFlashcardWords(wordDetails);
+      const validWords = wordDetails.filter(word => word.definition !== "Failed to load definition");
+      
+      if (validWords.length === 0) {
+        throw new Error("Failed to load any word details");
+      }
+
+      setFlashcardWords(validWords);
       setShowFlashcards(true);
     } catch (error) {
       console.error("Error fetching flashcard details:", error);
+      alert("Failed to load flashcards. Please try again later.");
     } finally {
       setFlashcardsLoading(false);
     }
