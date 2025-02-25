@@ -20,6 +20,7 @@ import Container from '@/components/Container';
 //import PracticeAreas from "@/components/PracticeAreas";
 import SmartPractiseHome from "@/components/SmartPractiseHome";
 import AdBanner from "@/components/AdBanner";
+import ContentLayout from "@/components/ContentLayout";
 
 export default function Home() {
   //const [loading, setLoading] = useState(false);
@@ -63,13 +64,14 @@ export default function Home() {
 
   return (
     <Container>
+      <ContentLayout title="" showAds={false}>
       <div className="space-y-6">
         <SmartPractiseHome/>
-        <AdBanner 
+        {/* <AdBanner 
             adSense="ca-pub-2425712839519303" 
             dataadformat="auto" 
             datafullwidthresponsive={true} 
-            dataadslot="6530624066" />
+            dataadslot="6530624066" /> */}
 
          {/* <WaitlistSignup/>  */}
         {/* <Card>
@@ -110,6 +112,7 @@ export default function Home() {
         </Card> */}
       </div>
       <Toaster />
+      </ContentLayout>
     </Container>
   );
 }
