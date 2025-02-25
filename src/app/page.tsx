@@ -19,7 +19,7 @@ import Container from '@/components/Container';
 //import VocabularyHome from "@/components/PracticeAreas";
 //import PracticeAreas from "@/components/PracticeAreas";
 import SmartPractiseHome from "@/components/SmartPractiseHome";
-import AdBanner from "@/components/AdBanner";
+//import AdBanner from "@/components/AdBanner";
 import ContentLayout from "@/components/ContentLayout";
 
 export default function Home() {
