@@ -9,11 +9,16 @@ import {
     vocabulary,
     userStreaks,
     vocabularyAttempts,
-    vocabularyProgress
+    vocabularyProgress,
+    verbalTestCategories,
+    verbalQuestions,
+    verbalTestAttempts,
+    verbalQuestionAttempts
 } from "@/db/schema";
 
 const pool = new Pool({ connectionString: process.env.XATA_DATABASE_URL, max: 10 });
 export const db = drizzle(pool,{schema: {categories,difficultyLevels,
                                         questionType,questions,
                                         alphabetCategories,
-                                        vocabulary,userStreaks,vocabularyAttempts,vocabularyProgress}});
+                                        vocabulary,userStreaks,vocabularyAttempts,vocabularyProgress,
+                                        verbalTestCategories,verbalQuestions,verbalTestAttempts,verbalQuestionAttempts}});

@@ -226,3 +226,90 @@ export const categoryStatusRelations = relations(categoryStatus, ({ one }) => ({
 export type CategoryStatus = typeof categoryStatus.$inferSelect;
 export type NewCategoryStatus = typeof categoryStatus.$inferInsert;
 
+
+export const verbalTestCategories = pgTable('verbalTestCategories', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull().unique(),
+    description: text('description').notNull(),
+    sequenceNumber: integer('sequence_number').notNull(),
+    timeAllocation: integer('time_allocation').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+export const verbalQuestions = pgTable('verbalQuestions', {
+    id: serial('id').primaryKey(),
+    categoryId: integer('category_id').notNull().references(() => verbalTestCategories.id),
+    questionTypeId: integer('question_type_id').notNull().references(() => questionType.id), // Reusing existing questionType
+    vocabularyId: integer('vocabulary_id').references(() => vocabulary.id),
+    question: text('question').notNull(),
+    options: jsonb('options').notNull(),
+    correctAnswer: text('correct_answer').notNull(),
+    explanation: text('explanation').notNull(),
+    difficultyLevelId: integer('difficulty_level_id').notNull().references(() => difficultyLevels.id), // Reusing existing difficultyLevels
+    timeAllocation: integer('time_allocation').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    isActive: boolean('is_active').notNull().default(true)
+});
+
+export const verbalTestAttempts = pgTable('verbalTestAttempts', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    categoryId: integer('category_id').notNull().references(() => verbalTestCategories.id),
+    startTime: timestamp('start_time').notNull(),
+    endTime: timestamp('end_time'),
+    score: integer('score'),
+    totalQuestions: integer('total_questions').notNull(),
+    correctAnswers: integer('correct_answers'),
+    timeSpent: integer('time_spent'),
+    status: text('status').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const verbalQuestionAttempts = pgTable('verbalQuestionAttempts', {
+    id: serial('id').primaryKey(),
+    testAttemptId: integer('test_attempt_id').notNull().references(() => verbalTestAttempts.id),
+    questionId: integer('question_id').notNull().references(() => verbalQuestions.id),
+    userAnswer: text('user_answer'),
+    isCorrect: boolean('is_correct'),
+    timeSpent: integer('time_spent'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Add these to your existing relations
+export const verbalTestCategoriesRelations = relations(verbalTestCategories, ({ many }) => ({
+    questions: many(verbalQuestions),
+    attempts: many(verbalTestAttempts)
+}));
+
+export const verbalQuestionsRelations = relations(verbalQuestions, ({ one }) => ({
+    category: one(verbalTestCategories, {
+        fields: [verbalQuestions.categoryId],
+        references: [verbalTestCategories.id]
+    }),
+    questionType: one(questionType, {
+        fields: [verbalQuestions.questionTypeId],
+        references: [questionType.id]
+    }),
+    vocabularyWord: one(vocabulary, {
+        fields: [verbalQuestions.vocabularyId],
+        references: [vocabulary.id]
+    })
+}));
+
+// Add these to your existing types
+export type VerbalTestCategory = typeof verbalTestCategories.$inferSelect;
+export type NewVerbalTestCategory = typeof verbalTestCategories.$inferInsert;
+
+export type VerbalQuestion = typeof verbalQuestions.$inferSelect;
+export type NewVerbalQuestion = typeof verbalQuestions.$inferInsert;
+
+export type VerbalTestAttempt = typeof verbalTestAttempts.$inferSelect;
+export type NewVerbalTestAttempt = typeof verbalTestAttempts.$inferInsert;
+
+export type VerbalQuestionAttempt = typeof verbalQuestionAttempts.$inferSelect;
+export type NewVerbalQuestionAttempt = typeof verbalQuestionAttempts.$inferInsert;

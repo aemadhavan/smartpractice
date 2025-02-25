@@ -7,6 +7,8 @@ import Footer from '@/components/Footer';
 import GoogleAnalytics from '@/components/google-analytics';
 import { Suspense } from 'react';
 import AdSense from '@/components/AdSense';
+import PrivacyConsent from '@/components/PrivacyConsent';
+import Script from 'next/script';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +38,25 @@ export default function RootLayout({
         <head>
           <AdSense adSense={adSenseId} />
           <meta name="google-adsense-account" content={`ca-${adSenseId}`} />
+          
+          {/* Google Tag Manager script for consent management */}
+          <Script
+            id="consent-management-init"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('consent', 'default', {
+                  'ad_storage': 'denied',
+                  'analytics_storage': 'denied',
+                  'personalization_storage': 'denied',
+                  'functionality_storage': 'granted',
+                  'security_storage': 'granted',
+                });
+              `,
+            }}
+          />
         </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <Suspense fallback={null}>
@@ -46,6 +67,9 @@ export default function RootLayout({
           <Header />
           {children}
           <Footer />
+          
+          {/* Add Privacy Consent Component */}
+          <PrivacyConsent />
         </body>
       </html>
     </ClerkProvider>
