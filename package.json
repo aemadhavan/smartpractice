@@ -9,7 +9,7 @@
     "lint": "next lint",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "db:seed": "dotenv-cli -e .env.local -- tsx db/seed.ts"
+    "db:seed": "dotenv-cli -e .env.local -- tsx db/quant-seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
