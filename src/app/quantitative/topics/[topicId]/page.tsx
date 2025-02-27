@@ -1,0 +1,550 @@
+// File: src/app/quantitative/topics/[topicId]/page.tsx
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
+import QuizModal, { QuizQuestion } from '@/components/QuizModal';
+
+type Option = {
+  id: string;
+  text: string;
+};
+
+type Subtopic = {
+  id: number;
+  name: string;
+  description: string;
+  questions: Question[];
+  stats: {
+    total: number;
+    mastered: number;
+    learning: number;
+    toStart: number;
+  };
+};
+
+type Question = {
+  id: number;
+  question: string;
+  options: any; // Can be JSONB from DB
+  correctOption: string;
+  explanation: string;
+  formula?: string;
+  difficultyLevelId: number;
+  questionTypeId: number;
+  timeAllocation: number;
+  attemptCount: number;
+  successRate: number;
+  status: 'Mastered' | 'Learning' | 'To Start';
+  subtopicId?: number; // Add this to match QuizQuestion
+};
+
+type ProcessedQuestion = Omit<Question, 'options'> & {
+  id: number;
+  question: string;
+  options: Option[];
+  correctOption: string;
+  explanation: string;
+  formula?: string;
+  difficultyLevelId: number;
+  questionTypeId: number;
+  timeAllocation: number;
+  attemptCount: number;
+  successRate: number;
+  status: 'Mastered' | 'Learning' | 'To Start';
+  subtopicId: number; // Make sure this is required to match QuizQuestio
+};
+
+type TopicDetail = {
+  id: number;
+  name: string;
+  description: string;
+};
+
+type TopicData = {
+  topic: TopicDetail;
+  subtopics: Subtopic[];
+  stats: {
+    totalQuestions: number;
+    attemptedCount: number;
+    masteredCount: number;
+    masteryLevel: number;
+  };
+};
+
+const TopicDetailPage = () => {
+  const { user, isLoaded } = useUser();
+  const params = useParams();
+  const router = useRouter();
+  const { topicId } = params;
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [topicData, setTopicData] = useState<TopicData | null>(null);
+  const [activeSubtopic, setActiveSubtopic] = useState<number | null>(null);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic | null>(null);
+  const [processedQuestions, setProcessedQuestions] = useState<ProcessedQuestion[]>([]);
+  // Track current test session
+  const [currentTestSessionId, setCurrentTestSessionId] = useState<number | null>(null);
+
+  // Ref to track if test session needs to be completed on unmount
+  const needsCompletionRef = useRef(false);
+
+  const fetchTopicData = useCallback(async (): Promise<void> => {
+    if (!user?.id || !topicId) return;
+    
+    try {
+      setLoading(true);
+      
+      // Add cache-busting parameter to prevent browser caching
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/quantitative/${topicId}?userId=${user.id}&_=${timestamp}`, {
+        // Add headers to prevent caching
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Topic not found');
+        }
+        throw new Error('Failed to fetch topic data');
+      }
+      
+      const data = await response.json();
+      console.log("Fetched topic data with timestamp:", timestamp, data);
+      
+      // Log key stats for debugging
+      if (data.subtopics) {
+        data.subtopics.forEach((subtopic: Subtopic) => {
+          const masteredCount = subtopic.stats.mastered;
+          const totalQuestions = subtopic.stats.total;
+          console.log(`Subtopic ${subtopic.name}: ${masteredCount}/${totalQuestions} mastered`);
+          
+          // Log status of each question
+          subtopic.questions.forEach((q: Question) => {
+            console.log(`Question ${q.id}: status=${q.status}, successRate=${q.successRate}, attempts=${q.attemptCount}`);
+          });
+        });
+      }
+      
+      setTopicData(data);
+      
+      // Set the first subtopic as active if there are subtopics
+      if (data.subtopics && data.subtopics.length > 0) {
+        setActiveSubtopic(data.subtopics[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching topic data:', err);
+      setError('Error loading topic data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, topicId]);
+  
+  // Function to complete test session
+  const completeTestSession = useCallback(async (sessionId: number) => {
+    if (!sessionId || !user?.id) return;
+    
+    try {
+      console.log('Completing test session:', sessionId);
+      
+      const response = await fetch('/api/quantitative/complete-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          testSessionId: sessionId,
+          userId: user.id
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Successfully completed test session:', result);
+        return true;
+      } else {
+        console.error('Failed to complete test session:', await response.text());
+        return false;
+      }
+    } catch (error) {
+      console.error('Error completing test session:', error);
+      return false;
+    }
+  }, [user?.id]);
+
+  // Effect to ensure test session completion when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (needsCompletionRef.current && currentTestSessionId) {
+        // We're unmounting and there's an active session to complete
+        completeTestSession(currentTestSessionId).then(() => {
+          console.log(`Test session ${currentTestSessionId} completed on unmount`);
+        });
+      }
+    };
+  }, [currentTestSessionId, completeTestSession]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      fetchTopicData();
+    }
+  }, [isLoaded, fetchTopicData]);
+
+  const handleSubtopicClick = (subtopicId: number): void => {
+    setActiveSubtopic(subtopicId);
+  };
+
+  // Helper function to normalize an option to match the Option type
+  const normalizeOption = (opt: any): Option => {
+    if (typeof opt === 'string') {
+      return { id: opt, text: opt };
+    }
+    if (typeof opt !== 'object' || opt === null) {
+      const str = String(opt);
+      return { id: str, text: str };
+    }
+    return {
+      id: opt.id || opt.value || String(Math.random()),
+      text: opt.text || opt.label || String(opt)
+    };
+  };
+
+  const initializeTestSession = async (subtopicId: number): Promise<number | null> => {
+    if (!user?.id) return null;
+    
+    try {
+      console.log('Initializing test session for subtopic:', subtopicId);
+      
+      const response = await fetch('/api/quantitative/init-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          subtopicId
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Successfully initialized test session:', result);
+        return result.testAttemptId;
+      } else {
+        console.error('Failed to initialize test session:', await response.text());
+        return null;
+      }
+    } catch (error) {
+      console.error('Error initializing test session:', error);
+      return null;
+    }
+  };
+
+  const handleStartQuiz = async (subtopic: Subtopic): Promise<void> =>{
+    // Process questions to ensure options are properly parsed
+    const processed = subtopic.questions.map((question: Question) => {
+      let parsedOptions: Option[] = [];
+      
+      try {
+        console.log(`Processing options for question ${question.id}:`, question.options);
+        
+        // Handle different potential formats of options from the DB
+        if (typeof question.options === 'string') {
+          // If it's a JSON string
+          const parsed = JSON.parse(question.options);
+          if (Array.isArray(parsed)) {
+            parsedOptions = parsed.map((opt: any) => normalizeOption(opt));
+          } else if (parsed && typeof parsed === 'object') {
+            parsedOptions = Object.values(parsed).map((opt: any) => normalizeOption(opt));
+          }
+        } else if (Array.isArray(question.options)) {
+          // If it's already an array
+          parsedOptions = question.options.map((opt: any) => normalizeOption(opt));
+        } else if (question.options && typeof question.options === 'object') {
+          // If it's a raw JSON object
+          parsedOptions = Object.values(question.options).map((opt: any) => normalizeOption(opt));
+        }
+        
+        // Ensure we have at least some options
+        if (parsedOptions.length === 0 && question.correctOption) {
+          // If we have a correct option but no parsed options, create some basic ones
+          parsedOptions = [
+            { id: String(question.correctOption).trim(), text: String(question.correctOption).trim() }
+          ];
+          
+          // For numeric answers, create some variations
+          if (!isNaN(Number(question.correctOption))) {
+            const correctNum = Number(question.correctOption);
+            parsedOptions = [
+              { id: String(correctNum - 2), text: String(correctNum - 2) },
+              { id: String(correctNum - 1), text: String(correctNum - 1) },
+              { id: String(correctNum), text: String(correctNum) },
+              { id: String(correctNum + 1), text: String(correctNum + 1) }
+            ];
+          }
+        }
+      } catch (e) {
+        console.error('Error processing options for question', question.id, e);
+        parsedOptions = []; // Default to empty array if processing fails
+      }
+      
+      // IMPORTANT: Normalize the correctOption to be a string
+      return {
+        ...question,
+        subtopicId: subtopic.id,
+        correctOption: String(question.correctOption).trim(),  // Ensure consistent format
+        options: parsedOptions.map((opt: Option) => ({
+          id: String(opt.id).trim(),
+          text: String(opt.text).trim()
+        }))
+      };
+    });
+    
+    console.log("Processed questions:", processed);
+    setProcessedQuestions(processed);
+    setSelectedSubtopicForQuiz({
+      ...subtopic,
+      questions: processed
+    });
+    
+    // Reset test session ID and mark for completion
+    setCurrentTestSessionId(null);
+    needsCompletionRef.current = false;
+
+    // Initialize a test session before opening the quiz modal
+    const sessionId = await initializeTestSession(subtopic.id);
+    console.log('Initialized session ID:', sessionId);
+    setCurrentTestSessionId(sessionId);
+    
+    // Mark the session for completion if it was created successfully
+    if (sessionId) {
+      needsCompletionRef.current = true;
+    }
+    
+    // Open the quiz modal
+    setIsQuizModalOpen(true);
+  };
+
+  // Add this function to handle updating questions
+  const handleQuestionsUpdate = (updatedQuestions: ProcessedQuestion[]): void => {
+    console.log('Updating questions with new data:', updatedQuestions);
+    setProcessedQuestions(updatedQuestions);
+    
+    // Also update the selectedSubtopicForQuiz
+    if (selectedSubtopicForQuiz) {
+      setSelectedSubtopicForQuiz({
+        ...selectedSubtopicForQuiz,
+        questions: updatedQuestions as any // Using type assertion as a temporary fix
+      });
+    }
+  };
+
+  // Handler to receive test session ID from the QuizModal
+  const handleSessionIdUpdate = (sessionId: number | null): void => {
+    console.log('Received test session ID update:', sessionId);
+    if (sessionId) {
+      setCurrentTestSessionId(sessionId);
+      needsCompletionRef.current = true; // This session will need completion
+    }
+  };
+
+  const questionUpdateAdapter = (updatedQuestions: QuizQuestion[]): void => {
+    // This adapter function converts from QuizQuestion[] to ProcessedQuestion[]
+    handleQuestionsUpdate(updatedQuestions as unknown as ProcessedQuestion[]);
+  };
+
+  // Update the handleCloseQuizModal function to complete the session
+  const handleCloseQuizModal = async (): Promise<void> => {
+    // Complete the test session if one exists
+    if (currentTestSessionId) {
+      try {
+        await completeTestSession(currentTestSessionId);
+        // Reset after completion
+        needsCompletionRef.current = false;
+        setCurrentTestSessionId(null);
+      } catch (error) {
+        console.error('Error completing test session on close:', error);
+      }
+    }
+    
+    // Close the modal
+    setIsQuizModalOpen(false);
+    
+    // Refresh topic data after closing
+    console.log('Refreshing topic data after quiz completion');
+    fetchTopicData().then(() => {
+      console.log('Topic data refreshed');
+      setSelectedSubtopicForQuiz(null);
+      setProcessedQuestions([]);
+    });
+  };
+
+  // Function to get difficulty label based on ID
+  const getDifficultyLabel = (id: number): string => {
+    switch (id) {
+      case 1: return 'Easy';
+      case 2: return 'Medium';
+      case 3: return 'Hard';
+      case 4: return 'Very Hard';
+      default: return 'Unknown';
+    }
+  };
+
+  // Function to get question type label based on ID
+  const getQuestionTypeLabel = (id: number): string => {
+    switch (id) {
+      case 1: return 'Multiple Choice';
+      case 2: return 'Fill in the Blank';
+      case 3: return 'True/False';
+      case 4: return 'Short Answer';
+      default: return 'Other';
+    }
+  };
+
+  if (!isLoaded || loading) {
+    return (
+      <div className="p-6 flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+          <p className="mt-2">Loading subtopic data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-gray-600">Please sign in to access quantitative practice.</p>
+        <button 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+          onClick={() => router.push('/quantitative')}
+        >
+          Back to Topics
+        </button>
+      </div>
+    );
+  }
+
+  if (error || !topicData) {
+    return (
+      <div className="p-6 text-center text-red-600">
+        <p>{error || 'Failed to load topic data'}</p>
+        <button 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+          onClick={() => router.push('/quantitative')}
+        >
+          Back to Topics
+        </button>
+      </div>
+    );
+  }
+
+  const { topic, subtopics, stats } = topicData;
+  const activeSubtopicData = subtopics.find(s => s.id === activeSubtopic) || null;
+
+  return (
+    <div className="p-6 bg-white max-w-6xl mx-auto">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link href="/quantitative">
+          <button className="flex items-center text-blue-600">
+            <span className="mr-1">←</span> Back to Topics
+          </button>
+        </Link>
+      </div>
+
+      {/* Topic header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{topic.name}</h1>
+        <p className="text-gray-600">{topic.description}</p>
+      </div>
+
+      {/* Topic stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="text-sm text-blue-700">Total Questions</div>
+          <div className="text-2xl font-bold text-blue-800">{stats.totalQuestions}</div>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="text-sm text-blue-700">Attempted</div>
+          <div className="text-2xl font-bold text-blue-800">{stats.attemptedCount}</div>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg">
+          <div className="text-sm text-green-700">Mastered</div>
+          <div className="text-2xl font-bold text-green-800">{stats.masteredCount}</div>
+        </div>
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <div className="text-sm text-purple-700">Mastery Level</div>
+          <div className="text-2xl font-bold text-purple-800">{stats.masteryLevel}%</div>
+        </div>
+      </div>
+
+      {/* Subtopics section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Subtopics</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {subtopics.map((subtopic: Subtopic) => (
+            <div 
+              key={subtopic.id}
+              className="p-3 border rounded-lg cursor-pointer transition-colors border-gray-200 hover:bg-gray-50"
+              onClick={() => handleStartQuiz(subtopic)}
+            >
+              <div className="font-medium">{subtopic.name}</div>
+              <div className="text-sm text-gray-600 mt-1">
+                {subtopic.stats.total} questions
+              </div>
+              <div className="flex justify-between text-xs mt-2">
+                <span className="text-green-600">{subtopic.stats.mastered} mastered</span>
+                <span className="text-yellow-600">{subtopic.stats.learning} learning</span>
+                <span className="text-gray-600">{subtopic.stats.toStart} to start</span>
+              </div>
+              <button 
+                className="w-full mt-3 px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  handleStartQuiz(subtopic);
+                }}
+              >
+                Practice Now
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quiz Modal */}
+      {selectedSubtopicForQuiz && (
+        <QuizModal
+          isOpen={isQuizModalOpen}
+          onClose={handleCloseQuizModal}
+          subtopicName={selectedSubtopicForQuiz.name}
+          questions={processedQuestions as any} // Using type assertion as a temporary fix
+          userId={user.id}
+          topicId={topic.id}
+          onQuestionsUpdate={questionUpdateAdapter} // Use the adapter function
+          onSessionIdUpdate={handleSessionIdUpdate} // Add this prop to receive session ID updates
+          testSessionId={currentTestSessionId} // Pass the session ID to the modal
+        />
+      )}
+      
+      {/* Debug information in development mode */}
+      {process.env.NODE_ENV === 'development' && currentTestSessionId && (
+        <div className="mt-4 p-2 bg-gray-100 text-xs text-gray-700 rounded">
+          Current test session: {currentTestSessionId} 
+          {needsCompletionRef.current ? ' (pending completion)' : ' (no completion needed)'}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TopicDetailPage;

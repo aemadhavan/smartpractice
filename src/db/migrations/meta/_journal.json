@@ -43,6 +43,20 @@
       "when": 1740472728207,
       "tag": "0008_quick_reptil",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1740632443106,
+      "tag": "0009_magical_tigra",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1740658333233,
+      "tag": "0010_parched_mulholland_black",
+      "breakpoints": true
     }
   ]
 }

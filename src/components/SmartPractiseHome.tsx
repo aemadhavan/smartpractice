@@ -3,15 +3,18 @@ import { ArrowRight, Sparkles, Clock, Lock, Brain, Zap, RefreshCw } from 'lucide
 import { Badge } from "@/components/ui/badge";
 
 const SmartPractiseHome = () => {
-  const handleStartPractice = () => {
+  const handleStartVocabularyPractice = () => {
     window.location.href = '/vocabulary';
+  };
+  
+  const handleStartQuantitativePractice = () => {
+    window.location.href = '/quantitative';
   };
 
   const upcomingModules = [
     { title: 'Reasoning – Reading', date: 'Feb 2025' },
     { title: 'Reasoning – Mathematics', date: 'Feb 2025' },
     { title: 'General Ability – Verbal', date: 'March 2025' },
-    { title: 'General Ability – Quantitative', date: 'March 2025' },
     { title: 'Writing', date: 'March 2025' }
   ];
 
@@ -51,7 +54,7 @@ const SmartPractiseHome = () => {
                 learning technology.
               </p>
               <button 
-                onClick={handleStartPractice}
+                onClick={handleStartVocabularyPractice}
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
               >
                 Start Practice
@@ -88,7 +91,7 @@ const SmartPractiseHome = () => {
               </div>
             </div>
           </div>
-          {/* Progress Bar */}
+          {/* Progress Bar 
           <div className="mt-8 pt-6 border-t border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">Module Completion</span>
@@ -97,7 +100,74 @@ const SmartPractiseHome = () => {
             <div className="w-full bg-gray-100 rounded-full h-2">
               <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full" style={{width: '12%'}} />
             </div>
+          </div>*/}
+        </div>
+
+        {/* Added Quantitative Practice Card */}
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-2xl font-bold">Quantitative Practice</h3>
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Beta
+                </Badge>
+                <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Enhance your mathematical reasoning skills with our AI-powered platform. 
+                Practice numerical problem-solving, data interpretation, and pattern recognition 
+                with personalized learning technology.
+              </p>
+              <button 
+                onClick={handleStartQuantitativePractice}
+                className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+              >
+                Start Practice
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:w-1/3">
+              <div className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-bold text-xl">1,500+</span>
+                </div>
+                <p className="text-sm text-gray-600">Practice Problems</p>
+              </div>
+              <div className="bg-indigo-50 p-4 rounded-lg hover:bg-indigo-100 transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain className="w-5 h-5 text-indigo-600" />
+                  <span className="font-bold">Adaptive</span>
+                </div>
+                <p className="text-sm text-gray-600">Learning Path</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-5 h-5 text-purple-600" />
+                  <span className="font-bold">AI-Powered</span>
+                </div>
+                <p className="text-sm text-gray-600">Feedback</p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <RefreshCw className="w-5 h-5 text-blue-600" />
+                  <span className="font-bold">Real-time</span>
+                </div>
+                <p className="text-sm text-gray-600">Progress Tracking</p>
+              </div>
+            </div>
           </div>
+          {/* Progress Bar 
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Module Completion</span>
+              <span className="text-sm font-medium">8%</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full" style={{width: '8%'}} />
+            </div>
+          </div>*/}
         </div>
 
         {/* Upcoming Modules Grid */}

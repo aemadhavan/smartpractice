@@ -77,7 +77,8 @@ export const quantTestCategoryTopics = pgTable('quantTestCategoryTopics', {
 export const quantTestAttempts = pgTable('quantTestAttempts', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull(),
-  testCategoryId: integer('test_category_id').notNull().references(() => quantTestCategories.id),
+  subtopicId: integer('subtopic_id').notNull().references(() => quantSubtopics.id), // Changed from testCategoryId
+  // Rest of the fields remain the same
   startTime: timestamp('start_time').notNull(),
   endTime: timestamp('end_time'),
   score: integer('score'),
@@ -95,12 +96,11 @@ export const quantQuestionAttempts = pgTable('quantQuestionAttempts', {
   testAttemptId: integer('test_attempt_id').notNull().references(() => quantTestAttempts.id),
   questionId: integer('question_id').notNull().references(() => quantQuestions.id),
   userAnswer: text('user_answer'),
-  isCorrect: boolean('is_correct'),
+  isCorrect: boolean('is_correct').notNull().default(false), // Updated to NOT NULL with DEFAULT FALSE
   timeSpent: integer('time_spent'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
-
 // User topic progress
 export const quantTopicProgress = pgTable('quantTopicProgress', {
   id: serial('id').primaryKey(),
@@ -174,9 +174,9 @@ export const quantTestCategoriesRelations = relations(quantTestCategories, ({ ma
 }));
 
 export const quantTestAttemptsRelations = relations(quantTestAttempts, ({ one, many }) => ({
-  testCategory: one(quantTestCategories, {
-    fields: [quantTestAttempts.testCategoryId],
-    references: [quantTestCategories.id]
+  subtopic: one(quantSubtopics, { // Changed from testCategory
+    fields: [quantTestAttempts.subtopicId],
+    references: [quantSubtopics.id]
   }),
   questionAttempts: many(quantQuestionAttempts)
 }));
