@@ -167,11 +167,20 @@ export async function GET(
     });
 
     // Calculate overall statistics
+    const totalQuestions = questionsQuery.rows.length;
+    const attemptedCount = questionsQuery.rows.filter((q: any) => Number(q.attemptCount) > 0).length;
+    const masteredCount = questionsQuery.rows.filter((q: any) => Number(q.successRate) >= 0.8).length;
+    
+    // Calculate mastery level as percentage of mastered questions over total questions
+    const masteryLevel = totalQuestions > 0
+      ? Math.round((masteredCount / totalQuestions) * 100)
+      : 0;
+
     const stats = {
-      totalQuestions: questionsQuery.rows.length,
-      attemptedCount: questionsQuery.rows.filter((q: any) => Number(q.attemptCount) > 0).length,
-      masteredCount: questionsQuery.rows.filter((q: any) => Number(q.successRate) >= 0.8).length,
-      masteryLevel: userProgress?.masteryLevel || 0
+      totalQuestions,
+      attemptedCount,
+      masteredCount,
+      masteryLevel  // Use the calculated value instead of userProgress.masteryLevel
     };
 
     console.log("FINAL TOPIC RESPONSE:", {

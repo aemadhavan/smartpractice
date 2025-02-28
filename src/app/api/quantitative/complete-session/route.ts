@@ -2,7 +2,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/index';
-import { quantTestAttempts, quantQuestionAttempts } from '@/db/quantitative-schema';
+import { 
+  quantTestAttempts, 
+  quantQuestionAttempts, 
+  quantTopicProgress,
+  quantSubtopics,
+  quantQuestions,
+  quantSubtopicProgress
+} from '@/db/quantitative-schema';
 import { and, eq, count, sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
@@ -121,6 +128,172 @@ export async function POST(request: NextRequest) {
         eq(quantTestAttempts.userId, userId)
       ))
       .returning();
+
+    // NEW CODE: Update user progress for this topic and subtopic
+    try {
+      // Get topic ID for this subtopic
+      const subtopicInfo = await db.query.quantSubtopics.findFirst({
+        where: eq(quantSubtopics.id, testAttempt.subtopicId),
+        columns: {
+          topicId: true
+        }
+      });
+      
+      if (subtopicInfo) {
+        const topicId = subtopicInfo.topicId;
+
+        // Count UNIQUE correctly answered questions for this user and topic
+        const uniqueCorrectQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id) 
+          FROM "quantQuestionAttempts" qqa
+          JOIN "quantTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "quantQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.topic_id = ${topicId}
+          AND qqa.is_correct = true
+        `);
+        
+        const uniqueCorrectQuestions = Number(uniqueCorrectQuestionsResult.rows[0]?.count) || 0;
+        
+        // Count UNIQUE attempted questions for this user and topic
+        const uniqueAttemptedQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id) 
+          FROM "quantQuestionAttempts" qqa
+          JOIN "quantTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "quantQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.topic_id = ${topicId}
+        `);
+        
+        const uniqueAttemptedQuestions = Number(uniqueAttemptedQuestionsResult.rows[0]?.count) || 0;
+        
+        // Count total questions in this topic for mastery level calculation
+        const totalTopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(*) FROM "quantQuestions"
+          WHERE topic_id = ${topicId}
+          AND is_active = true
+        `);
+        
+        const totalTopicQuestions = Number(totalTopicQuestionsResult.rows[0]?.count) || 1;
+        
+        // Calculate mastery level as a percentage
+        const masteryLevel = Math.round((uniqueCorrectQuestions / totalTopicQuestions) * 100);
+        
+        console.log('COMPLETE SESSION - Topic Progress Calculation:', {
+          topicId,
+          uniqueCorrectQuestions,
+          uniqueAttemptedQuestions,
+          totalTopicQuestions,
+          masteryLevel
+        });
+        
+        // Update or insert topic progress with CORRECT counts
+        await db.transaction(async (tx) => {
+          // Try to update existing progress
+          const updateResult = await tx.update(quantTopicProgress)
+            .set({
+              questionsCorrect: uniqueCorrectQuestions,
+              questionsAttempted: uniqueAttemptedQuestions,
+              masteryLevel: masteryLevel,
+              lastAttemptAt: new Date()
+            })
+            .where(and(
+              eq(quantTopicProgress.userId, userId),
+              eq(quantTopicProgress.topicId, topicId)
+            ))
+            .returning();
+          
+          // If no rows affected, insert a new progress record
+          if (updateResult.length === 0) {
+            await tx.insert(quantTopicProgress).values({
+              userId,
+              topicId,
+              questionsCorrect: uniqueCorrectQuestions,
+              questionsAttempted: uniqueAttemptedQuestions,
+              masteryLevel: masteryLevel,
+              lastAttemptAt: new Date()
+            });
+          }
+        });
+        
+        // Similarly, update subtopic progress
+        const subtopicId = testAttempt.subtopicId;
+        
+        // Count unique correctly answered questions for this subtopic
+        const uniqueCorrectSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id) 
+          FROM "quantQuestionAttempts" qqa
+          JOIN "quantTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "quantQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.subtopic_id = ${subtopicId}
+          AND qqa.is_correct = true
+        `);
+        
+        const uniqueCorrectSubtopicQuestions = Number(uniqueCorrectSubtopicQuestionsResult.rows[0]?.count) || 0;
+        
+        // Count unique attempted questions for this subtopic
+        const uniqueAttemptedSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id) 
+          FROM "quantQuestionAttempts" qqa
+          JOIN "quantTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "quantQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.subtopic_id = ${subtopicId}
+        `);
+        
+        const uniqueAttemptedSubtopicQuestions = Number(uniqueAttemptedSubtopicQuestionsResult.rows[0]?.count) || 0;
+        
+        // Count total questions in this subtopic
+        const totalSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(*) FROM "quantQuestions"
+          WHERE subtopic_id = ${subtopicId}
+          AND is_active = true
+        `);
+        
+        const totalSubtopicQuestions = Number(totalSubtopicQuestionsResult.rows[0]?.count) || 1;
+        
+        // Calculate subtopic mastery level
+        const subtopicMasteryLevel = Math.round((uniqueCorrectSubtopicQuestions / totalSubtopicQuestions) * 100);
+        
+        // Update or insert subtopic progress
+        await db.transaction(async (tx) => {
+          const updateResult = await tx.update(quantSubtopicProgress)
+            .set({
+              questionsCorrect: uniqueCorrectSubtopicQuestions,
+              questionsAttempted: uniqueAttemptedSubtopicQuestions,
+              masteryLevel: subtopicMasteryLevel,
+              lastAttemptAt: new Date()
+            })
+            .where(and(
+              eq(quantSubtopicProgress.userId, userId),
+              eq(quantSubtopicProgress.subtopicId, subtopicId)
+            ))
+            .returning();
+          
+          if (updateResult.length === 0) {
+            await tx.insert(quantSubtopicProgress).values({
+              userId,
+              subtopicId,
+              questionsCorrect: uniqueCorrectSubtopicQuestions,
+              questionsAttempted: uniqueAttemptedSubtopicQuestions,
+              masteryLevel: subtopicMasteryLevel,
+              lastAttemptAt: new Date()
+            });
+          }
+        });
+        
+        console.log('COMPLETE SESSION - Progress updated for topic and subtopic', {
+          topicId,
+          subtopicId,
+          topicMastery: masteryLevel,
+          subtopicMastery: subtopicMasteryLevel
+        });
+      }
+    } catch (error) {
+      console.error('Error updating topic/subtopic progress:', error);
+      // Don't fail the whole request if progress update fails
+    }
 
     console.log('COMPLETE SESSION - Final Update', {
       testSessionId,

@@ -74,14 +74,25 @@ export async function GET(request: NextRequest) {
       const questionCount = questionCountMap.get(topic.id) || 0;
       const progress = progressMap.get(topic.id);
       
-      // Calculate mastery percentage
+      // Calculate mastery percentage based on mastered questions vs total questions
       let masteryPercentage = 0;
       let hasAttempted = false;
+
       if (progress) {
         hasAttempted = progress.questionsAttempted > 0;
-        if (progress.questionsAttempted > 0) {
-          masteryPercentage = Math.round((progress.questionsCorrect / progress.questionsAttempted) * 100);
+        
+        if (questionCount > 0) {
+          // Ensure correctQuestions doesn't exceed total questions
+          const correctQuestions = Math.min(progress.questionsCorrect, questionCount);
+          masteryPercentage = Math.round((correctQuestions / questionCount) * 100);
+        } else if (progress.questionsAttempted > 0) {
+          // Fallback if we somehow don't have a question count but have attempts
+          const correctQuestions = Math.min(progress.questionsCorrect, progress.questionsAttempted);
+          masteryPercentage = Math.round((correctQuestions / progress.questionsAttempted) * 100);
         }
+        
+        // Ensure percentage never exceeds 100%
+        masteryPercentage = Math.min(masteryPercentage, 100);
       }
 
       // Check if topic has new content (based on creation date or recent update)
@@ -103,12 +114,11 @@ export async function GET(request: NextRequest) {
     // Get total stats
     const totalProblems = Array.from(questionCountMap.values()).reduce((sum, count) => sum + count, 0);
     
-    // Count mastered topics (topics with masteryPercentage >= 80%)
-    const masteredCount = userProgress ? 
-      userProgress.filter(progress => 
-        progress.questionsAttempted > 0 && 
-        (progress.questionsCorrect / progress.questionsAttempted) >= 0.8
-      ).length : 0;
+    // FIX: Count mastered questions across all topics, not mastered topics
+    let totalMasteredQuestions = 0;
+    if (userProgress && userProgress.length > 0) {
+      totalMasteredQuestions = userProgress.reduce((sum, progress) => sum + progress.questionsCorrect, 0);
+    }
 
     // Get daily goal progress
     const dailyGoal = 20; // Default daily goal
@@ -127,7 +137,7 @@ export async function GET(request: NextRequest) {
       topics: topicsWithDetails,
       stats: {
         totalProblems,
-        masteredCount,
+        masteredCount: totalMasteredQuestions,
         dailyGoal,
         dailyProgress
       }
