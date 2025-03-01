@@ -28,7 +28,7 @@ type Subtopic = {
 type Question = {
   id: number;
   question: string;
-  options: any; // Can be JSONB from DB
+  options: string | Record<string, unknown> | unknown[]; // Replace any with more specific types
   correctOption: string;
   explanation: string;
   formula?: string;
@@ -83,7 +83,6 @@ const TopicDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [topicData, setTopicData] = useState<TopicData | null>(null);
-  const [activeSubtopic, setActiveSubtopic] = useState<number | null>(null);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic | null>(null);
   const [processedQuestions, setProcessedQuestions] = useState<ProcessedQuestion[]>([]);
@@ -135,11 +134,6 @@ const TopicDetailPage = () => {
       }
       
       setTopicData(data);
-      
-      // Set the first subtopic as active if there are subtopics
-      if (data.subtopics && data.subtopics.length > 0) {
-        setActiveSubtopic(data.subtopics[0].id);
-      }
     } catch (err) {
       console.error('Error fetching topic data:', err);
       setError('Error loading topic data. Please try again later.');
@@ -198,12 +192,8 @@ const TopicDetailPage = () => {
     }
   }, [isLoaded, fetchTopicData]);
 
-  const handleSubtopicClick = (subtopicId: number): void => {
-    setActiveSubtopic(subtopicId);
-  };
-
   // Helper function to normalize an option to match the Option type
-  const normalizeOption = (opt: any): Option => {
+  const normalizeOption = (opt: unknown): Option => {
     if (typeof opt === 'string') {
       return { id: opt, text: opt };
     }
@@ -211,9 +201,12 @@ const TopicDetailPage = () => {
       const str = String(opt);
       return { id: str, text: str };
     }
+    
+    // At this point opt is a non-null object
+    const option = opt as Record<string, unknown>;
     return {
-      id: opt.id || opt.value || String(Math.random()),
-      text: opt.text || opt.label || String(opt)
+      id: String(option.id || option.value || Math.random()),
+      text: String(option.text || option.label || opt)
     };
   };
 
@@ -261,16 +254,16 @@ const TopicDetailPage = () => {
           // If it's a JSON string
           const parsed = JSON.parse(question.options);
           if (Array.isArray(parsed)) {
-            parsedOptions = parsed.map((opt: any) => normalizeOption(opt));
+            parsedOptions = parsed.map((opt: unknown) => normalizeOption(opt));
           } else if (parsed && typeof parsed === 'object') {
-            parsedOptions = Object.values(parsed).map((opt: any) => normalizeOption(opt));
+            parsedOptions = Object.values(parsed).map((opt: unknown) => normalizeOption(opt));
           }
         } else if (Array.isArray(question.options)) {
           // If it's already an array
-          parsedOptions = question.options.map((opt: any) => normalizeOption(opt));
+          parsedOptions = question.options.map((opt: unknown) => normalizeOption(opt));
         } else if (question.options && typeof question.options === 'object') {
           // If it's a raw JSON object
-          parsedOptions = Object.values(question.options).map((opt: any) => normalizeOption(opt));
+          parsedOptions = Object.values(question.options as Record<string, unknown>).map((opt: unknown) => normalizeOption(opt));
         }
         
         // Ensure we have at least some options
@@ -342,7 +335,7 @@ const TopicDetailPage = () => {
     if (selectedSubtopicForQuiz) {
       setSelectedSubtopicForQuiz({
         ...selectedSubtopicForQuiz,
-        questions: updatedQuestions as any // Using type assertion as a temporary fix
+        questions: updatedQuestions 
       });
     }
   };
@@ -387,28 +380,6 @@ const TopicDetailPage = () => {
     });
   };
 
-  // Function to get difficulty label based on ID
-  const getDifficultyLabel = (id: number): string => {
-    switch (id) {
-      case 1: return 'Easy';
-      case 2: return 'Medium';
-      case 3: return 'Hard';
-      case 4: return 'Very Hard';
-      default: return 'Unknown';
-    }
-  };
-
-  // Function to get question type label based on ID
-  const getQuestionTypeLabel = (id: number): string => {
-    switch (id) {
-      case 1: return 'Multiple Choice';
-      case 2: return 'Fill in the Blank';
-      case 3: return 'True/False';
-      case 4: return 'Short Answer';
-      default: return 'Other';
-    }
-  };
-
   if (!isLoaded || loading) {
     return (
       <div className="p-6 flex justify-center items-center min-h-screen">
@@ -449,7 +420,6 @@ const TopicDetailPage = () => {
   }
 
   const { topic, subtopics, stats } = topicData;
-  const activeSubtopicData = subtopics.find(s => s.id === activeSubtopic) || null;
 
   return (
     <div className="p-6 bg-white max-w-6xl mx-auto">
@@ -527,12 +497,12 @@ const TopicDetailPage = () => {
           isOpen={isQuizModalOpen}
           onClose={handleCloseQuizModal}
           subtopicName={selectedSubtopicForQuiz.name}
-          questions={processedQuestions as any} // Using type assertion as a temporary fix
+          questions={processedQuestions as unknown as QuizQuestion[]}
           userId={user.id}
           topicId={topic.id}
-          onQuestionsUpdate={questionUpdateAdapter} // Use the adapter function
-          onSessionIdUpdate={handleSessionIdUpdate} // Add this prop to receive session ID updates
-          testSessionId={currentTestSessionId} // Pass the session ID to the modal
+          onQuestionsUpdate={questionUpdateAdapter}
+          onSessionIdUpdate={handleSessionIdUpdate}
+          testSessionId={currentTestSessionId}
         />
       )}
       

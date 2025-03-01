@@ -7,10 +7,9 @@ import {
   quantQuestionAttempts, 
   quantTopicProgress,
   quantSubtopics,
-  quantQuestions,
   quantSubtopicProgress
 } from '@/db/quantitative-schema';
-import { and, eq, count, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update the test attempt to mark it as completed with most recent stats
-    const updatedTestAttempt = await db.update(quantTestAttempts)
+    await db.update(quantTestAttempts)
       .set({
         status: 'completed',
         endTime,

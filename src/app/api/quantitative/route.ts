@@ -6,7 +6,7 @@ import {
   quantQuestions,
   quantTopicProgress
 } from '@/db/quantitative-schema';
-import { eq, sql, count, and } from 'drizzle-orm';
+import { eq, count, and } from 'drizzle-orm';
 
 // GET: Retrieve all quantitative topics with counts and progress
 export async function GET(request: NextRequest) {
@@ -25,9 +25,6 @@ export async function GET(request: NextRequest) {
     // Fetch all active topics
     const topics = await db.select().from(quantTopics).where(eq(quantTopics.isActive, true));
     
-    // Get all topic IDs
-    const topicIds = topics.map(topic => topic.id);
-
     // Create a map to store question counts per topic
     const questionCountsPromise = db.select({
       topicId: quantQuestions.topicId,

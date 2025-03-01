@@ -3,13 +3,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/index';
 import { 
   quantTopics, 
-  quantQuestions,
-  quantSubtopics,
-  quantQuestionAttempts,
-  quantTestAttempts,
-  quantTopicProgress
+  quantSubtopics
 } from '@/db/quantitative-schema';
 import { and, eq, sql } from 'drizzle-orm';
+
+// Define types for the question data
+interface QuestionRow {
+  id: number;
+  subtopicId: number;
+  questionTypeId: number;
+  difficultyLevelId: number;
+  question: string;
+  options: string;
+  correctAnswer: string;
+  explanation: string;
+  timeAllocation: number;
+  formula: string;
+  attemptCount: number;
+  successRate: number;
+  status?: string; // Added for the mapped questions
+  correctOption?: string; // Added for the mapped questions
+}
 
 export async function GET(
   request: NextRequest,
@@ -43,7 +57,7 @@ export async function GET(
     }
 
     // Run queries in parallel
-    const [topic, subtopics, userProgress] = await Promise.all([
+    const [topic, subtopics] = await Promise.all([
       // Get topic information
       db.query.quantTopics.findFirst({
         where: and(
@@ -57,15 +71,7 @@ export async function GET(
         .where(and(
           eq(quantSubtopics.topicId, topicIdNum),
           eq(quantSubtopics.isActive, true)
-        )),
-      
-      // Get user progress for this topic
-      db.query.quantTopicProgress.findFirst({
-        where: and(
-          eq(quantTopicProgress.topicId, topicIdNum),
-          eq(quantTopicProgress.userId, userId)
-        )
-      })
+        ))
     ]);
 
     if (!topic) {
@@ -113,10 +119,26 @@ export async function GET(
       ORDER BY q.id
     `);
 
+    // Proper type conversion with field validation
+    const questions: QuestionRow[] = questionsQuery.rows.map(row => ({
+      id: Number(row.id),
+      subtopicId: Number(row.subtopicId),
+      questionTypeId: Number(row.questionTypeId),
+      difficultyLevelId: Number(row.difficultyLevelId),
+      question: String(row.question),
+      options: String(row.options),
+      correctAnswer: String(row.correctAnswer),
+      explanation: String(row.explanation),
+      timeAllocation: Number(row.timeAllocation),
+      formula: String(row.formula),
+      attemptCount: Number(row.attemptCount),
+      successRate: Number(row.successRate)
+    }));
+
     console.log("DETAILED QUESTION FETCH:", {
-      totalQuestionsFound: questionsQuery.rows.length,
+      totalQuestionsFound: questions.length,
       subtopicsCount: subtopics.length,
-      questionDetails: questionsQuery.rows.map((q: any) => ({
+      questionDetails: questions.map((q) => ({
         id: q.id,
         subtopicId: q.subtopicId,
         attemptCount: q.attemptCount,
@@ -126,12 +148,12 @@ export async function GET(
 
     // Group questions by subtopic
     const questionsBySubtopic = subtopics.map(subtopic => {
-      const subtopicQuestions = questionsQuery.rows.filter((q: any) => q.subtopicId === subtopic.id);
+      const subtopicQuestions = questions.filter((q) => q.subtopicId === subtopic.id);
       
       // Map questions with status calculation
-      const mappedQuestions = subtopicQuestions.map((q: any) => {
-        const successRate = Number(q.successRate);
-        const attemptCount = Number(q.attemptCount);
+      const mappedQuestions = subtopicQuestions.map((q) => {
+        const successRate = q.successRate;
+        const attemptCount = q.attemptCount;
         
         // Determine status
         const status = successRate >= 0.8 
@@ -148,9 +170,9 @@ export async function GET(
       });
       
       // Calculate subtopic stats
-      const masteredCount = mappedQuestions.filter((q: any) => q.status === 'Mastered').length;
-      const learningCount = mappedQuestions.filter((q: any) => q.status === 'Learning').length;
-      const toStartCount = mappedQuestions.filter((q: any) => q.status === 'To Start').length;
+      const masteredCount = mappedQuestions.filter((q) => q.status === 'Mastered').length;
+      const learningCount = mappedQuestions.filter((q) => q.status === 'Learning').length;
+      const toStartCount = mappedQuestions.filter((q) => q.status === 'To Start').length;
       
       return {
         id: subtopic.id,
@@ -167,9 +189,9 @@ export async function GET(
     });
 
     // Calculate overall statistics
-    const totalQuestions = questionsQuery.rows.length;
-    const attemptedCount = questionsQuery.rows.filter((q: any) => Number(q.attemptCount) > 0).length;
-    const masteredCount = questionsQuery.rows.filter((q: any) => Number(q.successRate) >= 0.8).length;
+    const totalQuestions = questions.length;
+    const attemptedCount = questions.filter((q) => q.attemptCount > 0).length;
+    const masteredCount = questions.filter((q) => q.successRate >= 0.8).length;
     
     // Calculate mastery level as percentage of mastered questions over total questions
     const masteryLevel = totalQuestions > 0
@@ -180,7 +202,7 @@ export async function GET(
       totalQuestions,
       attemptedCount,
       masteredCount,
-      masteryLevel  // Use the calculated value instead of userProgress.masteryLevel
+      masteryLevel
     };
 
     console.log("FINAL TOPIC RESPONSE:", {

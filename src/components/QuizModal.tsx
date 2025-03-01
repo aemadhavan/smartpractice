@@ -53,7 +53,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
   questions,
   userId,
   topicId,
-  onQuestionsUpdate,
   onSessionIdUpdate,
   testSessionId: initialTestSessionId // Renamed to avoid conflict with state
 }) => {
@@ -164,7 +163,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
   
   // Notify parent of session ID changes
   useEffect(() => {
-    // Only call if the prop is provided
     if (onSessionIdUpdate) {
       onSessionIdUpdate(testSessionId);
     }
@@ -334,7 +332,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
     
     try {
       // Record the attempt
-      const response = await fetch('/api/quantitative/track-attempt', {
+      await fetch('/api/quantitative/track-attempt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -342,7 +340,12 @@ const QuizModal: React.FC<QuizModalProps> = ({
         body: JSON.stringify(payload)
       });
       
-      // Rest of your existing API handling code...
+      // Mark this question as answered in this session
+      setAnsweredQuestionIds(prev => {
+        const updated = new Set(prev);
+        updated.add(currentQuestion.id);
+        return updated;
+      });
       
     } catch (error) {
       console.error('Failed to record attempt:', error);
@@ -379,8 +382,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const getQuestionStatus = () => {
     return currentQuestion.status || 'To Start';
   };
-  
-  const isCorrect = selectedOption === currentQuestion.correctOption;
   
   return (
     <MathJaxContext version={3} config={config}>

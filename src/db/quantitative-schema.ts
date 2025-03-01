@@ -1,7 +1,7 @@
 // Quantitative Reasoning Schema
 import { relations } from 'drizzle-orm';
 import { integer, pgTable, serial, text, timestamp, boolean, jsonb, unique } from 'drizzle-orm/pg-core';
-import { categories, difficultyLevels, questionType } from './schema'; // Reusing existing tables
+import { difficultyLevels, questionType } from './schema'; // Reusing existing tables
 
 // Main topics table for quantitative reasoning
 export const quantTopics = pgTable('quantTopics', {

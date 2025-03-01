@@ -1,7 +1,7 @@
 // src/scripts/diagnose-test-session.ts
 import { db } from '@/db/index';
 import { quantTestAttempts, quantQuestionAttempts, quantQuestions } from '@/db/quantitative-schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 /**
  * This script provides a comprehensive diagnosis of a test session
@@ -52,7 +52,7 @@ async function diagnoseTestSession(testSessionId: number) {
       }, {} as Record<number, number>);
       
       const duplicates = Object.entries(questionCounts)
-        .filter(([_, count]) => count > 1)
+        .filter(([, count]) => count > 1)
         .map(([id, count]) => ({ id: parseInt(id), count }));
       
       console.log('Duplicate questions:', duplicates);

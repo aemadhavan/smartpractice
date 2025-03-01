@@ -12,8 +12,8 @@ const SmartPractiseHome = () => {
   };
 
   const upcomingModules = [
-    { title: 'Reasoning – Reading', date: 'Feb 2025' },
-    { title: 'Reasoning – Mathematics', date: 'Feb 2025' },
+    { title: 'Reasoning – Reading', date: 'March 2025' },
+    { title: 'Reasoning – Mathematics', date: 'March 2025' },
     { title: 'General Ability – Verbal', date: 'March 2025' },
     { title: 'Writing', date: 'March 2025' }
   ];
@@ -131,7 +131,7 @@ const SmartPractiseHome = () => {
             <div className="grid grid-cols-2 gap-4 lg:w-1/3">
               <div className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="font-bold text-xl">1,500+</span>
+                  <span className="font-bold text-xl">300+</span>
                 </div>
                 <p className="text-sm text-gray-600">Practice Problems</p>
               </div>

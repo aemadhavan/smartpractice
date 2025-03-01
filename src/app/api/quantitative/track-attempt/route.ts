@@ -4,9 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/index';
 import { 
   quantQuestionAttempts,
-  quantTestAttempts,
-  quantTopicProgress,
-  quantSubtopicProgress
+  quantTestAttempts
 } from '@/db/quantitative-schema';
 import { and, eq, desc, sql } from 'drizzle-orm';
 
