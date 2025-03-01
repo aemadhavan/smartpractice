@@ -1,6 +1,17 @@
-//File: src/components/QuizModal.ts
+//File: src/components/QuizModal.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { MathJaxContext, MathJax } from 'better-react-mathjax';
+
+// Define MathJax configuration options
+const config = {
+  loader: { load: ["[tex]/html"] },
+  tex: {
+    packages: { "[+]": ["html"] },
+    inlineMath: [["$", "$"]],
+    displayMath: [["$$", "$$"]]
+  }
+};
 
 type Option = {
   id: string;
@@ -372,6 +383,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const isCorrect = selectedOption === currentQuestion.correctOption;
   
   return (
+    <MathJaxContext version={3} config={config}>
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-90vh overflow-y-auto">
         {/* Header */}
@@ -423,12 +435,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
         
         {/* Question */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div dangerouslySetInnerHTML={{ __html: currentQuestion.question }} />
-          {currentQuestion.formula && (
-            <div className="mt-2 text-gray-600 border-t pt-2">
-              <div dangerouslySetInnerHTML={{ __html: currentQuestion.formula }} />
-            </div>
-          )}
+          <div dangerouslySetInnerHTML={{ __html: currentQuestion.question }} />          
         </div>
         
         {/* Options */}
@@ -478,7 +485,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
         </div>
         
         {/* Explanation (shown after answering) */}
-        {isAnswered && (
+        {isAnswered && (          
             <div className={`mt-6 p-4 rounded-lg ${
               // Use the stored result when available, otherwise fall back to the current comparison
               (answerResult !== null) ? (answerResult ? 'bg-green-50' : 'bg-red-50') : 
@@ -488,11 +495,44 @@ const QuizModal: React.FC<QuizModalProps> = ({
                 {(answerResult !== null) ? (answerResult ? 'Correct!' : 'Incorrect') : 
                 (selectedOption === currentQuestion.correctOption ? 'Correct!' : 'Incorrect')}
               </h3>
-              <div dangerouslySetInnerHTML={{ __html: currentQuestion.explanation }} />
+              
+              {/* Formula displayed with MathJax component */}
+              {currentQuestion.formula && (
+                <div className="mb-3 pb-3 border-b">
+                  <div className="py-2">
+                    <MathJax>
+                      {/* If formula doesn't have $ delimiters, add them */}
+                      {!currentQuestion.formula.includes('$') ? (
+                        <div dangerouslySetInnerHTML={{ 
+                          __html: `$$${currentQuestion.formula}$$` 
+                        }} />
+                      ) : (
+                        <div dangerouslySetInnerHTML={{ 
+                          __html: currentQuestion.formula 
+                        }} />
+                      )}
+                    </MathJax>
+                  </div>
+                </div>
+              )}
+              
+              {/* Process explanation text to handle \( \) delimiters */}
+              <MathJax>
+                <div dangerouslySetInnerHTML={{ 
+                  __html: currentQuestion.explanation.replace(
+                    /\\\((.*?)\\\)/g, 
+                    (match, group) => {
+                      // Replace \( \) with $ $ for MathJax
+                      return `$${group}$`;
+                    }
+                  )
+                }} />
+              </MathJax>
             </div>
           )}
       </div>
     </div>
+    </MathJaxContext>
   );
 };
 
