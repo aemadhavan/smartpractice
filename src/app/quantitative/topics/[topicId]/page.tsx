@@ -241,7 +241,7 @@ const TopicDetailPage = () => {
     }
   };
 
-  const handleStartQuiz = async (subtopic: Subtopic): Promise<void> =>{
+  const handleStartQuiz = async (subtopic: Subtopic): Promise<void> => {
     // Process questions to ensure options are properly parsed
     const processed = subtopic.questions.map((question: Question) => {
       let parsedOptions: Option[] = [];
@@ -251,12 +251,27 @@ const TopicDetailPage = () => {
         
         // Handle different potential formats of options from the DB
         if (typeof question.options === 'string') {
-          // If it's a JSON string
-          const parsed = JSON.parse(question.options);
-          if (Array.isArray(parsed)) {
-            parsedOptions = parsed.map((opt: unknown) => normalizeOption(opt));
-          } else if (parsed && typeof parsed === 'object') {
-            parsedOptions = Object.values(parsed).map((opt: unknown) => normalizeOption(opt));
+          try {
+            // Try to parse as JSON, but with error handling
+            const parsed = JSON.parse(question.options);
+            if (Array.isArray(parsed)) {
+              parsedOptions = parsed.map((opt: unknown) => normalizeOption(opt));
+            } else if (parsed && typeof parsed === 'object') {
+              parsedOptions = Object.values(parsed).map((opt: unknown) => normalizeOption(opt));
+            }
+          } catch (jsonError) {
+            console.warn(`Failed to parse options JSON for question ${question.id}:`, jsonError);
+            
+            // Attempt recovery - split by comma if it looks like a comma-separated list
+            if (question.options.includes(',')) {
+              parsedOptions = question.options.split(',')
+                .map(opt => opt.trim())
+                .filter(opt => opt)
+                .map(opt => ({ id: opt, text: opt }));
+            } else {
+              // If can't parse as JSON and not comma-separated, treat as a single option
+              parsedOptions = [{ id: question.options, text: question.options }];
+            }
           }
         } else if (Array.isArray(question.options)) {
           // If it's already an array
@@ -284,19 +299,29 @@ const TopicDetailPage = () => {
             ];
           }
         }
+        
+        // Final fallback: If we still have no options, create a dummy option
+        if (parsedOptions.length === 0) {
+          parsedOptions = [
+            { id: "option1", text: "No options available" }
+          ];
+        }
       } catch (e) {
         console.error('Error processing options for question', question.id, e);
-        parsedOptions = []; // Default to empty array if processing fails
+        // Default to a safe option array if processing fails
+        parsedOptions = [
+          { id: "option1", text: "Error loading options" }
+        ];
       }
       
       // IMPORTANT: Normalize the correctOption to be a string
       return {
         ...question,
         subtopicId: subtopic.id,
-        correctOption: String(question.correctOption).trim(),  // Ensure consistent format
+        correctOption: String(question.correctOption || "").trim(),  // Handle potential undefined
         options: parsedOptions.map((opt: Option) => ({
-          id: String(opt.id).trim(),
-          text: String(opt.text).trim()
+          id: String(opt.id || "").trim(),
+          text: String(opt.text || "").trim()
         }))
       };
     });
@@ -308,10 +333,11 @@ const TopicDetailPage = () => {
       questions: processed
     });
     
+    // Rest of the function remains the same
     // Reset test session ID and mark for completion
     setCurrentTestSessionId(null);
     needsCompletionRef.current = false;
-
+  
     // Initialize a test session before opening the quiz modal
     const sessionId = await initializeTestSession(subtopic.id);
     console.log('Initialized session ID:', sessionId);
