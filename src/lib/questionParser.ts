@@ -58,7 +58,7 @@ export function parseQuestionOptions(question: Question): ProcessedQuestion {
             .split(/[,\s]+/)
             .map(opt => normalizeOption(opt.trim()));
         }
-      } catch (e) {
+      } catch {
         // If JSON parsing fails, split the string
         parsedOptions = rawOptions
           .replace(/^\[|\]$/g, '') // Remove square brackets if present
@@ -99,8 +99,8 @@ export function parseQuestionOptions(question: Question): ProcessedQuestion {
     // Ensure unique IDs
     parsedOptions = ensureUniqueOptionIds(parsedOptions);
     
-  } catch (e) {
-    console.error(`Error processing options for question ${question.id}:`, e);
+  } catch (error) {
+    console.error(`Error processing options for question ${question.id}:`, error);
     // Fallback to default options
     parsedOptions = [
       { id: '1', text: 'Option 1' },
@@ -118,7 +118,9 @@ export function parseQuestionOptions(question: Question): ProcessedQuestion {
     ...question,
     options: parsedOptions
   };
-}// Debugging function to help identify option parsing issues
+}
+
+// Debugging function to help identify option parsing issues
 export function debugQuestionOptions(question: Question) {
   console.log('Debugging Question Options:');
   console.log('Question ID:', question.id);
