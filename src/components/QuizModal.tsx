@@ -44,6 +44,25 @@ type QuizModalProps = {
   testSessionId?: number | null;
 };
 
+const renderOptionText = (optionText: string): string => {
+  // Make sure we have a string
+  if (typeof optionText !== 'string') {
+    return String(optionText);
+  }
+  
+  // If it's a MathJax expression, leave it as is
+  if (optionText.includes('\\(') || optionText.includes('\\)') || 
+      optionText.includes('\\[') || optionText.includes('\\]')) {
+    return optionText;
+  }
+  
+  // Clean up any HTML or unwanted characters
+  let cleanText = optionText.trim();
+  
+  // Return the cleaned text
+  return cleanText;
+};
+
 const QuizModal: React.FC<QuizModalProps> = ({
   isOpen,
   onClose,
@@ -253,15 +272,23 @@ const QuizModal: React.FC<QuizModalProps> = ({
     setIsSubmitting(true);
     setIsAnswered(true);
     
-    // Calculate if the answer is correct and store this value
+    // Enhanced comparison logic for option matching
     const normalizedSelected = String(selectedOption).trim();
     const normalizedCorrect = String(currentQuestion.correctOption).trim();
+    
+    // Log both values for debugging
+    console.log('Comparing selected option to correct option:', {
+      selected: normalizedSelected,
+      correct: normalizedCorrect
+    });
+    
+    // Do direct string comparison for option IDs
     const isCorrect = normalizedSelected === normalizedCorrect;
     
     // Set the answer result ONCE and use this for UI rendering
     setAnswerResult(isCorrect);
     
-    console.log('Answer comparison:', {
+    console.log('Answer comparison result:', {
       selected: normalizedSelected,
       correct: normalizedCorrect,
       isMatch: isCorrect
@@ -396,32 +423,44 @@ const QuizModal: React.FC<QuizModalProps> = ({
 
           {/* Options */}
           <div className="mb-6 space-y-3">
-            {options.length > 0 ? (
-              options.map((option) => (
-                <div 
-                  key={option.id}
-                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                    !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
-                    isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
-                    isAnswered && selectedOption === option.id && option.id !== currentQuestion.correctOption ? 'border-red-500 bg-red-50' :
-                    'border-gray-200 hover:bg-gray-50'
-                  }`}
-                  onClick={() => handleOptionSelect(option.id)}
+        {options.length > 0 ? (
+          options.map((option) => {
+            // For debugging in development mode
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Rendering option: id=${option.id}, text=${option.text}`);
+            }
+            
+            return (
+              <div 
+                key={option.id}
+                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                  !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
+                  isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
+                  isAnswered && selectedOption === option.id && option.id !== currentQuestion.correctOption ? 'border-red-500 bg-red-50' :
+                  'border-gray-200 hover:bg-gray-50'
+                }`}
+                onClick={() => handleOptionSelect(option.id)}
+              >
+                <MathJax
+                  renderMode="post"
+                  onError={(error) => logMathJaxError(error, option.text)}
                 >
-                  <MathJax
-                    renderMode="post"
-                    onError={(error) => logMathJaxError(error, option.text)}
-                  >
-                    <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ __html: option.text }} />
-                  </MathJax>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-base">
-                No options available for this question. Please check the data format.
+                  <div 
+                    className="text-base text-gray-800" 
+                    dangerouslySetInnerHTML={{ 
+                      __html: renderOptionText(option.text) 
+                    }} 
+                  />
+                </MathJax>
               </div>
-            )}
+            );
+          })
+        ) : (
+          <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-base">
+            No options available for this question. Please check the data format.
           </div>
+        )}
+      </div>
 
           {/* Actions */}
           <div className="flex justify-between items-center">

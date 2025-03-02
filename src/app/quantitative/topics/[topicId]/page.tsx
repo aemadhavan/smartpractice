@@ -195,21 +195,146 @@ const TopicDetailPage = () => {
   // Helper function to normalize an option to match the Option type
   const normalizeOption = (opt: unknown): Option => {
     if (typeof opt === 'string') {
-      return { id: opt, text: opt };
+      // Clean up the string - remove any leading/trailing quotes and whitespace
+      const cleanString = opt.trim().replace(/^["']|["']$/g, '');
+      return { id: cleanString, text: cleanString };
     }
+    
     if (typeof opt !== 'object' || opt === null) {
-      const str = String(opt);
+      const str = String(opt).trim();
       return { id: str, text: str };
     }
     
     // At this point opt is a non-null object
     const option = opt as Record<string, unknown>;
-    return {
-      id: String(option.id || option.value || Math.random()),
-      text: String(option.text || option.label || opt)
-    };
+    const id = String(option.id || option.value || Math.random()).trim();
+    const text = String(option.text || option.label || option.id || option.value || '').trim();
+    return { id, text };
   };
-
+  const parseOptionsString = (optionsStr: string): Option[] => {
+    // Handle empty or undefined input
+    if (!optionsStr || optionsStr.trim() === '') {
+      return [];
+    }
+    
+    // Special case: Check if this is an array with unquoted currency values
+    // Format like: [$37,500,$39,062.50,$41,250,$43,750]
+    if (optionsStr.includes('[') && 
+        optionsStr.includes(']') && 
+        optionsStr.includes('$') && 
+        !optionsStr.includes('"')) {
+      
+      console.log('Detected unquoted currency array format');
+      
+      // Extract the content between brackets
+      const content = optionsStr.substring(
+        optionsStr.indexOf('[') + 1,
+        optionsStr.lastIndexOf(']')
+      ).trim();
+      
+      // First, normalize the format by adding quotes around currency values
+      // Convert [$37,500,$39,062.50] to ["$37,500","$39,062.50"]
+      const fixedContent = content
+        .replace(/\$(\d+,\d+(?:\.\d+)?)/g, '"$$$1"')
+        .replace(/\$(\d+(?:\.\d+)?)/g, '"$$$1"');
+      
+      console.log('Normalized content:', fixedContent);
+      
+      try {
+        // Try to parse the fixed content
+        const parsed = JSON.parse(`[${fixedContent}]`);
+        console.log('Successfully parsed fixed content:', parsed);
+        return parsed.map((item: any) => ({ 
+          id: String(item), 
+          text: String(item)
+        }));
+      } catch (fixError) {
+        console.log('Failed to parse fixed content:', fixError);
+      }
+    }
+    
+    // Try standard JSON parse first
+    try {
+      const parsed = JSON.parse(optionsStr);
+      
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => ({ 
+          id: String(item), 
+          text: String(item) 
+        }));
+      } else if (parsed && typeof parsed === 'object') {
+        return Object.values(parsed).map(item => ({ 
+          id: String(item), 
+          text: String(item) 
+        }));
+      } else if (typeof parsed === 'string') {
+        // Try to parse the string as JSON again in case it's double-stringified
+        try {
+          const nestedParse = JSON.parse(parsed);
+          if (Array.isArray(nestedParse)) {
+            return nestedParse.map(item => ({ 
+              id: String(item), 
+              text: String(item) 
+            }));
+          }
+        } catch (nestedError) {
+          // If nested parsing fails, return the string as a single option
+          return [{ id: parsed, text: parsed }];
+        }
+      }
+    } catch (jsonError) {
+      console.log('Standard JSON parse failed:', jsonError);
+    }
+    
+    // Last resort: Try to handle string with currency values
+    if (optionsStr.includes('$') && optionsStr.includes(',')) {
+      // This pattern will match currency values like $37,500.00
+      const currencyRegex = /\$\d+(?:,\d+)*(?:\.\d+)?/g;
+      const matches = optionsStr.match(currencyRegex);
+      
+      if (matches && matches.length > 0) {
+        console.log('Extracted currency values:', matches);
+        return matches.map(value => ({ id: value, text: value }));
+      }
+    }
+    
+    // If all parsing attempts fail, split by comma as last resort
+    // but only if it doesn't look like it's splitting a currency value
+    if (optionsStr.includes(',') && !optionsStr.match(/\$\d+,\d+/)) {
+      return optionsStr.split(',')
+        .map(opt => opt.trim())
+        .filter(Boolean)
+        .map(opt => ({ id: opt, text: opt }));
+    }
+    
+    // If nothing works, return as single option
+    return [{ id: optionsStr, text: optionsStr }];
+  };
+  const logOptionsFormat = (question: Question): void => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    console.log(`------- QUESTION ${question.id} OPTIONS DEBUG -------`);
+    console.log('Options type:', typeof question.options);
+    console.log('Options value:', question.options);
+    
+    if (typeof question.options === 'string') {
+      console.log('First 100 chars:', question.options.substring(0, 100));
+      console.log('Contains quotes:', question.options.includes('"'));
+      console.log('Contains brackets:', question.options.includes('[') && question.options.includes(']'));
+      console.log('Contains dollar sign:', question.options.includes('$'));
+      console.log('Contains comma:', question.options.includes(','));
+      
+      if (question.options.includes('$') && question.options.includes(',')) {
+        console.log('Likely has currency values with commas');
+        
+        // Test pattern for values like $37,500
+        const currencyPattern = /\$\d+,\d+/;
+        console.log('Currency pattern match:', currencyPattern.test(question.options));
+      }
+    }
+    
+    console.log('-----------------------------------------------');
+  };
   const initializeTestSession = async (subtopicId: number): Promise<number | null> => {
     if (!user?.id) return null;
     
@@ -244,88 +369,78 @@ const TopicDetailPage = () => {
   const handleStartQuiz = async (subtopic: Subtopic): Promise<void> => {
     // Process questions to ensure options are properly parsed
     const processed = subtopic.questions.map((question: Question) => {
+      logOptionsFormat(question);
       let parsedOptions: Option[] = [];
       
       try {
         console.log(`Processing options for question ${question.id}:`, question.options);
         
-        // Handle different potential formats of options from the DB
+        // When options come from the database, they might be in several formats
         if (typeof question.options === 'string') {
-          try {
-            // Try to parse as JSON, but with error handling
-            const parsed = JSON.parse(question.options);
-            if (Array.isArray(parsed)) {
-              parsedOptions = parsed.map((opt: unknown) => normalizeOption(opt));
-            } else if (parsed && typeof parsed === 'object') {
-              parsedOptions = Object.values(parsed).map((opt: unknown) => normalizeOption(opt));
-            }
-          } catch (jsonError) {
-            console.warn(`Failed to parse options JSON for question ${question.id}:`, jsonError);
-            
-            // Attempt recovery - split by comma if it looks like a comma-separated list
-            if (question.options.includes(',')) {
-              parsedOptions = question.options.split(',')
-                .map(opt => opt.trim())
-                .filter(opt => opt)
-                .map(opt => ({ id: opt, text: opt }));
-            } else {
-              // If can't parse as JSON and not comma-separated, treat as a single option
-              parsedOptions = [{ id: question.options, text: question.options }];
-            }
-          }
+          parsedOptions = parseOptionsString(question.options);
         } else if (Array.isArray(question.options)) {
-          // If it's already an array
-          parsedOptions = question.options.map((opt: unknown) => normalizeOption(opt));
+          // If it's already an array, map each item
+          parsedOptions = question.options.map(normalizeOption);
         } else if (question.options && typeof question.options === 'object') {
-          // If it's a raw JSON object
-          parsedOptions = Object.values(question.options as Record<string, unknown>).map((opt: unknown) => normalizeOption(opt));
+          // If it's an object with key-value pairs
+          parsedOptions = Object.values(question.options as Record<string, unknown>)
+            .map(normalizeOption);
         }
         
-        // Ensure we have at least some options
+        // Ensure we have some options
         if (parsedOptions.length === 0 && question.correctOption) {
-          // If we have a correct option but no parsed options, create some basic ones
-          parsedOptions = [
-            { id: String(question.correctOption).trim(), text: String(question.correctOption).trim() }
-          ];
+          // If we have a correct option but no parsed options, include at least the correct one
+          const correctOpt = String(question.correctOption).trim();
+          parsedOptions = [{ id: correctOpt, text: correctOpt }];
           
-          // For numeric answers, create some variations
-          if (!isNaN(Number(question.correctOption))) {
-            const correctNum = Number(question.correctOption);
-            parsedOptions = [
-              { id: String(correctNum - 2), text: String(correctNum - 2) },
-              { id: String(correctNum - 1), text: String(correctNum - 1) },
-              { id: String(correctNum), text: String(correctNum) },
-              { id: String(correctNum + 1), text: String(correctNum + 1) }
-            ];
+          // For numeric answers, could add some variations
+          if (!isNaN(Number(correctOpt))) {
+            const correctNum = Number(correctOpt);
+            const options = [
+              correctNum - 2,
+              correctNum - 1,
+              correctNum,
+              correctNum + 1
+            ].map(num => ({ id: String(num), text: String(num) }));
+            
+            // Shuffle to avoid having the correct answer always in the same position
+            parsedOptions = options;
           }
         }
         
-        // Final fallback: If we still have no options, create a dummy option
+        // Ensure options are unique and properly formatted
+        const uniqueOptions = new Map<string, Option>();
+        parsedOptions.forEach(opt => {
+          const id = String(opt.id).trim();
+          if (id && !uniqueOptions.has(id)) {
+            uniqueOptions.set(id, { 
+              id, 
+              text: String(opt.text).trim() || id 
+            });
+          }
+        });
+        
+        parsedOptions = Array.from(uniqueOptions.values());
+        
+        // If we still have no options, provide a fallback
         if (parsedOptions.length === 0) {
-          parsedOptions = [
-            { id: "option1", text: "No options available" }
-          ];
+          parsedOptions = [{ id: "option1", text: "No options available" }];
         }
+        
       } catch (e) {
         console.error('Error processing options for question', question.id, e);
-        // Default to a safe option array if processing fails
-        parsedOptions = [
-          { id: "option1", text: "Error loading options" }
-        ];
+        parsedOptions = [{ id: "error", text: "Error loading options" }];
       }
       
-      // IMPORTANT: Normalize the correctOption to be a string
       return {
         ...question,
         subtopicId: subtopic.id,
-        correctOption: String(question.correctOption || "").trim(),  // Handle potential undefined
-        options: parsedOptions.map((opt: Option) => ({
-          id: String(opt.id || "").trim(),
-          text: String(opt.text || "").trim()
-        }))
+        correctOption: String(question.correctOption || "").trim(),
+        options: parsedOptions
       };
     });
     
+    // Continue with the rest of the function...
     console.log("Processed questions:", processed);
     setProcessedQuestions(processed);
     setSelectedSubtopicForQuiz({
