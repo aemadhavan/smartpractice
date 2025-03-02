@@ -57,7 +57,7 @@ const renderOptionText = (optionText: string): string => {
   }
   
   // Clean up any HTML or unwanted characters
-  let cleanText = optionText.trim();
+  const cleanText = optionText.trim();
   
   // Return the cleaned text
   return cleanText;

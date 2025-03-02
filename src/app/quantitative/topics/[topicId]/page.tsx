@@ -244,7 +244,7 @@ const TopicDetailPage = () => {
         // Try to parse the fixed content
         const parsed = JSON.parse(`[${fixedContent}]`);
         console.log('Successfully parsed fixed content:', parsed);
-        return parsed.map((item: any) => ({ 
+        return parsed.map((item: string | number) => ({ 
           id: String(item), 
           text: String(item)
         }));
@@ -279,6 +279,7 @@ const TopicDetailPage = () => {
           }
         } catch (nestedError) {
           // If nested parsing fails, return the string as a single option
+          console.log('Nested parsing failed:', nestedError);
           return [{ id: parsed, text: parsed }];
         }
       }
