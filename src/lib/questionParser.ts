@@ -1,14 +1,20 @@
 // src/utils/questionParser.ts
 
+/**
+ * Represents a single option in a quiz question
+ */
 export type Option = {
   id: string;
   text: string;
 };
 
+/**
+ * Represents the raw question data before processing
+ */
 export type Question = {
   id: number;
   question: string;
-  options: string | string[] | Record<string, unknown> | unknown[]; // Replaced any with more specific types
+  options: unknown; // Flexible type to handle various input formats
   correctOption: string;
   explanation: string;
   formula?: string;
@@ -20,227 +26,95 @@ export type Question = {
   successRate?: number;
 };
 
+/**
+ * Represents a processed question with normalized options
+ */
 export type ProcessedQuestion = Omit<Question, 'options'> & {
   options: Option[];
 };
 
 /**
- * Safely parse question options from various formats to a consistent Option[] array
- * This handles JSON strings, arrays, objects, and provides fallbacks
+ * Type guard to determine if the input is a string
  */
-export function parseQuestionOptions(question: Question): ProcessedQuestion {
-  let parsedOptions: Option[] = [];
-  const rawOptions = question.options;
-  
-  console.log(`Parsing options for question ${question.id}`, {
-    rawOptions,
-    type: typeof rawOptions
-  });
-  
-  try {
-    // Handle string format (could be JSON string or direct string)
-    if (typeof rawOptions === 'string') {
-      try {
-        // First, try parsing as JSON
-        const parsed = JSON.parse(rawOptions);
-        
-        // If parsed result is an array, map directly
-        if (Array.isArray(parsed)) {
-          parsedOptions = parsed.map(normalizeOption);
-        } 
-        // If parsed result is an object, extract values
-        else if (parsed && typeof parsed === 'object') {
-          parsedOptions = Object.values(parsed).map(normalizeOption);
-        }
-        // If parsing fails, treat as a comma-separated or space-separated string
-        else {
-          parsedOptions = rawOptions
-            .split(/[,\s]+/)
-            .map(opt => normalizeOption(opt.trim()));
-        }
-      } catch {
-        // If JSON parsing fails, split the string
-        parsedOptions = rawOptions
-          .replace(/^\[|\]$/g, '') // Remove square brackets if present
-          .split(/[,\s]+/)
-          .map(opt => normalizeOption(opt.trim()));
-      }
-    } 
-    // Handle array format
-    else if (Array.isArray(rawOptions)) {
-      parsedOptions = rawOptions.map(normalizeOption);
-    } 
-    // Handle object format
-    else if (rawOptions && typeof rawOptions === 'object') {
-      parsedOptions = Object.values(rawOptions as Record<string, unknown>).map(normalizeOption);
-    }
-    
-    // Fallback if no options parsed
-    if (parsedOptions.length === 0) {
-      // Create options based on correct answer or generate defaults
-      if (question.correctOption) {
-        parsedOptions = [
-          { id: 'A', text: question.correctOption },
-          { id: 'B', text: 'Option B' },
-          { id: 'C', text: 'Option C' },
-          { id: 'D', text: 'Option D' }
-        ];
-      } else {
-        // Absolute last resort
-        parsedOptions = [
-          { id: '1', text: 'Option 1' },
-          { id: '2', text: 'Option 2' },
-          { id: '3', text: 'Option 3' },
-          { id: '4', text: 'Option 4' }
-        ];
-      }
-    }
-    
-    // Ensure unique IDs
-    parsedOptions = ensureUniqueOptionIds(parsedOptions);
-    
-  } catch (error) {
-    console.error(`Error processing options for question ${question.id}:`, error);
-    // Fallback to default options
-    parsedOptions = [
-      { id: '1', text: 'Option 1' },
-      { id: '2', text: 'Option 2' },
-      { id: '3', text: 'Option 3' },
-      { id: '4', text: 'Option 4' }
-    ];
-  }
-  
-  // Log final parsed options
-  console.log(`Parsed options for question ${question.id}:`, parsedOptions);
-  
-  // Return the processed question with normalized options
-  return {
-    ...question,
-    options: parsedOptions
-  };
+function isString(input: unknown): input is string {
+  return typeof input === 'string';
 }
 
-// Debugging function to help identify option parsing issues
-export function debugQuestionOptions(question: Question) {
-  console.log('Debugging Question Options:');
-  console.log('Question ID:', question.id);
-  console.log('Raw Options:', question.options);
-  console.log('Options Type:', typeof question.options);
-  
-  if (question.options === null) {
-    console.warn('WARNING: Options are null');
-  }
-  
-  if (question.options === undefined) {
-    console.warn('WARNING: Options are undefined');
-  }
-  
-  try {
-    // Force parsing to see what happens
-    const parsed = parseQuestionOptions(question);
-    console.log('Parsed Options:', parsed.options);
-  } catch (error) {
-    console.error('Parsing Error:', error);
-  }
+/**
+ * Type guard to determine if the input is a string array
+ */
+function isStringArray(input: unknown): input is string[] {
+  return Array.isArray(input) && input.every(item => typeof item === 'string');
 }
 
-// Additional helper to forcibly create minimal options if parsing fails
-export function createFallbackOptions(question: Question): ProcessedQuestion {
-  return {
-    ...question,
-    options: [
-      { 
-        id: 'fallback_1', 
-        text: 'Option 1' 
-      },
-      { 
-        id: 'fallback_2', 
-        text: 'Option 2' 
-      },
-      { 
-        id: 'fallback_3', 
-        text: 'Option 3' 
-      },
-      { 
-        id: 'fallback_4', 
-        text: 'Option 4' 
-      }
-    ]
-  };
+/**
+ * Type guard to determine if the input is a record of unknown values
+ */
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return input !== null && typeof input === 'object' && !Array.isArray(input);
 }
 
-// Enhanced option parsing with more robust error handling
-export function robustParseQuestionOptions(question: Question): ProcessedQuestion {
-  // Log raw options for debugging
-  console.log(`Parsing options for question ${question.id}:`, {
-    rawOptions: question.options,
-    type: typeof question.options
-  });
-
-  try {
-    // Handle different potential input formats
-    let optionsToProcess = question.options;
-
-    // If it's a string, try parsing
-    if (typeof optionsToProcess === 'string') {
-      try {
-        optionsToProcess = JSON.parse(optionsToProcess);
-      } catch (parseError) {
-        console.warn(`Failed to parse options string for question ${question.id}:`, parseError);
-      }
-    }
-
-    // Ensure we have a valid options array or object
-    if (!optionsToProcess || 
-        (typeof optionsToProcess !== 'object' && !Array.isArray(optionsToProcess))) {
-      console.warn(`Invalid options format for question ${question.id}. Using fallback.`);
-      return createFallbackOptions(question);
-    }
-
-    // First, try standard parsing
-    const parsed = parseQuestionOptions({
-      ...question,
-      options: optionsToProcess
-    });
-    
-    // If no options are found, use fallback
-    if (parsed.options.length === 0) {
-      console.warn(`No options found for question ${question.id}. Using fallback.`);
-      return createFallbackOptions(question);
-    }
-    
-    return parsed;
-  } catch (error) {
-    console.error(`Critical error parsing options for question ${question.id}:`, error);
-    return createFallbackOptions(question);
-  }
+/**
+ * Safely convert a value to a string, with fallback options
+ */
+function safeString(value: unknown, fallback = ''): string {
+  if (value === null || value === undefined) return fallback;
+  return String(value).trim();
 }
 
 /**
  * Normalize an option to ensure it has id and text properties
  */
-function normalizeOption(opt: unknown): Option {
-  if (typeof opt === 'string') {
-    return { id: opt, text: opt };
+function normalizeOption(input: unknown): Option {
+  // Direct string input
+  if (typeof input === 'string') {
+    return { id: input, text: input };
   }
-  
-  if (opt === null || typeof opt !== 'object') {
-    const str = String(opt);
+
+  // Primitive values
+  if (input === null || input === undefined) {
+    return { id: '', text: '' };
+  }
+
+  // Handle primitive types
+  if (typeof input === 'number' || typeof input === 'boolean') {
+    const str = String(input);
     return { id: str, text: str };
   }
-  
-  // At this point, we know opt is a non-null object
-  const option = opt as Record<string, unknown>;
-  
-  // Extract id and text, using fallbacks as needed
-  return {
-    id: String(option.id || option.value || option.key || Math.random()),
-    text: String(option.text || option.label || option.content || opt)
+
+  // Object-like input
+  if (typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    
+    // Try to extract id and text from various possible keys
+    const extractors = [
+      () => ({
+        id: safeString(obj.id || obj.key || obj.value),
+        text: safeString(obj.text || obj.label || obj.content)
+      }),
+      // Fallback to converting the entire object
+      () => ({
+        id: safeString(JSON.stringify(obj)),
+        text: safeString(JSON.stringify(obj))
+      })
+    ];
+
+    // Find the first extractor that produces a non-empty result
+    for (const extract of extractors) {
+      const option = extract();
+      if (option.id || option.text) return option;
+    }
+  }
+
+  // Absolute fallback
+  return { 
+    id: safeString(input, 'unknown'), 
+    text: safeString(input, 'Unknown Option') 
   };
 }
 
 /**
- * Ensure option IDs are unique
+ * Ensure unique IDs for options
  */
 function ensureUniqueOptionIds(options: Option[]): Option[] {
   const seen = new Set<string>();
@@ -249,7 +123,7 @@ function ensureUniqueOptionIds(options: Option[]): Option[] {
     let id = opt.id;
     let counter = 1;
     
-    // If this ID is already used, append a counter
+    // Modify ID if it's already been seen
     while (seen.has(id)) {
       id = `${opt.id}_${counter++}`;
     }
@@ -260,7 +134,128 @@ function ensureUniqueOptionIds(options: Option[]): Option[] {
 }
 
 /**
- * Process all questions in a subtopic to ensure options are properly formatted
+ * Parse options from various input formats
+ */
+function parseOptionsFromInput(input: unknown): Option[] {
+  let parsedOptions: Option[] = [];
+
+  // Try different parsing strategies
+  const parsingStrategies = [
+    // Strategy 1: Direct string array
+    () => isStringArray(input) ? input.map(normalizeOption) : null,
+
+    // Strategy 2: String input (JSON or comma-separated)
+    () => {
+      if (!isString(input)) return null;
+      
+      try {
+        // Try parsing as JSON
+        const parsed = JSON.parse(input);
+        return Array.isArray(parsed) 
+          ? parsed.map(normalizeOption)
+          : isRecord(parsed)
+            ? Object.values(parsed).map(normalizeOption)
+            : null;
+      } catch {
+        // Fallback to comma/space-separated string
+        return input
+          .replace(/^\[|\]$/g, '')
+          .split(/[,\s]+/)
+          .map(opt => normalizeOption(opt.trim()));
+      }
+    },
+
+    // Strategy 3: Object with values
+    () => isRecord(input) 
+      ? Object.values(input).map(normalizeOption)
+      : null,
+
+    // Strategy 4: Array of unknown type
+    () => Array.isArray(input) 
+      ? input.map(normalizeOption)
+      : null
+  ];
+
+  // Find the first successful parsing strategy
+  for (const strategy of parsingStrategies) {
+    const result = strategy();
+    if (result && result.length > 0) {
+      parsedOptions = result;
+      break;
+    }
+  }
+
+  // Fallback if no options parsed
+  return parsedOptions.length > 0 
+    ? ensureUniqueOptionIds(parsedOptions)
+    : [
+        { id: 'A', text: 'Option A' },
+        { id: 'B', text: 'Option B' },
+        { id: 'C', text: 'Option C' },
+        { id: 'D', text: 'Option D' }
+      ];
+}
+
+/**
+ * Process a single question, normalizing its options
+ */
+export function parseQuestionOptions(question: Question): ProcessedQuestion {
+  try {
+    // Log input for debugging
+    console.log(`Processing options for question ${question.id}`, {
+      rawOptions: question.options,
+      type: typeof question.options
+    });
+
+    // Parse options
+    const parsedOptions = parseOptionsFromInput(question.options);
+
+    // Log final parsed options
+    console.log(`Parsed options for question ${question.id}:`, parsedOptions);
+
+    // Return processed question
+    return {
+      ...question,
+      options: parsedOptions
+    };
+  } catch (error) {
+    // Critical error fallback
+    console.error(`Critical error processing options for question ${question.id}:`, error);
+    
+    return {
+      ...question,
+      options: [
+        { id: '1', text: 'Option 1' },
+        { id: '2', text: 'Option 2' },
+        { id: '3', text: 'Option 3' },
+        { id: '4', text: 'Option 4' }
+      ]
+    };
+  }
+}
+
+/**
+ * Debugging function to help identify option parsing issues
+ */
+export function debugQuestionOptions(question: Question): void {
+  console.group(`Debugging Question Options (ID: ${question.id})`);
+  
+  try {
+    console.log('Raw Options:', question.options);
+    console.log('Options Type:', typeof question.options);
+
+    // Attempt parsing
+    const parsed = parseQuestionOptions(question);
+    console.log('Parsed Options:', parsed.options);
+  } catch (error) {
+    console.error('Unexpected error in debugQuestionOptions:', error);
+  } finally {
+    console.groupEnd();
+  }
+}
+
+/**
+ * Process all questions in a subtopic
  */
 export function processSubtopicQuestions(questions: Question[]): ProcessedQuestion[] {
   return questions.map(parseQuestionOptions);

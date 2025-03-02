@@ -1,17 +1,9 @@
-//File: src/components/QuizModal.tsx
+//File: /src/components/QuizModal.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
+import { config,processMathExpression, processExplanation, logMathJaxError } from '../lib/mathjax-config';
 
-// Define MathJax configuration options
-const config = {
-  loader: { load: ["[tex]/html"] },
-  tex: {
-    packages: { "[+]": ["html"] },
-    inlineMath: [["$", "$"]],
-    displayMath: [["$$", "$$"]]
-  }
-};
 
 type Option = {
   id: string;
@@ -385,154 +377,152 @@ const QuizModal: React.FC<QuizModalProps> = ({
   
   return (
     <MathJaxContext version={3} config={config}>
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-90vh overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">
-            {subtopicName}: Question {currentQuestionIndex + 1} of {questions.length}
-          </h2>
-          <button 
-            className="text-gray-500 hover:text-gray-700"
-            onClick={handleClose} // Use handleClose instead of onClose
-          >
-            &times;
-          </button>
-        </div>
-        
-        {/* Timer */}
-        <div className="mb-4 flex justify-between items-center">
-          <div>
-            <span className={`inline-block px-3 py-1 rounded ${
-              timeLeft > 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              Time: {formatTime(timeLeft)}
-            </span>
-            <button
-              className="ml-2 px-3 py-1 text-sm bg-gray-200 rounded"
-              onClick={() => setIsPaused(!isPaused)}
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-lg">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6 border-b pb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              {subtopicName}: Question {currentQuestionIndex + 1} of {questions.length}
+            </h2>
+            <button 
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+              onClick={handleClose}
             >
-              {isPaused ? 'Resume' : 'Pause'}
+              &times;
             </button>
           </div>
-          <div>
+
+          {/* Timer and Status */}
+          <div className="mb-6 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <span className={`inline-block px-3 py-1 rounded ${
+                timeLeft > 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              } font-medium text-sm`}>
+                Time: {formatTime(timeLeft)}
+              </span>
+              <button
+                className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? 'Resume' : 'Pause'}
+              </button>
+            </div>
             <span className={`inline-block px-3 py-1 rounded ${
               getQuestionStatus() === 'Mastered' ? 'bg-green-100 text-green-800' :
               getQuestionStatus() === 'Learning' ? 'bg-yellow-100 text-yellow-800' :
               'bg-gray-100 text-gray-800'
-            }`}>
+            } font-medium text-sm`}>
               {getQuestionStatus()}
             </span>
           </div>
-        </div>
-        
-        {/* Test Session ID (for debugging) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mb-2 text-xs text-gray-500">
-            Session ID: {testSessionId || 'Not set yet'} | 
-            Answered: {Array.from(answeredQuestionIds).join(', ')}
-          </div>
-        )}
-        
-        {/* Question */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div dangerouslySetInnerHTML={{ __html: currentQuestion.question }} />          
-        </div>
-        
-        {/* Options */}
-        <div className="mb-6 space-y-3">
-          {options.length > 0 ? (
-            options.map((option) => (
-              <div 
-                key={option.id}
-                className={`p-3 rounded-lg border cursor-pointer ${
-                  !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
-                  isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
-                  isAnswered && selectedOption === option.id ? 'border-red-500 bg-red-50' :
-                  'border-gray-200 hover:bg-gray-50'
-                }`}
-                onClick={() => handleOptionSelect(option.id)}
-              >
-                <div dangerouslySetInnerHTML={{ __html: option.text }} />
-              </div>
-            ))
-          ) : (
-            <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
-              No options available for this question. Please check the data format.
+
+          {/* Test Session ID (for debugging) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 text-xs text-gray-500">
+              Session ID: {testSessionId || 'Not set yet'} | 
+              Answered: {Array.from(answeredQuestionIds).join(', ')}
             </div>
           )}
-        </div>
-        
-        {/* Actions */}
-        <div className="flex justify-between">
-          {!isAnswered ? (
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-blue-300"
-              onClick={handleSubmitAnswer}
-              disabled={!selectedOption || isSubmitting}
+
+          {/* Question */}
+          <div className="mb-6 p-5 bg-gray-50 rounded-lg shadow-inner">
+            <MathJax
+              renderMode="post"
+              onError={(error) => logMathJaxError(error, currentQuestion.question)}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Answer'}
-            </button>
-          ) : (
-            <button
-              className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-green-400"
-              onClick={handleNextQuestion}
-              disabled={isCompletingSession}
-            >
-              {isCompletingSession ? 'Finishing...' : 
-                currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-            </button>
-          )}
-        </div>
-        
-        {/* Explanation (shown after answering) */}
-        {isAnswered && (          
-            <div className={`mt-6 p-4 rounded-lg ${
-              // Use the stored result when available, otherwise fall back to the current comparison
-              (answerResult !== null) ? (answerResult ? 'bg-green-50' : 'bg-red-50') : 
-              (selectedOption === currentQuestion.correctOption ? 'bg-green-50' : 'bg-red-50')
+              <div className="text-lg text-gray-800" dangerouslySetInnerHTML={{ __html: currentQuestion.question }} />
+            </MathJax>
+          </div>
+
+          {/* Options */}
+          <div className="mb-6 space-y-3">
+            {options.length > 0 ? (
+              options.map((option) => (
+                <div 
+                  key={option.id}
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
+                    isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
+                    isAnswered && selectedOption === option.id ? 'border-red-500 bg-red-50' :
+                    'border-gray-200 hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleOptionSelect(option.id)}
+                >
+                  <MathJax
+                    renderMode="post"
+                    onError={(error) => logMathJaxError(error, option.text)}
+                  >
+                    <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ __html: option.text }} />
+                  </MathJax>
+                </div>
+              ))
+            ) : (
+              <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-base">
+                No options available for this question. Please check the data format.
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-between items-center">
+            {!isAnswered ? (
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                onClick={handleSubmitAnswer}
+                disabled={!selectedOption || isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Answer'}
+              </button>
+            ) : (
+              <button
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition-colors"
+                onClick={handleNextQuestion}
+                disabled={isCompletingSession}
+              >
+                {isCompletingSession ? 'Finishing...' : 
+                  currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+              </button>
+            )}
+          </div>
+
+          {/* Explanation (shown after answering) */}
+          {isAnswered && (
+            <div className={`mt-6 p-5 rounded-lg shadow-inner ${
+              (answerResult !== null) ? (answerResult ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 
+              (selectedOption === currentQuestion.correctOption ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')
             }`}>
-              <h3 className="font-bold mb-2">
+              <h3 className="font-bold mb-3 text-lg text-gray-900">
                 {(answerResult !== null) ? (answerResult ? 'Correct!' : 'Incorrect') : 
                 (selectedOption === currentQuestion.correctOption ? 'Correct!' : 'Incorrect')}
               </h3>
-              
+
               {/* Formula displayed with MathJax component */}
               {currentQuestion.formula && (
-                <div className="mb-3 pb-3 border-b">
-                  <div className="py-2">
-                    <MathJax>
-                      {/* If formula doesn't have $ delimiters, add them */}
-                      {!currentQuestion.formula.includes('$') ? (
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: `$$${currentQuestion.formula}$$` 
-                        }} />
-                      ) : (
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: currentQuestion.formula 
-                        }} />
-                      )}
-                    </MathJax>
-                  </div>
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <MathJax
+                    renderMode="post"
+                    onError={(error) => logMathJaxError(error, currentQuestion.formula || '')}
+                  >
+                    <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ 
+                      __html: processMathExpression(currentQuestion.formula)
+                    }} />
+                  </MathJax>
                 </div>
               )}
-              
+
               {/* Process explanation text to handle \( \) delimiters */}
-              <MathJax>
-                <div dangerouslySetInnerHTML={{ 
-                  __html: currentQuestion.explanation.replace(
-                    /\\\((.*?)\\\)/g, 
-                    (match, group) => {
-                      // Replace \( \) with $ $ for MathJax
-                      return `$${group}$`;
-                    }
-                  )
+              <MathJax
+                renderMode="post"
+                onError={(error) => logMathJaxError(error, currentQuestion.explanation)}
+              >
+                <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ 
+                  __html: processExplanation(currentQuestion.explanation)
                 }} />
               </MathJax>
             </div>
           )}
+        </div>
       </div>
-    </div>
     </MathJaxContext>
   );
 };
