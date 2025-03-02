@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
-import { config,processMathExpression, processExplanation, logMathJaxError } from '../lib/mathjax-config';
-
+import { config, processMathExpression, processExplanation, logMathJaxError } from '../lib/mathjax-config';
 
 type Option = {
   id: string;
@@ -23,7 +22,14 @@ export type QuizQuestion = {
   attemptCount?: number;
   successRate?: number;
   status?: 'Mastered' | 'Learning' | 'To Start';
-  subtopicId: number; // Added for tracking attempts
+  subtopicId: number;
+};
+
+// Add a new type to track answered questions with their selected options
+type AnsweredQuestion = {
+  questionId: number;
+  selectedOption: string;
+  isCorrect: boolean;
 };
 
 type QuizModalProps = {
@@ -33,9 +39,9 @@ type QuizModalProps = {
   questions: QuizQuestion[];
   userId: string;
   topicId: number;
-  onQuestionsUpdate?: (updatedQuestions: QuizQuestion[]) => void; // Optional prop
-  onSessionIdUpdate?: (sessionId: number | null) => void; // For session ID tracking
-  testSessionId?: number | null; // Accept the initialized test session ID from parent
+  onQuestionsUpdate?: (updatedQuestions: QuizQuestion[]) => void;
+  onSessionIdUpdate?: (sessionId: number | null) => void;
+  testSessionId?: number | null;
 };
 
 const QuizModal: React.FC<QuizModalProps> = ({
@@ -46,7 +52,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
   userId,
   topicId,
   onSessionIdUpdate,
-  testSessionId: initialTestSessionId // Renamed to avoid conflict with state
+  testSessionId: initialTestSessionId
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -54,36 +60,34 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Use the initial value provided by the parent if available
   const [testSessionId, setTestSessionId] = useState<number | null>(initialTestSessionId || null);
-  // Track the start time for the current question
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
-  // Track which questions have been answered in this session
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<number>>(new Set());
-  // Track if we're completing a session
+  
+  // Replace simple Set with Map to track both question IDs and selected options
+  const [answeredQuestions, setAnsweredQuestions] = useState<AnsweredQuestion[]>([]);
+  
   const [isCompletingSession, setIsCompletingSession] = useState(false);
   const [answerResult, setAnswerResult] = useState<boolean | null>(null);
-
   
-  // Reference to track initial session ID
   const initialSessionIdRef = useRef<number | null>(initialTestSessionId || null);
-  // Current question reference for use in effects
   const currentQuestionRef = useRef<QuizQuestion | null>(null);
   
-  // Safe access to current question
   const currentQuestion = questions[currentQuestionIndex] || null;
   
-  // Update currentQuestionRef whenever the current question changes
+  // Helper to check if current question has been answered
+  const getCurrentQuestionAnswer = useCallback(() => {
+    if (!currentQuestion) return null;
+    return answeredQuestions.find(q => q.questionId === currentQuestion.id) || null;
+  }, [currentQuestion, answeredQuestions]);
+  
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
   }, [currentQuestion]);
   
-  // Make sure options exist and are in the expected format
   const options = currentQuestion && Array.isArray(currentQuestion.options) 
     ? currentQuestion.options 
     : [];
   
-  // Update testSessionId state when initialTestSessionId prop changes
   useEffect(() => {
     if (initialTestSessionId && initialTestSessionId !== testSessionId) {
       console.log('Updating test session ID from prop:', initialTestSessionId);
@@ -92,7 +96,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
     }
   }, [initialTestSessionId, testSessionId]);
   
-  // Function to complete a test session
   const completeTestSession = useCallback(async () => {
     if (!testSessionId || isCompletingSession) return;
     
@@ -114,10 +117,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
       if (response.ok) {
         const result = await response.json();
         console.log('Successfully completed test session:', result);
-        
-        // Clear the session ID after successful completion
         setTestSessionId(null);
-        // The effect will notify the parent about this change
       } else {
         console.error('Failed to complete test session:', await response.text());
       }
@@ -128,12 +128,11 @@ const QuizModal: React.FC<QuizModalProps> = ({
     }
   }, [testSessionId, userId, isCompletingSession]);
   
-  // Modified close handler to complete session
   const handleClose = useCallback(() => {
     if (testSessionId) {
       completeTestSession().then(() => {
         setTestSessionId(null);
-        setAnsweredQuestionIds(new Set());
+        setAnsweredQuestions([]);
         onClose();
       });
     } else {
@@ -141,26 +140,37 @@ const QuizModal: React.FC<QuizModalProps> = ({
     }
   }, [testSessionId, completeTestSession, onClose]);
   
-  // Reset state when questions change or when a new question is loaded
+  // Effect to handle question changes
   useEffect(() => {
     if (questions.length > 0 && currentQuestion) {
       setTimeLeft(currentQuestion.timeAllocation);
-      setSelectedOption(null);
-      setIsAnswered(false);
+      
+      // Check if we already have an answer for this question
+      const previousAnswer = getCurrentQuestionAnswer();
+      
+      if (previousAnswer) {
+        // If we've answered this question before, restore the selected option and answer state
+        setSelectedOption(previousAnswer.selectedOption);
+        setIsAnswered(true);
+        setAnswerResult(previousAnswer.isCorrect);
+      } else {
+        // Reset for a new question
+        setSelectedOption(null);
+        setIsAnswered(false);
+        setAnswerResult(null);
+      }
+      
       setIsSubmitting(false);
-      // Record the start time for the question
       setQuestionStartTime(Date.now());
     }
-  }, [currentQuestionIndex, questions, currentQuestion]);
+  }, [currentQuestionIndex, questions, currentQuestion, getCurrentQuestionAnswer]);
   
-  // Notify parent of session ID changes
   useEffect(() => {
     if (onSessionIdUpdate) {
       onSessionIdUpdate(testSessionId);
     }
   }, [testSessionId, onSessionIdUpdate]);
 
-  // Timer effect
   useEffect(() => {
     if (!isOpen || isPaused || isAnswered || timeLeft <= 0) return;
     
@@ -171,40 +181,23 @@ const QuizModal: React.FC<QuizModalProps> = ({
     return () => clearInterval(timer);
   }, [isOpen, isPaused, isAnswered, timeLeft]);
   
-  // Effect to handle when time runs out
   useEffect(() => {
     if (timeLeft === 0 && !isAnswered) {
       setIsAnswered(true);
     }
   }, [timeLeft, isAnswered]);
 
-  // Add a debugging useEffect
-  useEffect(() => {
-    console.log('Quiz state updated:', {
-      selectedOption,
-      isAnswered,
-      isSubmitting,
-      testSessionId,
-      initialTestSessionId,
-      answeredQuestionIds: Array.from(answeredQuestionIds)
-    });
-  }, [selectedOption, isAnswered, isSubmitting, testSessionId, initialTestSessionId, answeredQuestionIds]);
-
-  // Effect to preserve the session ID when the quiz is opened
   useEffect(() => {
     if (isOpen) {
-      // If we have an initial session ID, use it
       if (initialSessionIdRef.current && !testSessionId) {
         console.log('Setting test session ID from initial prop:', initialSessionIdRef.current);
         setTestSessionId(initialSessionIdRef.current);
       }
     } else {
-      // Reset when quiz closes but don't lose the initial reference
-      setAnsweredQuestionIds(new Set());
+      // Don't reset answered questions when closing - only when explicitly told to
     }
   }, [isOpen, testSessionId]);
   
-  // Cleanup effect to ensure session is completed if component unmounts
   useEffect(() => {
     return () => {
       if (isOpen && testSessionId) {
@@ -213,38 +206,30 @@ const QuizModal: React.FC<QuizModalProps> = ({
     };
   }, [isOpen, testSessionId, completeTestSession]);
 
-  // Effect to initialize question state when a question loads
+  // Initial setup when the quiz opens
   useEffect(() => {
-    // Reset states when a new question loads
     if (isOpen && currentQuestion) {
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setIsSubmitting(false);
-      setTimeLeft(currentQuestion.timeAllocation);
-      setIsPaused(false);
-      setQuestionStartTime(Date.now());
-      setAnswerResult(null); // Reset the answer result
+      const existingAnswer = getCurrentQuestionAnswer();
       
-      // Debug output to make sure we're starting fresh
-      console.log('Question loaded:', {
-        questionId: currentQuestion.id,
-        question: currentQuestion.question,
-        correctOption: currentQuestion.correctOption,
-        selectedOption: null,
-        isAnswered: false,
-        testSessionId,
-        alreadyAnswered: answeredQuestionIds.has(currentQuestion.id)
-      });
-      
-      // If this question has already been answered in this session, show the answer
-      if (answeredQuestionIds.has(currentQuestion.id)) {
-        console.log(`Question ${currentQuestion.id} was already answered in this session`);
+      if (existingAnswer) {
+        // If we've already answered this question, restore the state
+        setSelectedOption(existingAnswer.selectedOption);
         setIsAnswered(true);
+        setAnswerResult(existingAnswer.isCorrect);
+        console.log(`Restoring previous answer for question ${currentQuestion.id}:`, existingAnswer);
+      } else {
+        // New question setup
+        setSelectedOption(null);
+        setIsAnswered(false);
+        setIsSubmitting(false);
+        setTimeLeft(currentQuestion.timeAllocation);
+        setIsPaused(false);
+        setQuestionStartTime(Date.now());
+        setAnswerResult(null);
       }
     }
-  }, [isOpen, currentQuestion, currentQuestionIndex, testSessionId, answeredQuestionIds]);
+  }, [isOpen, currentQuestion, getCurrentQuestionAnswer]);
 
-  // Early return if modal is closed or no question is available
   if (!isOpen || !currentQuestion) return null;
   
   const handleOptionSelect = (optionId: string) => {
@@ -252,51 +237,28 @@ const QuizModal: React.FC<QuizModalProps> = ({
     setSelectedOption(optionId);
   };
   
-  // Debug function to log question status
-  const logQuestionStatus = () => {
-    // Get all attempts for the current question
-    const attempts = questions.filter(q => q.id === currentQuestion.id);
-    
-    if (attempts.length > 0) {
-      const question = attempts[0];
-      const attemptCount = question.attemptCount || 0;
-      const successRate = question.successRate || 0;
-      const status = question.status || 'To Start';
-      
-      console.log('QUESTION STATUS CHECK:', {
-        questionId: question.id,
-        attemptCount: attemptCount,
-        successRate: successRate,
-        status: status,
-        shouldBeMastered: successRate >= 0.8,
-        currentCalculation: `${successRate >= 0.8 ? 'Mastered' : attemptCount > 0 ? 'Learning' : 'To Start'}`,
-        testSessionId,
-        alreadyAnswered: answeredQuestionIds.has(question.id)
-      });
-    }
-  };
-
   const handleSubmitAnswer = async () => {
-    logQuestionStatus(); // Log status before submission
-  
     if (!selectedOption || isSubmitting) return;
     
-    // Check if this question has already been answered in this session
-    if (answeredQuestionIds.has(currentQuestion.id)) {
-      console.log(`Question ${currentQuestion.id} already answered in this session, skipping submission`);
+    // Check if we already answered this question
+    const existingAnswer = answeredQuestions.find(q => q.questionId === currentQuestion.id);
+    if (existingAnswer) {
+      console.log(`Question ${currentQuestion.id} already answered in this session, using cached result`);
+      setSelectedOption(existingAnswer.selectedOption);
       setIsAnswered(true);
+      setAnswerResult(existingAnswer.isCorrect);
       return;
     }
     
     setIsSubmitting(true);
     setIsAnswered(true);
     
-    // Calculate if the answer is correct and LOCK this value
+    // Calculate if the answer is correct and store this value
     const normalizedSelected = String(selectedOption).trim();
     const normalizedCorrect = String(currentQuestion.correctOption).trim();
     const isCorrect = normalizedSelected === normalizedCorrect;
     
-    // Store the answer result in state to keep it consistent
+    // Set the answer result ONCE and use this for UI rendering
     setAnswerResult(isCorrect);
     
     console.log('Answer comparison:', {
@@ -305,10 +267,8 @@ const QuizModal: React.FC<QuizModalProps> = ({
       isMatch: isCorrect
     });
     
-    // Calculate time spent on this question
     const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
     
-    // Create the payload with testSessionId if available
     const payload = {
       userId,
       questionId: currentQuestion.id,
@@ -323,7 +283,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
     console.log('Submitting attempt with payload:', payload);
     
     try {
-      // Record the attempt
       await fetch('/api/quantitative/track-attempt', {
         method: 'POST',
         headers: {
@@ -332,12 +291,15 @@ const QuizModal: React.FC<QuizModalProps> = ({
         body: JSON.stringify(payload)
       });
       
-      // Mark this question as answered in this session
-      setAnsweredQuestionIds(prev => {
-        const updated = new Set(prev);
-        updated.add(currentQuestion.id);
-        return updated;
-      });
+      // Store the answered question with its selected option
+      setAnsweredQuestions(prev => [
+        ...prev.filter(q => q.questionId !== currentQuestion.id),
+        {
+          questionId: currentQuestion.id,
+          selectedOption: selectedOption,
+          isCorrect: isCorrect
+        }
+      ]);
       
     } catch (error) {
       console.error('Failed to record attempt:', error);
@@ -349,17 +311,13 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setAnswerResult(null); // Reset the answer result
     } else {
-      // This is the last question, complete the session before closing
       if (testSessionId) {
         completeTestSession().then(() => {
-          onClose(); // End of quiz after completing session
+          onClose();
         });
       } else {
-        onClose(); // End of quiz
+        onClose();
       }
     }
   };
@@ -370,10 +328,12 @@ const QuizModal: React.FC<QuizModalProps> = ({
     return `${mins}m ${secs}s`;
   };
   
-  // Safely get status with fallback
   const getQuestionStatus = () => {
     return currentQuestion.status || 'To Start';
   };
+  
+  // Get list of answered question IDs for debugging
+  const answeredQuestionIds = answeredQuestions.map(q => q.questionId);
   
   return (
     <MathJaxContext version={3} config={config}>
@@ -420,7 +380,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
           {process.env.NODE_ENV === 'development' && (
             <div className="mb-4 text-xs text-gray-500">
               Session ID: {testSessionId || 'Not set yet'} | 
-              Answered: {Array.from(answeredQuestionIds).join(', ')}
+              Answered: {answeredQuestionIds.join(', ')}
             </div>
           )}
 
@@ -443,7 +403,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
                   className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                     !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
                     isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
-                    isAnswered && selectedOption === option.id ? 'border-red-500 bg-red-50' :
+                    isAnswered && selectedOption === option.id && option.id !== currentQuestion.correctOption ? 'border-red-500 bg-red-50' :
                     'border-gray-200 hover:bg-gray-50'
                   }`}
                   onClick={() => handleOptionSelect(option.id)}
@@ -488,12 +448,14 @@ const QuizModal: React.FC<QuizModalProps> = ({
           {/* Explanation (shown after answering) */}
           {isAnswered && (
             <div className={`mt-6 p-5 rounded-lg shadow-inner ${
-              (answerResult !== null) ? (answerResult ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 
-              (selectedOption === currentQuestion.correctOption ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200')
+              answerResult === true ? 'bg-green-50 border-green-200' : 
+              answerResult === false ? 'bg-red-50 border-red-200' : 
+              'bg-gray-50 border-gray-200'
             }`}>
               <h3 className="font-bold mb-3 text-lg text-gray-900">
-                {(answerResult !== null) ? (answerResult ? 'Correct!' : 'Incorrect') : 
-                (selectedOption === currentQuestion.correctOption ? 'Correct!' : 'Incorrect')}
+                {answerResult === true ? 'Correct!' : 
+                 answerResult === false ? 'Incorrect' : 
+                 'Answer'}
               </h3>
 
               {/* Formula displayed with MathJax component */}

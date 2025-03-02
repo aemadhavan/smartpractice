@@ -1,6 +1,6 @@
 // File: src/app/api/quantitative/route.ts
 import { NextResponse, NextRequest } from 'next/server';
-import { db } from '@/db/index';
+import { getDb  } from '@/db/index';
 import { 
   quantTopics, 
   quantQuestions,
@@ -10,6 +10,7 @@ import { eq, count, and } from 'drizzle-orm';
 
 // GET: Retrieve all quantitative topics with counts and progress
 export async function GET(request: NextRequest) {
+  const db = getDb();
   try {
     // Get userId from query params
     const { searchParams } = new URL(request.url);

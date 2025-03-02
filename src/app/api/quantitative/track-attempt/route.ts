@@ -1,7 +1,7 @@
 //File: src/app/api/quantitative/track-attempt/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/index';
+import { getDb } from '@/db/index';
 import { 
   quantQuestionAttempts,
   quantTestAttempts
@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, questionId, topicId, subtopicId, isCorrect, userAnswer, timeSpent, testSessionId } = body;
+
+    // Get the singleton DB instance
+    const db = getDb();
     
     console.log('UNIFIED SESSION TRACKING:', {
       userId,

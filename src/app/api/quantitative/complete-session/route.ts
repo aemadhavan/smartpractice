@@ -1,7 +1,7 @@
 //File: src/app/api/quantitative/complete-session/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/index';
+import { getDb } from '@/db/index';
 import { 
   quantTestAttempts, 
   quantQuestionAttempts, 
@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    // Get the singleton DB instance
+    const db = getDb();
+    
     // First, check if the test attempt exists
     const testAttempt = await db.query.quantTestAttempts.findFirst({
       where: and(
