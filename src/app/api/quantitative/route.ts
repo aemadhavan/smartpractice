@@ -1,6 +1,6 @@
 // File: src/app/api/quantitative/route.ts
 import { NextResponse, NextRequest } from 'next/server';
-import { getDb  } from '@/db/index';
+import { getDb, executeWithRetry } from '@/db/index';
 import { 
   quantTopics, 
   quantQuestions,
@@ -10,8 +10,9 @@ import { eq, count, and } from 'drizzle-orm';
 
 // GET: Retrieve all quantitative topics with counts and progress
 export async function GET(request: NextRequest) {
-  const db = getDb();
   try {
+    console.log('Starting API request for quantitative topics');
+    
     // Get userId from query params
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -23,31 +24,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all active topics
-    const topics = await db.select().from(quantTopics).where(eq(quantTopics.isActive, true));
+    // Get DB connection - now properly awaited
+    console.log('Getting database connection...');
+    const db = await getDb();
+    console.log('Database connection obtained');
+    
+    // Fetch all active topics with retry logic
+    console.log('Fetching topics...');
+    const topics = await executeWithRetry(() => 
+      db.select().from(quantTopics).where(eq(quantTopics.isActive, true))
+    );
+    console.log(`Successfully fetched ${topics.length} topics`);
     
     // Create a map to store question counts per topic
-    const questionCountsPromise = db.select({
-      topicId: quantQuestions.topicId,
-      count: count(quantQuestions.id)
-    })
-    .from(quantQuestions)
-    .where(eq(quantQuestions.isActive, true))
-    .groupBy(quantQuestions.topicId);
+    console.log('Fetching question counts...');
+    const questionCountsPromise = executeWithRetry(() =>
+      db.select({
+        topicId: quantQuestions.topicId,
+        count: count(quantQuestions.id)
+      })
+      .from(quantQuestions)
+      .where(eq(quantQuestions.isActive, true))
+      .groupBy(quantQuestions.topicId)
+    );
 
     // Get user progress for each topic - using and() for multiple conditions
-    const userProgressPromise = db.select()
-      .from(quantTopicProgress)
-      .where(and(
-        eq(quantTopicProgress.userId, userId),
-        eq(quantTopicProgress.isActive, true)
-      ));
+    console.log('Fetching user progress...');
+    const userProgressPromise = executeWithRetry(() =>
+      db.select()
+        .from(quantTopicProgress)
+        .where(and(
+          eq(quantTopicProgress.userId, userId),
+          eq(quantTopicProgress.isActive, true)
+        ))
+    );
 
     // Wait for all promises to resolve
+    console.log('Waiting for all database queries to complete...');
     const [questionCounts, userProgress] = await Promise.all([
       questionCountsPromise,
       userProgressPromise
     ]);
+    console.log('All database queries completed successfully');
 
     // Create a map for question counts
     const questionCountMap = new Map();
@@ -131,6 +149,7 @@ export async function GET(request: NextRequest) {
     // This would require adding additional query to fetch today's attempts
     dailyProgress = 7; // Placeholder value - would be replaced with actual query
 
+    console.log('API request completed successfully');
     return NextResponse.json({ 
       topics: topicsWithDetails,
       stats: {
@@ -141,10 +160,36 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching quantitative topics:', error);
+    
+    // Type-safe error handling
+    const errorDetails: {
+      message: string;
+      name?: string;
+      stack?: string;
+      code?: string;
+    } = {
+      message: error instanceof Error ? error.message : String(error)
+    };
+    
+    // Add additional properties if error is an Error object
+    if (error instanceof Error) {
+      errorDetails.name = error.name;
+      errorDetails.stack = process.env.NODE_ENV === 'development' ? error.stack : undefined;
+      
+      // Handle PostgreSQL error codes if present
+      const pgError = error as Error & { code?: string };
+      if (pgError.code) {
+        errorDetails.code = pgError.code;
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch quantitative topics' },
+      { 
+        error: 'Failed to fetch quantitative topics',
+        details: errorDetails
+      },
       { status: 500 }
     );
   }
