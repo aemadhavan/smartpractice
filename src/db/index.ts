@@ -255,6 +255,7 @@ export async function testDbConnection() {
     const db = await getDb();
     // Run a simple query to test the connection
     const result = await db.execute(sql`SELECT 1 as test`);
+    console.log('Database connection test result:', result);
     return { status: 'ok', message: 'Database connection successful' };
   } catch (error: unknown) {
     console.error('Database health check failed:', error);
