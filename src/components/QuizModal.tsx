@@ -4,6 +4,24 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import { config, processMathExpression, logMathJaxError } from '../lib/mathjax-config';
 
+// Define MathJax global type for TypeScript
+declare global {
+  interface Window {
+    MathJax?: {
+      typeset: (elements?: string[]) => void;
+      typesetPromise?: (elements?: string[]) => Promise<unknown>;
+      startup?: {
+        promise: Promise<unknown>;
+      };
+      // Add Hub interface for v2 compatibility
+      Hub?: {
+        Typeset: () => void;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown; // For other properties that might exist
+    };
+  }
+}
 type Option = {
   id: string;
   text: string;
@@ -64,6 +82,69 @@ const renderOptionText = (optionText: string): string => {
   return optionText.trim();
 };
 
+// Utility function to safely trigger MathJax typesetting
+const safeTypesetMathJax = (): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  // Check if MathJax exists
+  if (!window.MathJax) {
+    console.warn('MathJax not available');
+    return;
+  }
+  
+  try {
+    // For MathJax v3+
+    if (typeof window.MathJax.typeset === 'function') {
+      window.MathJax.typeset();
+      console.log('MathJax typesetting completed (v3)');
+    } 
+    // For MathJax v2
+    else if (window.MathJax.Hub && typeof window.MathJax.Hub.Typeset === 'function') {
+      window.MathJax.Hub.Typeset();
+      console.log('MathJax typesetting completed (v2)');
+    } else {
+      console.warn('MathJax typeset method not found');
+    }
+  } catch (error) {
+    console.error('Error during MathJax typesetting:', error);
+  }
+};
+
+
+interface TypedMathJaxProps {
+  renderMode?: "pre" | "post";
+  typesetting?: boolean | string;
+  onError?: (error: Error | unknown) => void;
+  children: React.ReactNode;
+  [key: string]: unknown; // For any other props that might be passed
+}
+// Add this before your QuizModal component
+const TypedMathJax: React.FC<TypedMathJaxProps> = ({ typesetting, children, onError, ...rest }) => {
+  // We still want the typesetting logic to work, but need to use the global safeTypesetMathJax function
+  React.useEffect(() => {
+    if (typesetting && typeof window !== 'undefined') {
+      try {
+        // Use the global utility function instead of directly calling window.MathJax
+        const timer = setTimeout(() => {
+          safeTypesetMathJax();
+        }, 50);
+        
+        return () => clearTimeout(timer);
+      } catch (error) {
+        console.error('Error during typesetting:', error);
+        if (onError && error instanceof Error) {
+          onError(error);
+        }
+      }
+    }
+  }, [typesetting, children, onError]);
+  
+  // Return MathJax without the typesetting prop
+  return <MathJax {...rest}>{children}</MathJax>;
+};
+
 const QuizModal: React.FC<QuizModalProps> = ({
   isOpen,
   onClose,
@@ -115,6 +196,29 @@ const QuizModal: React.FC<QuizModalProps> = ({
       initialSessionIdRef.current = initialTestSessionId;
     }
   }, [initialTestSessionId, testSessionId]);
+  
+  // Force MathJax typesetting when the modal is opened or when question changes
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to ensure the modal content is fully rendered
+      const timer = setTimeout(() => {
+        safeTypesetMathJax();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, currentQuestionIndex, isAnswered]);
+  
+  // Force MathJax typesetting when showing the explanation
+  useEffect(() => {
+    if (isOpen && isAnswered) {
+      const timer = setTimeout(() => {
+        safeTypesetMathJax();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isAnswered]);
   
   const completeTestSession = useCallback(async () => {
     if (!testSessionId || isCompletingSession) return;
@@ -363,17 +467,53 @@ const QuizModal: React.FC<QuizModalProps> = ({
   // Get list of answered question IDs for debugging
   const answeredQuestionIds = answeredQuestions.map(q => q.questionId);
   
-  // Create an enhanced config that includes the typeset option
+  // Enhanced config with more modal-specific settings
   const enhancedConfig = {
     ...config,
     startup: {
       ...config.startup,
-      typeset: true
+      typeset: true  // This is at the config level, not the component level
+    },
+    options: {
+      enableMenu: false,  // Disable the right-click menu in modal contexts
+      renderActions: {
+        addMenu: [],      // Disable menu for better modal compatibility
+        checkLoading: [],  // Skip loading checks which can cause issues in modals
+        // Add this to ensure processing happens on initial render
+        findMath: [
+          'findMath',
+          'processMath',
+          'typeset',
+          'renderActions',
+          'displayErrors',
+          'finalize',
+          'typesetDone'
+        ]
+      }
     }
   };
   
   return (
     <MathJaxContext version={3} config={enhancedConfig}>
+      {/* Add CSS to fix z-index issues with MathJax in modal context */}
+      <style jsx global>{`
+        .MathJax {
+          z-index: 1500 !important;
+          display: inline-block !important;
+        }
+        .MJX-TEX {
+          z-index: 1500 !important;
+        }
+        .MathJax_SVG_Display {
+          z-index: 1500 !important;
+          display: block !important;
+        }
+        .MathJax_Display {
+          z-index: 1500 !important;
+          display: block !important;
+        }
+      `}</style>
+
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-lg">
           {/* Header */}
@@ -419,56 +559,56 @@ const QuizModal: React.FC<QuizModalProps> = ({
             Answered: {answeredQuestionIds.join(', ')}
           </div>
 
-          {/* Question */}
-          <div className="mb-6 p-5 bg-gray-50 rounded-lg shadow-inner">
-            <MathJax
+          {/* Question - with unique key to force re-render */}
+          <div 
+            className="mb-6 p-5 bg-gray-50 rounded-lg shadow-inner"
+            key={`question-${currentQuestion.id}`}
+          >
+            <TypedMathJax
               renderMode="post"
+              typesetting={true}
               onError={(error) => logMathJaxError(error, currentQuestion.question)}
             >
               <div className="text-lg text-gray-800" dangerouslySetInnerHTML={{ __html: currentQuestion.question }} />
-            </MathJax>
+            </TypedMathJax>
           </div>
 
-          {/* Options */}
+          {/* Options - with keys to force re-render */}
           <div className="mb-6 space-y-3">
-        {options.length > 0 ? (
-          options.map((option) => {
-            // For debugging in development mode
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`Rendering option: id=${option.id}, text=${option.text}`);
-            }
-            
-            return (
-              <div 
-                key={option.id}
-                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                  !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
-                  isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
-                  isAnswered && selectedOption === option.id && option.id !== currentQuestion.correctOption ? 'border-red-500 bg-red-50' :
-                  'border-gray-200 hover:bg-gray-50'
-                }`}
-                onClick={() => handleOptionSelect(option.id)}
-              >
-                <MathJax
-                  renderMode="post"
-                  onError={(error) => logMathJaxError(error, option.text)}
-                >
+            {options.length > 0 ? (
+              options.map((option) => {
+                return (
                   <div 
-                    className="text-base text-gray-800" 
-                    dangerouslySetInnerHTML={{ 
-                      __html: renderOptionText(option.text) 
-                    }} 
-                  />
-                </MathJax>
+                    key={`option-${currentQuestion.id}-${option.id}`}
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                      !isAnswered && selectedOption === option.id ? 'border-blue-500 bg-blue-50' :
+                      isAnswered && option.id === currentQuestion.correctOption ? 'border-green-500 bg-green-50' :
+                      isAnswered && selectedOption === option.id && option.id !== currentQuestion.correctOption ? 'border-red-500 bg-red-50' :
+                      'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleOptionSelect(option.id)}
+                  >
+                    <TypedMathJax
+                      renderMode="post"
+                      typesetting={true}
+                      onError={(error) => logMathJaxError(error, option.text)}
+                    >
+                      <div 
+                        className="text-base text-gray-800" 
+                        dangerouslySetInnerHTML={{ 
+                          __html: renderOptionText(option.text) 
+                        }} 
+                      />
+                    </TypedMathJax>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-base">
+                No options available for this question. Please check the data format.
               </div>
-            );
-          })
-        ) : (
-          <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-base">
-            No options available for this question. Please check the data format.
+            )}
           </div>
-        )}
-      </div>
 
           {/* Actions */}
           <div className="flex justify-between items-center">
@@ -492,13 +632,16 @@ const QuizModal: React.FC<QuizModalProps> = ({
             )}
           </div>
 
-          {/* Explanation (shown after answering) */}
+          {/* Explanation (shown after answering) - with key for re-rendering */}
           {isAnswered && (
-            <div className={`mt-6 p-5 rounded-lg shadow-inner ${
-              answerResult === true ? 'bg-green-50 border-green-200' : 
-              answerResult === false ? 'bg-red-50 border-red-200' : 
-              'bg-gray-50 border-gray-200'
-            }`}>
+            <div 
+              className={`mt-6 p-5 rounded-lg shadow-inner ${
+                answerResult === true ? 'bg-green-50 border-green-200' : 
+                answerResult === false ? 'bg-red-50 border-red-200' : 
+                'bg-gray-50 border-gray-200'
+              }`}
+              key={`explanation-${currentQuestion.id}`}
+            >
               <h3 className="font-bold mb-3 text-lg text-gray-900">
                 {answerResult === true ? 'Correct!' : 
                  answerResult === false ? 'Incorrect' : 
@@ -508,29 +651,31 @@ const QuizModal: React.FC<QuizModalProps> = ({
               {/* Formula displayed with MathJax component */}
               {currentQuestion.formula && (
                 <div className="mb-4 pb-4 border-b border-gray-200">
-                  <MathJax
-                    renderMode="post"
-                    onError={(error) => logMathJaxError(error, currentQuestion.formula || '')}
-                  >
-                    <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ 
-                      __html: processMathExpression(currentQuestion.formula)
-                    }} />
-                  </MathJax>
+                  <TypedMathJax
+                      renderMode="post"
+                      typesetting={true.toString()}
+                      onError={(error: Error | unknown) => logMathJaxError(error, currentQuestion.formula || '')}
+                    >
+                      <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ 
+                        __html: processMathExpression(currentQuestion.formula)
+                      }} />
+                    </TypedMathJax>
                 </div>
               )}
 
               {/* Process explanation text with proper math expression handling */}
-              <MathJax
-                renderMode="post"
-                onError={(error) => logMathJaxError(error, currentQuestion.explanation)}
-              >                
-                <div 
-                  className="text-base text-gray-800" 
-                  dangerouslySetInnerHTML={{ 
-                    __html: processMathExpression(currentQuestion.explanation)
-                  }} 
-                />
-              </MathJax>
+              <TypedMathJax
+                  renderMode="post"
+                  typesetting={true.toString()}
+                  onError={(error: Error | unknown) => logMathJaxError(error, currentQuestion.explanation)}
+                >                
+                  <div 
+                    className="text-base text-gray-800" 
+                    dangerouslySetInnerHTML={{ 
+                      __html: processMathExpression(currentQuestion.explanation)
+                    }} 
+                  />
+                </TypedMathJax>
             </div>
           )}
         </div>
