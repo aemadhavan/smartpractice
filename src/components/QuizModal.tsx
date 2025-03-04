@@ -50,17 +50,18 @@ const renderOptionText = (optionText: string): string => {
     return String(optionText);
   }
   
-  // If it's a MathJax expression, leave it as is
-  if (optionText.includes('\\(') || optionText.includes('\\)') || 
-      optionText.includes('\\[') || optionText.includes('\\]')) {
-    return optionText;
+  // For MathJax expressions, ensure proper processing
+  const hasMathDelimiters = optionText.includes('\\(') || optionText.includes('\\)') || 
+      optionText.includes('\\[') || optionText.includes('\\]') ||
+      optionText.includes('$') || optionText.includes('$$');
+      
+  if (hasMathDelimiters) {
+    // Process to ensure proper MathJax delimiters
+    return processMathExpression(optionText);
   }
   
   // Clean up any HTML or unwanted characters
-  const cleanText = optionText.trim();
-  
-  // Return the cleaned text
-  return cleanText;
+  return optionText.trim();
 };
 
 const QuizModal: React.FC<QuizModalProps> = ({
@@ -362,8 +363,17 @@ const QuizModal: React.FC<QuizModalProps> = ({
   // Get list of answered question IDs for debugging
   const answeredQuestionIds = answeredQuestions.map(q => q.questionId);
   
+  // Create an enhanced config that includes the typeset option
+  const enhancedConfig = {
+    ...config,
+    startup: {
+      ...config.startup,
+      typeset: true
+    }
+  };
+  
   return (
-    <MathJaxContext version={3} config={config}>
+    <MathJaxContext version={3} config={enhancedConfig}>
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-lg">
           {/* Header */}
@@ -403,13 +413,11 @@ const QuizModal: React.FC<QuizModalProps> = ({
             </span>
           </div>
 
-          {/* Test Session ID (for debugging) */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mb-4 text-xs text-gray-500">
-              Session ID: {testSessionId || 'Not set yet'} | 
-              Answered: {answeredQuestionIds.join(', ')}
-            </div>
-          )}
+          {/* Test Session ID - displaying in all environments */}
+          <div className="mb-4 text-xs text-gray-500">
+            Session ID: {testSessionId || 'Not set yet'} | 
+            Answered: {answeredQuestionIds.join(', ')}
+          </div>
 
           {/* Question */}
           <div className="mb-6 p-5 bg-gray-50 rounded-lg shadow-inner">
@@ -511,12 +519,17 @@ const QuizModal: React.FC<QuizModalProps> = ({
                 </div>
               )}
 
-              {/* Process explanation text to handle \( \) delimiters */}
+              {/* Process explanation text with proper math expression handling */}
               <MathJax
                 renderMode="post"
                 onError={(error) => logMathJaxError(error, currentQuestion.explanation)}
               >                
-                <div className="text-base text-gray-800">{currentQuestion.explanation}</div>
+                <div 
+                  className="text-base text-gray-800" 
+                  dangerouslySetInnerHTML={{ 
+                    __html: processMathExpression(currentQuestion.explanation)
+                  }} 
+                />
               </MathJax>
             </div>
           )}
