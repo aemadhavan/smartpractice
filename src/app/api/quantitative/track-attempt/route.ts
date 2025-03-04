@@ -1,5 +1,4 @@
-//File: src/app/api/quantitative/track-attempt/route.ts
-
+// Fix for src/app/api/quantitative/track-attempt/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
 import { 
@@ -13,8 +12,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { userId, questionId, topicId, subtopicId, isCorrect, userAnswer, timeSpent, testSessionId } = body;
 
-    // Get the singleton DB instance
-    const db = getDb();
+    // Get the singleton DB instance - make sure to await it
+    const db = await getDb();
     
     console.log('UNIFIED SESSION TRACKING:', {
       userId,
@@ -52,13 +51,18 @@ export async function POST(request: NextRequest) {
     if (testAttemptId) {
       console.log('Verifying provided test session ID:', testAttemptId);
       
-      existingTestAttempt = await db.query.quantTestAttempts.findFirst({
-        where: and(
+      // FIX: Use direct query instead of prepared query
+      const existingAttemptResult = await db
+        .select()
+        .from(quantTestAttempts)
+        .where(and(
           eq(quantTestAttempts.id, testAttemptId),
           eq(quantTestAttempts.userId, userId),
           eq(quantTestAttempts.status, 'in_progress')
-        )
-      });
+        ))
+        .limit(1);
+      
+      existingTestAttempt = existingAttemptResult[0];
       
       // If the provided session ID is not valid, log this and reset it to null
       if (!existingTestAttempt) {
@@ -72,14 +76,18 @@ export async function POST(request: NextRequest) {
     // If no valid testSessionId, find or create a new session
     if (!testAttemptId) {
       // Look for an existing in-progress session within the last hour
-      existingTestAttempt = await db.query.quantTestAttempts.findFirst({
-        where: and(
+      const existingAttemptResult = await db
+        .select()
+        .from(quantTestAttempts)
+        .where(and(
           eq(quantTestAttempts.userId, userId),
           eq(quantTestAttempts.subtopicId, subtopicId),
           eq(quantTestAttempts.status, 'in_progress')
-        ),
-        orderBy: [desc(quantTestAttempts.startTime)]
-      });
+        ))
+        .orderBy(desc(quantTestAttempts.startTime))
+        .limit(1);
+      
+      existingTestAttempt = existingAttemptResult[0];
 
       // If an existing session exists and is recent, use its ID
       if (existingTestAttempt) {
@@ -97,26 +105,33 @@ export async function POST(request: NextRequest) {
     if (!testAttemptId) {
       console.log('Creating new test session for user', userId, 'and subtopic', subtopicId);
       
-      const newTestAttempt = await db.insert(quantTestAttempts).values({
-        userId,
-        subtopicId,
-        startTime: new Date(),
-        status: 'in_progress',
-        totalQuestions: 0,
-        correctAnswers: 0
-      }).returning({ id: quantTestAttempts.id });
+      const newTestAttempt = await db
+        .insert(quantTestAttempts)
+        .values({
+          userId,
+          subtopicId,
+          startTime: new Date(),
+          status: 'in_progress',
+          totalQuestions: 0,
+          correctAnswers: 0
+        })
+        .returning({ id: quantTestAttempts.id });
       
       testAttemptId = newTestAttempt[0].id;
       console.log('Created new test session:', testAttemptId);
     }
 
     // 2. Check for duplicate question attempt in this session
-    const existingQuestionAttempt = await db.query.quantQuestionAttempts.findFirst({
-      where: and(
+    const existingQuestionAttemptResult = await db
+      .select()
+      .from(quantQuestionAttempts)
+      .where(and(
         eq(quantQuestionAttempts.testAttemptId, testAttemptId),
         eq(quantQuestionAttempts.questionId, questionId)
-      )
-    });
+      ))
+      .limit(1);
+    
+    const existingQuestionAttempt = existingQuestionAttemptResult[0];
     
     if (existingQuestionAttempt) {
       console.log('DUPLICATE QUESTION ATTEMPT BLOCKED', {
@@ -132,26 +147,31 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Record the question attempt
-    const newAttempt = await db.insert(quantQuestionAttempts).values({
-      testAttemptId,
-      questionId,
-      userAnswer: userAnswer || '',
-      isCorrect: isCorrectBoolean,
-      timeSpent: timeSpent || 0
-    }).returning();
+    const newAttempt = await db
+      .insert(quantQuestionAttempts)
+      .values({
+        testAttemptId,
+        questionId,
+        userAnswer: userAnswer || '',
+        isCorrect: isCorrectBoolean,
+        timeSpent: timeSpent || 0
+      })
+      .returning();
 
     // 4. Calculate unique questions and correct answers
-    const uniqueQuestionsResult = await db.select({
-      count: sql<number>`COUNT(DISTINCT ${quantQuestionAttempts.questionId})`
-    })
-    .from(quantQuestionAttempts)
-    .where(eq(quantQuestionAttempts.testAttemptId, testAttemptId));
+    const uniqueQuestionsResult = await db
+      .select({
+        count: sql<number>`COUNT(DISTINCT ${quantQuestionAttempts.questionId})`
+      })
+      .from(quantQuestionAttempts)
+      .where(eq(quantQuestionAttempts.testAttemptId, testAttemptId));
     
-    const correctQuestionsResult = await db.select({
-      count: sql<number>`COUNT(DISTINCT ${quantQuestionAttempts.questionId}) FILTER (WHERE ${quantQuestionAttempts.isCorrect} = true)`
-    })
-    .from(quantQuestionAttempts)
-    .where(eq(quantQuestionAttempts.testAttemptId, testAttemptId));
+    const correctQuestionsResult = await db
+      .select({
+        count: sql<number>`COUNT(DISTINCT ${quantQuestionAttempts.questionId}) FILTER (WHERE ${quantQuestionAttempts.isCorrect} = true)`
+      })
+      .from(quantQuestionAttempts)
+      .where(eq(quantQuestionAttempts.testAttemptId, testAttemptId));
 
     const uniqueQuestionCount = uniqueQuestionsResult[0]?.count || 1;
     const correctQuestionCount = correctQuestionsResult[0]?.count || 0;
@@ -162,7 +182,8 @@ export async function POST(request: NextRequest) {
       : 0;
 
     // 6. Update test attempt with current stats
-    const updatedTestAttempt = await db.update(quantTestAttempts)
+    const updatedTestAttempt = await db
+      .update(quantTestAttempts)
       .set({
         totalQuestions: uniqueQuestionCount,
         correctAnswers: correctQuestionCount,

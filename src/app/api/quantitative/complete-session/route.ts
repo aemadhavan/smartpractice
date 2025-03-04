@@ -1,5 +1,4 @@
-//File: src/app/api/quantitative/complete-session/route.ts
-
+// Fix for src/app/api/quantitative/complete-session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
 import { 
@@ -30,16 +29,22 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    // Get the singleton DB instance
-    const db = getDb();
+    
+    // Get the singleton DB instance - make sure to await it
+    const db = await getDb();
     
     // First, check if the test attempt exists
-    const testAttempt = await db.query.quantTestAttempts.findFirst({
-      where: and(
+    // FIX: Use direct query syntax instead of prepared query
+    const testAttemptResult = await db
+      .select()
+      .from(quantTestAttempts)
+      .where(and(
         eq(quantTestAttempts.id, testSessionId),
         eq(quantTestAttempts.userId, userId)
-      )
-    });
+      ))
+      .limit(1);
+    
+    const testAttempt = testAttemptResult[0];
 
     if (!testAttempt) {
       console.error('COMPLETE SESSION - Test session not found', { testSessionId, userId });
@@ -73,30 +78,33 @@ export async function POST(request: NextRequest) {
     const durationInSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
 
     // Get all unique questions attempted in this session
-    const uniqueQuestionsResult = await db.select({
-      count: sql<number>`count(DISTINCT ${quantQuestionAttempts.questionId})`
-    })
-    .from(quantQuestionAttempts)
-    .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
+    const uniqueQuestionsResult = await db
+      .select({
+        count: sql<number>`count(DISTINCT ${quantQuestionAttempts.questionId})`
+      })
+      .from(quantQuestionAttempts)
+      .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
     
     const totalQuestions = uniqueQuestionsResult[0]?.count || 0;
 
     // Get unique correct answers
-    const correctAnswersResult = await db.select({
-      count: sql<number>`count(DISTINCT ${quantQuestionAttempts.questionId}) filter (where ${quantQuestionAttempts.isCorrect} = true)`
-    })
-    .from(quantQuestionAttempts)
-    .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
+    const correctAnswersResult = await db
+      .select({
+        count: sql<number>`count(DISTINCT ${quantQuestionAttempts.questionId}) filter (where ${quantQuestionAttempts.isCorrect} = true)`
+      })
+      .from(quantQuestionAttempts)
+      .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
     
     const correctAnswers = correctAnswersResult[0]?.count || 0;
     
     // Get all attempts for detailed logging
-    const allAttempts = await db.select({
-      questionId: quantQuestionAttempts.questionId,
-      isCorrect: quantQuestionAttempts.isCorrect
-    })
-    .from(quantQuestionAttempts)
-    .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
+    const allAttempts = await db
+      .select({
+        questionId: quantQuestionAttempts.questionId,
+        isCorrect: quantQuestionAttempts.isCorrect
+      })
+      .from(quantQuestionAttempts)
+      .where(eq(quantQuestionAttempts.testAttemptId, testSessionId));
 
     // Calculate score based on the actual questions attempted
     const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
@@ -115,7 +123,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Update the test attempt to mark it as completed with most recent stats
-    await db.update(quantTestAttempts)
+    await db
+      .update(quantTestAttempts)
       .set({
         status: 'completed',
         endTime,
@@ -127,18 +136,18 @@ export async function POST(request: NextRequest) {
       .where(and(
         eq(quantTestAttempts.id, testSessionId),
         eq(quantTestAttempts.userId, userId)
-      ))
-      .returning();
+      ));
 
     // NEW CODE: Update user progress for this topic and subtopic
     try {
       // Get topic ID for this subtopic
-      const subtopicInfo = await db.query.quantSubtopics.findFirst({
-        where: eq(quantSubtopics.id, testAttempt.subtopicId),
-        columns: {
-          topicId: true
-        }
-      });
+      const subtopicResult = await db
+        .select({ topicId: quantSubtopics.topicId })
+        .from(quantSubtopics)
+        .where(eq(quantSubtopics.id, testAttempt.subtopicId))
+        .limit(1);
+      
+      const subtopicInfo = subtopicResult[0];
       
       if (subtopicInfo) {
         const topicId = subtopicInfo.topicId;
@@ -191,7 +200,8 @@ export async function POST(request: NextRequest) {
         // Update or insert topic progress with CORRECT counts
         await db.transaction(async (tx) => {
           // Try to update existing progress
-          const updateResult = await tx.update(quantTopicProgress)
+          const updateResult = await tx
+            .update(quantTopicProgress)
             .set({
               questionsCorrect: uniqueCorrectQuestions,
               questionsAttempted: uniqueAttemptedQuestions,
@@ -201,19 +211,23 @@ export async function POST(request: NextRequest) {
             .where(and(
               eq(quantTopicProgress.userId, userId),
               eq(quantTopicProgress.topicId, topicId)
-            ))
-            .returning();
+            ));
+          
+          // Check if rows were affected (simplified from original code)
+          const rowsAffected = updateResult.rowCount || 0;
           
           // If no rows affected, insert a new progress record
-          if (updateResult.length === 0) {
-            await tx.insert(quantTopicProgress).values({
-              userId,
-              topicId,
-              questionsCorrect: uniqueCorrectQuestions,
-              questionsAttempted: uniqueAttemptedQuestions,
-              masteryLevel: masteryLevel,
-              lastAttemptAt: new Date()
-            });
+          if (rowsAffected === 0) {
+            await tx
+              .insert(quantTopicProgress)
+              .values({
+                userId,
+                topicId,
+                questionsCorrect: uniqueCorrectQuestions,
+                questionsAttempted: uniqueAttemptedQuestions,
+                masteryLevel: masteryLevel,
+                lastAttemptAt: new Date()
+              });
           }
         });
         
@@ -259,7 +273,8 @@ export async function POST(request: NextRequest) {
         
         // Update or insert subtopic progress
         await db.transaction(async (tx) => {
-          const updateResult = await tx.update(quantSubtopicProgress)
+          const updateResult = await tx
+            .update(quantSubtopicProgress)
             .set({
               questionsCorrect: uniqueCorrectSubtopicQuestions,
               questionsAttempted: uniqueAttemptedSubtopicQuestions,
@@ -269,18 +284,21 @@ export async function POST(request: NextRequest) {
             .where(and(
               eq(quantSubtopicProgress.userId, userId),
               eq(quantSubtopicProgress.subtopicId, subtopicId)
-            ))
-            .returning();
+            ));
           
-          if (updateResult.length === 0) {
-            await tx.insert(quantSubtopicProgress).values({
-              userId,
-              subtopicId,
-              questionsCorrect: uniqueCorrectSubtopicQuestions,
-              questionsAttempted: uniqueAttemptedSubtopicQuestions,
-              masteryLevel: subtopicMasteryLevel,
-              lastAttemptAt: new Date()
-            });
+          const rowsAffected = updateResult.rowCount || 0;
+          
+          if (rowsAffected === 0) {
+            await tx
+              .insert(quantSubtopicProgress)
+              .values({
+                userId,
+                subtopicId,
+                questionsCorrect: uniqueCorrectSubtopicQuestions,
+                questionsAttempted: uniqueAttemptedSubtopicQuestions,
+                masteryLevel: subtopicMasteryLevel,
+                lastAttemptAt: new Date()
+              });
           }
         });
         

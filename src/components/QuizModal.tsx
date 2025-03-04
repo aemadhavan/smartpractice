@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
-import { config, processMathExpression, processExplanation, logMathJaxError } from '../lib/mathjax-config';
+import { config, processMathExpression, logMathJaxError } from '../lib/mathjax-config';
 
 type Option = {
   id: string;
@@ -515,10 +515,8 @@ const QuizModal: React.FC<QuizModalProps> = ({
               <MathJax
                 renderMode="post"
                 onError={(error) => logMathJaxError(error, currentQuestion.explanation)}
-              >
-                <div className="text-base text-gray-800" dangerouslySetInnerHTML={{ 
-                  __html: processExplanation(currentQuestion.explanation)
-                }} />
+              >                
+                <div className="text-base text-gray-800">{currentQuestion.explanation}</div>
               </MathJax>
             </div>
           )}
