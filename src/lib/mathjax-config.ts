@@ -11,6 +11,9 @@ const config = {
     displayMath: [["\\[", "\\]"], ["$$", "$$"]],
     processEscapes: true,
     processEnvironments: true
+  },
+  startup: {
+    typeset: true  // Force typesetting of the entire document
   }
 };
 
@@ -34,9 +37,9 @@ const processMathExpression = (expression: string | undefined): string => {
 
   // Escape any existing HTML entities to prevent rendering issues
   const escapedExpr = trimmedExpr
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
   // Check if already properly delimited
   const isDelimited = mathDelimiters.some(delim => 
