@@ -283,7 +283,7 @@ const TopicDetailPage = () => {
   const handleStartQuiz = async (subtopic: Subtopic): Promise<void> => {
     // Process questions to ensure options are properly parsed
     const processed = subtopic.questions.map((question: Question) => {
-      logOptionsFormat(question);
+      //logOptionsFormat(question);
       let parsedOptions: Option[] = [];
       
       try {
@@ -291,42 +291,67 @@ const TopicDetailPage = () => {
         
         // When options come from the database, they might be in several formats
         if (typeof question.options === 'string') {
-          // Try to parse as JSON first
-          try {
-            const parsedJson = JSON.parse(question.options);
-            if (Array.isArray(parsedJson)) {
-              // Convert the array to Option[] format
-              parsedOptions = parsedJson.map((item, index) => ({
-                id: `o${index + 1}:${item}`,
-                text: String(item)
-              }));
-            } else {
-              // If it's JSON but not an array, use parseOptionsArray fallback
-              parsedOptions = parseOptionsArray(question.options);
+          // First attempt: Check if it's a proper JSON array
+          if (question.options.trim().startsWith('[') && question.options.trim().endsWith(']')) {
+            try {
+              const parsedJson = JSON.parse(question.options);
+              if (Array.isArray(parsedJson)) {
+                // If successfully parsed as JSON array, convert directly to Option[] format
+                parsedOptions = parsedJson.map((item, index) => ({
+                  id: `o${index + 1}:${item}`,
+                  text: String(item)
+                }));
+                
+                // Return immediately to prevent further processing
+                return {
+                  ...question,
+                  subtopicId: subtopic.id,
+                  correctOption: question.correctOption || "",
+                  options: parsedOptions
+                };
+              }
+            } catch (error) {
+              const jsonError = error as Error;
+              console.error('JSON parse error:', jsonError.message);
             }
-          } catch (e) {
-            // If JSON parsing fails, use general parser
-            parsedOptions = parseOptionsArray(question.options);
+          } 
+          // Second attempt: Check if it's a pattern like "X men, Y women,A men, B women"
+          else if (question.options.includes('men') && question.options.includes('women')) {
+            // This is likely the pattern "40 men, 60 women,50 men, 75 women,..."
+            const pairPattern = /(\d+\s+men,\s+\d+\s+women)/g;
+            const matches = question.options.match(pairPattern);
+            
+            if (matches && matches.length > 0) {
+              parsedOptions = matches.map((pair, index) => ({
+                id: `o${index + 1}:${pair.trim()}`,
+                text: pair.trim()
+              }));
+              
+              // Return immediately to prevent further processing
+              return {
+                ...question,
+                subtopicId: subtopic.id,
+                correctOption: question.correctOption || "",
+                options: parsedOptions
+              };
+            }
           }
-        } else if (Array.isArray(question.options)) {
-          // If already an array, convert to Option[] format with proper prefixes
-          parsedOptions = question.options.map((item, index) => ({
-            id: `o${index + 1}:${item}`,
-            text: String(item)
-          }));
-        } else if (question.options && typeof question.options === 'object') {
-          // For object format, convert to Option[]
-          parsedOptions = Object.values(question.options).map((value, index) => ({
-            id: `o${index + 1}:${value}`,
-            text: String(value)
-          }));
+          
+          // Third attempt: Generic comma-separated values (not in JSON format)
+          if (parsedOptions.length === 0 && question.options.includes(',')) {
+            // Only do this if we don't have options already and there are commas
+            // If the pattern looks like groups of items separated by commas
+            // This is more complex and might require manual handling
+          }
         }
         
+        console.log('Parsed options:', parsedOptions);
         // If we still have no options, try the generic parser
         if (parsedOptions.length === 0) {
           parsedOptions = parseOptionsArray(question.options);
         }
         
+        // Rest of your function remains the same...
         // Ensure correct option has proper format
         const correctOption = question.correctOption || "";
         let formattedCorrectOption = correctOption;
@@ -347,7 +372,7 @@ const TopicDetailPage = () => {
           }
         }
         
-        // Ensure we have some options (same as before)
+        // Ensure we have some options
         if (parsedOptions.length === 0 && correctOption) {
           // If we have a correct option but no parsed options, include at least the correct one
           const correctVal = extractOptionValue(correctOption);
@@ -398,7 +423,7 @@ const TopicDetailPage = () => {
       }
     });
     
-    // Continue with the rest of the function...
+    // Rest of the function remains the same...
     console.log("Processed questions:", processed);
     setProcessedQuestions(processed);
     setSelectedSubtopicForQuiz({
