@@ -26,10 +26,13 @@ const AdSense = ({ adSense }: AdSenseTypes) => {
                 
                 // Use window.gtag directly with proper typing
                 if (!window.gtag) {
-                    // Fixed: Using rest parameters properly and avoiding unused variables
-                    window.gtag = function(...args: unknown[]) {
-                        // Fixed: Using spread instead of arguments object
-                        window.dataLayer.push([...args]);
+                    // Fixed: Push arguments as a single object, not as an array
+                    window.gtag = function(command: string, ...args: unknown[]) {
+                        // Push arguments properly according to gtag/dataLayer expectations
+                        window.dataLayer.push({
+                            'event': command,
+                            ...args.length > 0 ? args[0] as Record<string, unknown> : {}
+                        });
                     };
                 }
                 
