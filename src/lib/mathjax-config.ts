@@ -41,17 +41,31 @@ const processMathExpression = (expression: string | undefined): string => {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // Fix spacing issues in formulas by ensuring there's a space after each operation
+  // This matches common math operators and adds a space after if not already there
+  let spacedExpr = escapedExpr
+    .replace(/([=×+\-*\/:])([\dA-Za-z])/g, '$1 $2')
+    .replace(/([\dA-Za-z])([=×+\-*\/:])/g, '$1 $2');
+    
+  // Add spaces around ×, =, + when needed
+  spacedExpr = spacedExpr
+    .replace(/(\d+)×(\d+)/g, '$1 × $2')
+    .replace(/(\d+)=(\d+)/g, '$1 = $2')
+    .replace(/(\d+)\+(\d+)/g, '$1 + $2')
+    .replace(/(\d+)-(\d+)/g, '$1 - $2')
+    .replace(/(\d+)\/(\d+)/g, '$1 / $2');
+    
   // Check if already properly delimited
   const isDelimited = mathDelimiters.some(delim => 
-    escapedExpr.startsWith(delim.start) && escapedExpr.endsWith(delim.end)
+    spacedExpr.startsWith(delim.start) && spacedExpr.endsWith(delim.end)
   );
 
   // If not delimited, wrap in inline math
   if (!isDelimited) {
-    return `\\(${escapedExpr}\\)`;
+    return `\\(${spacedExpr}\\)`;
   }
 
-  return escapedExpr;
+  return spacedExpr;
 };
 
 // Utility function to process explanation with math delimiters
@@ -61,35 +75,65 @@ const processExplanation = (explanation: string): string => {
     return '';
   }
 
-  // First, replace display math (between $$)
-  let processedExplanation = explanation.replace(
-    /\$\$(.*?)\$\$/g, 
-    (match, group) => {
-      const trimmedGroup = group.trim();
-      if (!trimmedGroup) {
-        console.warn('Empty display math group in explanation');
-        return '';
-      }
-      return `\\[${trimmedGroup}\\]`;
-    }
-  );
-
-  // Then, replace inline math (between $)
-  processedExplanation = processedExplanation.replace(
-    /\$(.*?)\$/g, 
-    (match, group) => {
-      const trimmedGroup = group.trim();
-      if (!trimmedGroup) {
-        console.warn('Empty inline math group in explanation');
-        return '';
-      }
-      return `\\(${trimmedGroup}\\)`;
-    }
-  );
-
-  return processedExplanation;
+  // First, find and protect any math delimiters
+  const mathDelimiters = ['\\(', '\\)', '\\[', '\\]', '$$', '$'];
+  const mathSections = [];
+  let tempExplanation = explanation;
+  
+  // Extract math sections to protect them from text processing
+  let mathMatch;
+  const mathRegex = /(\$\$|\$|\\[\[\(])(.*?)(\$\$|\$|\\[\]\)])/gs;
+  let i = 0;
+  
+  while ((mathMatch = mathRegex.exec(tempExplanation)) !== null) {
+    const placeholder = `__MATH_PLACEHOLDER_${i}__`;
+    mathSections.push({
+      placeholder,
+      original: mathMatch[0],
+      content: mathMatch[2]
+    });
+    tempExplanation = tempExplanation.replace(mathMatch[0], placeholder);
+    i++;
+  }
+  
+  // Now process the text more aggressively
+  let processedText = tempExplanation;
+  
+  // 1. Break up camelCase and lowercase+uppercase patterns
+  processedText = processedText.replace(/([a-z])([A-Z])/g, '$1 $2');
+  
+  // 2. Break up joined words (This is a more aggressive approach)
+  // Look for patterns like "ratio2" or "2boys"
+  processedText = processedText.replace(/([a-zA-Z]+)(\d+)/g, '$1 $2');
+  processedText = processedText.replace(/(\d+)([a-zA-Z]+)/g, '$1 $2');
+  
+  // 3. Add spaces after punctuation
+  processedText = processedText.replace(/([,.;:])([^\s])/g, '$1 $2');
+  
+  // 4. Fix ratio notation
+  processedText = processedText.replace(/(\d+)\s*:\s*(\d+)/g, '$1 : $2');
+  
+  // 5. Add spaces around operators
+  processedText = processedText
+    .replace(/(\d+)\s*([+\-×÷=])\s*(\d+)/g, '$1 $2 $3')
+    .replace(/(\d+)×(\d+)/g, '$1 × $2')
+    .replace(/(\d+)=(\d+)/g, '$1 = $2')
+    .replace(/(\d+)\+(\d+)/g, '$1 + $2')
+    .replace(/(\d+)-(\d+)/g, '$1 - $2')
+    .replace(/(\d+)\/(\d+)/g, '$1 / $2')
+    .replace(/(\d+)÷(\d+)/g, '$1 ÷ $2');
+  
+  // Replace math placeholders with processed math content
+  for (const section of mathSections) {
+    // Process the math content if needed
+    processedText = processedText.replace(
+      section.placeholder,
+      section.original
+    );
+  }
+  
+  return processedText;
 };
-
 // Enhanced error logging utility with additional context
 const logMathJaxError = (error: unknown, context?: string) => {
   console.error('MathJax Rendering Error:', {
