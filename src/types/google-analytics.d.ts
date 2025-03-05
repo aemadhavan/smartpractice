@@ -6,10 +6,27 @@ declare global {
     gtag: (command: string, ...args: unknown[]) => void;
     dataLayer: Record<string, unknown>[];
     
-    // Google AdSense definitions
-    adsbygoogle?: EmptyObject[];
+    // Google AdSense definitions with improved types
+    adsbygoogle?: Array<Record<string, unknown>>;
   }
 }
+
+// Consent mode types
+interface ConsentMode {
+  'ad_storage'?: 'granted' | 'denied';
+  'analytics_storage'?: 'granted' | 'denied';
+  'personalization_storage'?: 'granted' | 'denied';
+  'functionality_storage'?: 'granted' | 'denied';
+  'security_storage'?: 'granted' | 'denied';
+}
+
+// Google AdSense consent interface - for use with window.adsbygoogle.push()
+interface GoogleConsentPayload {
+  'google_consent': ConsentMode;
+}
+
+// AdSense command shapes
+type AdSenseCommand = GoogleConsentPayload | Record<string, unknown>;
 
 // Optional: Google Analytics config interface for type safety
 interface GtagConfig {
@@ -25,11 +42,6 @@ interface GtagEvent {
   event_label?: string;
   value?: number;
   [key: string]: unknown;
-}
-
-// EmptyObject type for adsbygoogle
-interface EmptyObject {
-  [key: string]: never;
 }
 
 export {}

@@ -13,6 +13,7 @@ interface ConsentState {
   personalization: boolean;
 }
 
+
 const PrivacyConsent: React.FC = () => {
   const [showBanner, setShowBanner] = useState<boolean>(false);
   const [showPreferences, setShowPreferences] = useState<boolean>(false);
