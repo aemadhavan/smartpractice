@@ -8,6 +8,19 @@ export type Option = {
   text: string;
 };
 
+// Define a RawOption interface to use instead of 'any'
+interface RawOption {
+  id?: string;
+  text?: string;
+  [key: string]: unknown;
+}
+
+// Define a Question interface to use instead of 'any'
+interface Question {
+  options: unknown;
+  [key: string]: unknown;
+}
+
 /**
  * Utility to normalize options from various formats to the standard Option[] format
  * Handles JSON strings, arrays of strings, and existing Option objects
@@ -30,11 +43,11 @@ export const normalizeOptions = (rawOptions: unknown): Option[] => {
       'text' in rawOptions[0]) {
     
     // Ensure the ids are properly formatted (o1:, o2:, etc.)
-    return rawOptions.map((option: any, index) => ({
-      id: option.id.match(/^o\d+:/) 
+    return rawOptions.map((option: RawOption, index) => ({
+      id: typeof option.id === 'string' && option.id.match(/^o\d+:/) 
         ? option.id 
         : `o${index + 1}:${option.text}`,
-      text: option.text
+      text: String(option.text || '')
     }));
   }
   
@@ -157,8 +170,8 @@ export const formatOptionsForAPI = (options: Option[]): { id: string; text: stri
  * @param question - The question object from the API
  * @returns Question with standardized options
  */
-export const processQuestionOptions = (question: any): any => {
-  if (!question) return null;
+export const processQuestionOptions = (question: Question): Question => {
+  if (!question) return null as unknown as Question;
   
   const processedOptions = normalizeOptions(question.options);
   

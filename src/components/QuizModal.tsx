@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Option, 
-  extractOptionText,
   formatOptionText
 } from '@/lib/options';
 
@@ -383,7 +382,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
   }
 
   // Helper function to render option text (since we're missing the imported one)
-  const renderOptionText = (text: any) => {
+  const renderOptionText = (text: string | Option | null | undefined) => {
     if (text === null || text === undefined) {
       return '';
     }

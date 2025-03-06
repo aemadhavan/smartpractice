@@ -25,6 +25,13 @@ type QuizQuestion = {
   subtopicId: number;
 };
 
+// Define a type for raw option objects to replace 'any'
+interface RawOption {
+  id?: string;
+  text?: string;
+  [key: string]: unknown; // For other potential properties
+}
+
 // Type definitions
 type Subtopic<Q = Question> = {
   id: number;
@@ -42,7 +49,7 @@ type Subtopic<Q = Question> = {
 type Question = {
   id: number;
   question: string;
-  options: Option[] | string | any; // More flexible type to handle different formats
+  options: Option[] | string | RawOption[]; // More specific type to replace any
   correctAnswer: string; // The text value of the correct answer
   explanation: string;
   formula?: string;
@@ -77,18 +84,18 @@ type TopicData = {
   };
 };
 
-// Define a type for the QuizModal props to ensure type safety
-type QuizModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  subtopicName: string;
-  questions: QuizQuestion[];
-  userId: string;
-  topicId: number;
-  onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
-  onSessionIdUpdate?: (sessionId: number | null) => void;
-  testSessionId?: number | null;
-};
+// This type is kept for documentation purposes but commented out to avoid the unused variable warning
+// type QuizModalProps = {
+//   isOpen: boolean;
+//   onClose: () => void;
+//   subtopicName: string;
+//   questions: QuizQuestion[];
+//   userId: string;
+//   topicId: number;
+//   onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
+//   onSessionIdUpdate?: (sessionId: number | null) => void;
+//   testSessionId?: number | null;
+// };
 
 const TopicDetailPage = () => {
   const { user, isLoaded } = useUser();
@@ -236,14 +243,14 @@ const TopicDetailPage = () => {
         if (Array.isArray(question.options) && question.options.length > 0) {
           // Check if options are already in the correct {id, text} format
           if (question.options.every(opt => typeof opt === 'object' && 'id' in opt && 'text' in opt)) {
-            processedOptions = question.options.map((opt: any, index: number) => ({
+            processedOptions = question.options.map((opt: RawOption) => ({
               id: String(opt.id), // Ensure id is a string (e.g., "o1")
               text: String(opt.text) // Ensure text is a string (e.g., "12")
             }));
           } else {
             // Fallback: Handle if options are an array of primitives (e.g., ["12", "15",...])
-            processedOptions = question.options.map((opt: any, index: number) => ({
-              id: `o${index + 1}:${typeof opt === 'string' ? opt : String(opt)}`,
+            processedOptions = question.options.map((opt: unknown) => ({
+              id: `o${String(opt)}`,
               text: typeof opt === 'string' ? opt : String(opt)
             }));
           }
@@ -252,8 +259,8 @@ const TopicDetailPage = () => {
           try {
             const parsedOptions = JSON.parse(question.options);
             if (Array.isArray(parsedOptions)) {
-              processedOptions = parsedOptions.map((opt: any, index: number) => ({
-                id: String(opt.id || `o${index + 1}:${opt.text || String(opt)}`),
+              processedOptions = parsedOptions.map((opt: RawOption) => ({
+                id: String(opt.id || `o:${opt.text || String(opt)}`),
                 text: String(opt.text || String(opt))
               }));
             }
@@ -261,8 +268,8 @@ const TopicDetailPage = () => {
             console.error('Error parsing options string:', e);
             // Fallback: Split by commas if not valid JSON
             const optionsStr = question.options.split(',').map(opt => opt.trim()).filter(Boolean);
-            processedOptions = optionsStr.map((opt, index) => ({
-              id: `o${index + 1}:${opt}`,
+            processedOptions = optionsStr.map((opt) => ({
+              id: `o:${opt}`,
               text: opt
             }));
           }

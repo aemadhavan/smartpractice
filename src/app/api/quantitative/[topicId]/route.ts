@@ -25,6 +25,13 @@ interface QuestionRow {
   correctOption?: string; // Added for the mapped questions
 }
 
+// Define a type for option objects to replace 'any'
+interface OptionItem {
+  id?: string;
+  text?: string;
+  [key: string]: unknown; // For other potential properties
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ topicId: string }> }
@@ -137,8 +144,8 @@ export async function GET(
           }
 
           // Ensure options are in the correct format
-          parsedOptions = parsedOptions.map((opt: any, index: number) => ({
-            id: String(opt.id || `o${index + 1}:${opt.text || String(opt)}`),
+          parsedOptions = parsedOptions.map((opt: OptionItem) => ({
+            id: String(opt.id || `o${opt.text || String(opt)}`),
             text: String(opt.text || String(opt))
           }));
         } catch (e) {
