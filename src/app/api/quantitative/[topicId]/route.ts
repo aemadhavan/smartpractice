@@ -14,7 +14,7 @@ interface QuestionRow {
   questionTypeId: number;
   difficultyLevelId: number;
   question: string;
-  options: string;
+  options: { id: string; text: string }[]; // JSON array of objects
   correctAnswer: string;
   explanation: string;
   timeAllocation: number;
@@ -82,7 +82,7 @@ export async function GET(
       );
     }
 
-    // Fetch all questions using raw SQL to avoid parameter type issues
+    // Fetch all questions using raw SQL, handling options as JSON
     const questionsQuery = await db.execute(sql`
       SELECT 
         q.id,
@@ -90,7 +90,7 @@ export async function GET(
         q.question_type_id AS "questionTypeId",
         q.difficulty_level_id AS "difficultyLevelId",
         q.question,
-        q.options,
+        q.options::jsonb AS options,  -- Cast options to JSONB for proper JSON handling
         q.correct_answer AS "correctAnswer",
         q.explanation,
         q.time_allocation AS "timeAllocation",
@@ -119,21 +119,72 @@ export async function GET(
       ORDER BY q.id
     `);
 
-    // Proper type conversion with field validation
-    const questions: QuestionRow[] = questionsQuery.rows.map(row => ({
-      id: Number(row.id),
-      subtopicId: Number(row.subtopicId),
-      questionTypeId: Number(row.questionTypeId),
-      difficultyLevelId: Number(row.difficultyLevelId),
-      question: String(row.question),
-      options: String(row.options),
-      correctAnswer: String(row.correctAnswer),
-      explanation: String(row.explanation),
-      timeAllocation: Number(row.timeAllocation),
-      formula: String(row.formula),
-      attemptCount: Number(row.attemptCount),
-      successRate: Number(row.successRate)
-    }));
+    // Proper type conversion with field validation, handling options as JSON
+    const questions: QuestionRow[] = questionsQuery.rows.map(row => {
+      let parsedOptions: { id: string; text: string }[] = [];
+
+      // Handle options as JSON (from jsonb)
+      if (row.options) {
+        try {
+          // If row.options is already an object or array, use it directly
+          if (typeof row.options === 'string') {
+            parsedOptions = JSON.parse(row.options || '[]'); // Parse JSON string if necessary
+          } else if (Array.isArray(row.options)) {
+            parsedOptions = row.options; // Use directly if already an array
+          } else {
+            // Attempt to stringify and parse if it's an unexpected object
+            parsedOptions = JSON.parse(JSON.stringify(row.options) || '[]');
+          }
+
+          // Ensure options are in the correct format
+          parsedOptions = parsedOptions.map((opt: any, index: number) => ({
+            id: String(opt.id || `o${index + 1}:${opt.text || String(opt)}`),
+            text: String(opt.text || String(opt))
+          }));
+        } catch (e) {
+          console.error('Error parsing options for question ID', row.id, ':', e, 'Raw options:', row.options);
+          // Fallback: Use default options if parsing fails
+          parsedOptions = [
+            { id: "o1:Error", text: "Error loading options" },
+            { id: "o2:Try again", text: "Try again" },
+            { id: "o3:Contact support", text: "Contact support" },
+            { id: "o4:Skip this question", text: "Skip this question" }
+          ];
+        }
+      } else {
+        // Fallback if options is null or undefined
+        console.warn('Options is null/undefined for question ID', row.id);
+        parsedOptions = [
+          { id: "o1:Error", text: "Error loading options" },
+          { id: "o2:Try again", text: "Try again" },
+          { id: "o3:Contact support", text: "Contact support" },
+          { id: "o4:Skip this question", text: "Skip this question" }
+        ];
+      }
+
+      // Ensure exactly 4 options
+      if (parsedOptions.length !== 4) {
+        parsedOptions = parsedOptions.slice(0, 4).map((opt, index) => ({
+          id: `o${index + 1}:${opt.text}`,
+          text: opt.text
+        }));
+      }
+
+      return {
+        id: Number(row.id),
+        subtopicId: Number(row.subtopicId),
+        questionTypeId: Number(row.questionTypeId),
+        difficultyLevelId: Number(row.difficultyLevelId),
+        question: String(row.question || ''),
+        options: parsedOptions,
+        correctAnswer: String(row.correctAnswer || ''),
+        explanation: String(row.explanation || ''),
+        timeAllocation: Number(row.timeAllocation || 0),
+        formula: String(row.formula || ''),
+        attemptCount: Number(row.attemptCount || 0),
+        successRate: Number(row.successRate || 0)
+      };
+    });
 
     console.log("DETAILED QUESTION FETCH:", {
       totalQuestionsFound: questions.length,
@@ -142,7 +193,8 @@ export async function GET(
         id: q.id,
         subtopicId: q.subtopicId,
         attemptCount: q.attemptCount,
-        successRate: q.successRate
+        successRate: q.successRate,
+        optionsSample: q.options.slice(0, 2) // Log a sample of options for debugging
       }))
     });
 
@@ -165,7 +217,7 @@ export async function GET(
         return {
           ...q,
           status,
-          correctOption: q.correctAnswer
+          correctOption: q.correctAnswer // Keep correctOption as correctAnswer for consistency
         };
       });
       
@@ -211,7 +263,8 @@ export async function GET(
       totalQuestions: stats.totalQuestions,
       questionsBySubtopic: questionsBySubtopic.map(s => ({
         subtopicName: s.name,
-        totalQuestions: s.stats.total
+        totalQuestions: s.stats.total,
+        sampleQuestionOptions: s.questions[0]?.options.slice(0, 2) // Log a sample of options for debugging
       }))
     });
 

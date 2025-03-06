@@ -28,6 +28,11 @@ export const quantSubtopics = pgTable('quantSubtopics', {
   };
 });
 
+// Define the Option type for TypeScript
+type Option = {
+  id: string; // e.g., "o1", "o2", etc.
+  text: string; // e.g., "40 men, 60 women"
+};
 // Quantitative questions table
 export const quantQuestions = pgTable('quantQuestions', {
   id: serial('id').primaryKey(),
@@ -36,8 +41,10 @@ export const quantQuestions = pgTable('quantQuestions', {
   questionTypeId: integer('question_type_id').notNull().references(() => questionType.id),
   difficultyLevelId: integer('difficulty_level_id').notNull().references(() => difficultyLevels.id),
   question: text('question').notNull(),
-  options: jsonb('options').notNull(),
-  correctAnswer: text('correct_answer').notNull(),
+  options: jsonb('options').notNull()
+    .$type<Option[]>() // Type annotation for TypeScript to enforce the structure { id: string; text: string }[]
+    .default([]), // Optional default value for new records
+  correctAnswer: text('correct_answer').notNull(), // Updated to store the option ID (e.g., "o3" for "60 men, 90 women")
   explanation: text('explanation').notNull(),
   formula: text('formula'),
   timeAllocation: integer('time_allocation').notNull().default(60),

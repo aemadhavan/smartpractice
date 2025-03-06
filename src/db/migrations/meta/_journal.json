@@ -57,6 +57,13 @@
       "when": 1740658333233,
       "tag": "0010_parched_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1741182563686,
+      "tag": "0011_talented_stick",
+      "breakpoints": true
     }
   ]
 }

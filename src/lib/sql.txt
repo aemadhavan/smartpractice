@@ -1,0 +1,14 @@
+
+UPDATE "quantQuestions"
+SET options = (
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'id', concat('o', idx),
+      'text', value
+    )
+  )
+  FROM jsonb_array_elements(options) WITH ORDINALITY AS t(value, idx)
+)
+WHERE id > 2 
+  AND jsonb_typeof(options) = 'array'
+  AND jsonb_array_length(options) = 4;

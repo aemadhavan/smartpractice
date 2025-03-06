@@ -75,14 +75,13 @@ const processExplanation = (explanation: string): string => {
     return '';
   }
 
-  // First, find and protect any math delimiters
-  const mathDelimiters = ['\\(', '\\)', '\\[', '\\]', '$$', '$'];
+  // Define regex to match math sections
+  const mathRegex = /(\$\$|\$|\\[\[\(])(.*?)(\$\$|\$|\\[\]\)])/gs;
   const mathSections = [];
   let tempExplanation = explanation;
   
   // Extract math sections to protect them from text processing
   let mathMatch;
-  const mathRegex = /(\$\$|\$|\\[\[\(])(.*?)(\$\$|\$|\\[\]\)])/gs;
   let i = 0;
   
   while ((mathMatch = mathRegex.exec(tempExplanation)) !== null) {
@@ -134,6 +133,7 @@ const processExplanation = (explanation: string): string => {
   
   return processedText;
 };
+
 // Enhanced error logging utility with additional context
 const logMathJaxError = (error: unknown, context?: string) => {
   console.error('MathJax Rendering Error:', {

@@ -5,16 +5,27 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import QuizModal, { QuizQuestion } from '@/components/QuizModal';
-import { 
-  parseOptionsArray, 
-  extractOptionValue, 
-  renderOptionText, 
-  prepareOptionsForStorage, 
-  dbOptionsToDisplayOptions,
-  Option 
-} from '@/lib/options';
+import QuizModal from '@/components/QuizModal';
+import { Option } from '@/lib/options';
 
+// Define the QuizQuestion type (matching the type in QuizModal)
+type QuizQuestion = {
+  id: number;
+  question: string;
+  options: Option[];
+  correctAnswer: string;
+  explanation: string;
+  formula?: string;
+  difficultyLevelId: number;
+  questionTypeId: number;
+  timeAllocation: number;
+  attemptCount: number;
+  successRate: number;
+  status: 'Mastered' | 'Learning' | 'To Start';
+  subtopicId: number;
+};
+
+// Type definitions
 type Subtopic<Q = Question> = {
   id: number;
   name: string;
@@ -31,9 +42,8 @@ type Subtopic<Q = Question> = {
 type Question = {
   id: number;
   question: string;
-  // Store options as a JSON string in the database
-  options: string | string[]; // The string should be a JSON-formatted array
-  correctOption: string;
+  options: Option[] | string | any; // More flexible type to handle different formats
+  correctAnswer: string; // The text value of the correct answer
   explanation: string;
   formula?: string;
   difficultyLevelId: number;
@@ -45,20 +55,9 @@ type Question = {
   subtopicId?: number;
 };
 
-type ProcessedQuestion = Omit<Question, 'options'> & {
-  id: number;
-  question: string;
-  options: Option[]; // After processing, always an array of Option objects
-  correctOption: string;
-  explanation: string;
-  formula?: string;
-  difficultyLevelId: number;
-  questionTypeId: number;
-  timeAllocation: number;
-  attemptCount: number;
-  successRate: number;
-  status: 'Mastered' | 'Learning' | 'To Start';
-  subtopicId: number;
+type ProcessedQuestion = Omit<Question, 'options' | 'subtopicId'> & {
+  subtopicId: number; // Make subtopicId required in the processed version
+  options: Option[]; // Ensure options are in the proper format after processing
 };
 
 type TopicDetail = {
@@ -78,6 +77,19 @@ type TopicData = {
   };
 };
 
+// Define a type for the QuizModal props to ensure type safety
+type QuizModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  subtopicName: string;
+  questions: QuizQuestion[];
+  userId: string;
+  topicId: number;
+  onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
+  onSessionIdUpdate?: (sessionId: number | null) => void;
+  testSessionId?: number | null;
+};
+
 const TopicDetailPage = () => {
   const { user, isLoaded } = useUser();
   const params = useParams();
@@ -89,13 +101,12 @@ const TopicDetailPage = () => {
   const [topicData, setTopicData] = useState<TopicData | null>(null);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic<ProcessedQuestion> | null>(null);
-  const [processedQuestions, setProcessedQuestions] = useState<ProcessedQuestion[]>([]);
-  // Track current test session
   const [currentTestSessionId, setCurrentTestSessionId] = useState<number | null>(null);
 
   // Ref to track if test session needs to be completed on unmount
   const needsCompletionRef = useRef(false);
 
+  // Fetch topic data with cache busting
   const fetchTopicData = useCallback(async (): Promise<void> => {
     if (!user?.id || !topicId) return;
     
@@ -105,7 +116,6 @@ const TopicDetailPage = () => {
       // Add cache-busting parameter to prevent browser caching
       const timestamp = new Date().getTime();
       const response = await fetch(`/api/quantitative/${topicId}?userId=${user.id}&_=${timestamp}`, {
-        // Add headers to prevent caching
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -121,22 +131,7 @@ const TopicDetailPage = () => {
       }
       
       const data = await response.json();
-      console.log("Fetched topic data with timestamp:", timestamp, data);
-      
-      // Log key stats for debugging
-      if (data.subtopics) {
-        
-        data.subtopics.forEach((subtopic: Subtopic) => {
-          const masteredCount = subtopic.stats.mastered;
-          const totalQuestions = subtopic.stats.total;
-          console.log(`Subtopic ${subtopic.name}: ${masteredCount}/${totalQuestions} mastered`);
-          
-          // Log status of each question
-          subtopic.questions.forEach((q: Question) => {
-            console.log(`Question ${q.id}: status=${q.status}, successRate=${q.successRate}, attempts=${q.attemptCount}`);
-          });
-        });
-      }
+      console.log("Fetched topic data:", data);
       
       setTopicData(data);
     } catch (err) {
@@ -166,11 +161,10 @@ const TopicDetailPage = () => {
       });
       
       if (response.ok) {
-        const result = await response.json();
-        console.log('Successfully completed test session:', result);
+        console.log('Successfully completed test session');
         return true;
       } else {
-        console.error('Failed to complete test session:', await response.text());
+        console.error('Failed to complete test session');
         return false;
       }
     } catch (error) {
@@ -183,7 +177,6 @@ const TopicDetailPage = () => {
   useEffect(() => {
     return () => {
       if (needsCompletionRef.current && currentTestSessionId) {
-        // We're unmounting and there's an active session to complete
         completeTestSession(currentTestSessionId).then(() => {
           console.log(`Test session ${currentTestSessionId} completed on unmount`);
         });
@@ -191,64 +184,14 @@ const TopicDetailPage = () => {
     };
   }, [currentTestSessionId, completeTestSession]);
 
+  // Load topic data when user is loaded
   useEffect(() => {
     if (isLoaded) {
       fetchTopicData();
     }
   }, [isLoaded, fetchTopicData]);
  
-  const logOptionsFormat = (question: Question): void => {
-    if (process.env.NODE_ENV !== 'development') return;
-    
-    console.log(`------- QUESTION ${question.id} OPTIONS DEBUG -------`);
-    console.log('Options type:', typeof question.options);
-    console.log('Options value:', question.options);
-    
-    // Try parsing the options using the utility function to see the result
-    try {
-      // Type assertion to handle unknown[] type
-      let optionsToProcess: string | string[] | Record<string, unknown> | Option[];
-      
-      if (typeof question.options === 'string') {
-        optionsToProcess = question.options;
-      } else if (Array.isArray(question.options)) {
-        // Convert unknown[] to string[] by mapping each element to String
-        optionsToProcess = question.options.map(item => String(item));
-      } else if (question.options && typeof question.options === 'object') {
-        optionsToProcess = question.options as Record<string, unknown>;
-      } else {
-        optionsToProcess = [];
-      }
-      
-      const parsedOptions = parseOptionsArray(optionsToProcess);
-      console.log('Parsed options:', parsedOptions);
-      
-      // Show option values without prefixes
-      const values = parsedOptions.map(opt => extractOptionValue(opt.id));
-      console.log('Option values:', values);
-    } catch (e) {
-      console.log('Error parsing options:', e);
-    }
-    
-    if (typeof question.options === 'string') {
-      console.log('First 100 chars:', question.options.substring(0, 100));
-      console.log('Contains quotes:', question.options.includes('"'));
-      console.log('Contains brackets:', question.options.includes('[') && question.options.includes(']'));
-      console.log('Contains dollar sign:', question.options.includes('$'));
-      console.log('Contains comma:', question.options.includes(','));
-      
-      if (question.options.includes('$') && question.options.includes(',')) {
-        console.log('Likely has currency values with commas');
-        
-        // Test pattern for values like $37,500
-        const currencyPattern = /\$\d+,\d+/;
-        console.log('Currency pattern match:', currencyPattern.test(question.options));
-      }
-    }
-    
-    console.log('-----------------------------------------------');
-  };
-  
+  // Initialize a test session for a subtopic
   const initializeTestSession = async (subtopicId: number): Promise<number | null> => {
     if (!user?.id) return null;
     
@@ -271,7 +214,7 @@ const TopicDetailPage = () => {
         console.log('Successfully initialized test session:', result);
         return result.testAttemptId;
       } else {
-        console.error('Failed to initialize test session:', await response.text());
+        console.error('Failed to initialize test session');
         return null;
       }
     } catch (error) {
@@ -280,181 +223,118 @@ const TopicDetailPage = () => {
     }
   };
 
+  // Improved handleStartQuiz with better option processing
   const handleStartQuiz = async (subtopic: Subtopic): Promise<void> => {
-    // Process questions to ensure options are properly parsed
-    const processed = subtopic.questions.map((question: Question) => {
-      //logOptionsFormat(question);
-      let parsedOptions: Option[] = [];
+    // Process questions to ensure options are properly handled
+    const processed: ProcessedQuestion[] = subtopic.questions.map((question: Question) => {
+      let processedOptions: Option[] = [];
       
       try {
         console.log(`Processing options for question ${question.id}:`, question.options, typeof question.options);
-        
-        // When options come from the database, they might be in several formats
-        if (typeof question.options === 'string') {
-          // First attempt: Check if it's a proper JSON array
-          if (question.options.trim().startsWith('[') && question.options.trim().endsWith(']')) {
-            try {
-              const parsedJson = JSON.parse(question.options);
-              if (Array.isArray(parsedJson)) {
-                // If successfully parsed as JSON array, convert directly to Option[] format
-                parsedOptions = parsedJson.map((item, index) => ({
-                  id: `o${index + 1}:${item}`,
-                  text: String(item)
-                }));
-                
-                // Return immediately to prevent further processing
-                return {
-                  ...question,
-                  subtopicId: subtopic.id,
-                  correctOption: question.correctOption || "",
-                  options: parsedOptions
-                };
-              }
-            } catch (error) {
-              const jsonError = error as Error;
-              console.error('JSON parse error:', jsonError.message);
-            }
-          } 
-          // Second attempt: Check if it's a pattern like "X men, Y women,A men, B women"
-          else if (question.options.includes('men') && question.options.includes('women')) {
-            // This is likely the pattern "40 men, 60 women,50 men, 75 women,..."
-            const pairPattern = /(\d+\s+men,\s+\d+\s+women)/g;
-            const matches = question.options.match(pairPattern);
-            
-            if (matches && matches.length > 0) {
-              parsedOptions = matches.map((pair, index) => ({
-                id: `o${index + 1}:${pair.trim()}`,
-                text: pair.trim()
-              }));
-              
-              // Return immediately to prevent further processing
-              return {
-                ...question,
-                subtopicId: subtopic.id,
-                correctOption: question.correctOption || "",
-                options: parsedOptions
-              };
-            }
-          }
-          
-          // Third attempt: Generic comma-separated values (not in JSON format)
-          if (parsedOptions.length === 0 && question.options.includes(',')) {
-            // Only do this if we don't have options already and there are commas
-            // If the pattern looks like groups of items separated by commas
-            // This is more complex and might require manual handling
-          }
-        }
-        
-        console.log('Parsed options:', parsedOptions);
-        // If we still have no options, try the generic parser
-        if (parsedOptions.length === 0) {
-          parsedOptions = parseOptionsArray(question.options);
-        }
-        
-        // Rest of your function remains the same...
-        // Ensure correct option has proper format
-        const correctOption = question.correctOption || "";
-        let formattedCorrectOption = correctOption;
-        
-        // If the correct option doesn't have a prefix, add one
-        if (!correctOption.match(/^o\d+:/)) {
-          // Find the corresponding option in parsedOptions
-          const correctOptionIndex = parsedOptions.findIndex(
-            opt => extractOptionValue(opt.id) === correctOption.trim()
-          );
-          
-          if (correctOptionIndex >= 0) {
-            // Use the ID with proper prefix
-            formattedCorrectOption = parsedOptions[correctOptionIndex].id;
+
+        // Handle the database format directly: [{id:"o1",text:"12"},...]
+        if (Array.isArray(question.options) && question.options.length > 0) {
+          // Check if options are already in the correct {id, text} format
+          if (question.options.every(opt => typeof opt === 'object' && 'id' in opt && 'text' in opt)) {
+            processedOptions = question.options.map((opt: any, index: number) => ({
+              id: String(opt.id), // Ensure id is a string (e.g., "o1")
+              text: String(opt.text) // Ensure text is a string (e.g., "12")
+            }));
           } else {
-            // If not found, prefix with o1:
-            formattedCorrectOption = `o1:${correctOption.trim()}`;
+            // Fallback: Handle if options are an array of primitives (e.g., ["12", "15",...])
+            processedOptions = question.options.map((opt: any, index: number) => ({
+              id: `o${index + 1}:${typeof opt === 'string' ? opt : String(opt)}`,
+              text: typeof opt === 'string' ? opt : String(opt)
+            }));
+          }
+        } else if (typeof question.options === 'string') {
+          // Handle string format (e.g., "[{"id":"o1","text":"12"},...]") by parsing JSON
+          try {
+            const parsedOptions = JSON.parse(question.options);
+            if (Array.isArray(parsedOptions)) {
+              processedOptions = parsedOptions.map((opt: any, index: number) => ({
+                id: String(opt.id || `o${index + 1}:${opt.text || String(opt)}`),
+                text: String(opt.text || String(opt))
+              }));
+            }
+          } catch (e) {
+            console.error('Error parsing options string:', e);
+            // Fallback: Split by commas if not valid JSON
+            const optionsStr = question.options.split(',').map(opt => opt.trim()).filter(Boolean);
+            processedOptions = optionsStr.map((opt, index) => ({
+              id: `o${index + 1}:${opt}`,
+              text: opt
+            }));
           }
         }
-        
-        // Ensure we have some options
-        if (parsedOptions.length === 0 && correctOption) {
-          // If we have a correct option but no parsed options, include at least the correct one
-          const correctVal = extractOptionValue(correctOption);
-          parsedOptions = [{ id: `o1:${correctVal}`, text: correctVal }];
-          
-          // For numeric answers, add some variations
-          if (!isNaN(Number(correctVal))) {
-            const correctNum = Number(correctVal);
-            parsedOptions = [
-              { id: `o1:${correctNum-2}`, text: String(correctNum-2) },
-              { id: `o2:${correctNum-1}`, text: String(correctNum-1) },
-              { id: `o3:${correctNum}`, text: String(correctNum) },
-              { id: `o4:${correctNum+1}`, text: String(correctNum+1) }
-            ];
-          }
+
+        // Validate that we have options
+        if (processedOptions.length === 0 || processedOptions.length < 4) {
+          throw new Error(`No valid options found for question ${question.id}`);
         }
-        
-        // Ensure options are unique using the extracted values
-        const uniqueOptions = new Map<string, Option>();
-        parsedOptions.forEach(opt => {
-          const value = extractOptionValue(opt.id);
-          if (value && !uniqueOptions.has(value)) {
-            uniqueOptions.set(value, opt);
-          }
-        });
-        
-        parsedOptions = Array.from(uniqueOptions.values());
-        
-        // Fallback for no options
-        if (parsedOptions.length === 0) {
-          parsedOptions = [{ id: "o1:option1", text: "No options available" }];
+
+        // Ensure exactly 4 options (if fewer, pad with defaults; if more, truncate)
+        if (processedOptions.length !== 4) {
+          processedOptions = processedOptions.slice(0, 4).map((opt, index) => ({
+            id: `o${index + 1}:${opt.text}`,
+            text: opt.text
+          }));
         }
-        
+
+        // Create processed question with validated options
         return {
           ...question,
           subtopicId: subtopic.id,
-          correctOption: formattedCorrectOption,
-          options: parsedOptions
+          options: processedOptions,
+          correctAnswer: question.correctAnswer // Ensure correctAnswer is the text value (e.g., "15")
         };
       } catch (e) {
         console.error('Error processing options for question', question.id, e);
+        
+        // Provide fallback options in case of error
         return {
           ...question,
           subtopicId: subtopic.id,
-          correctOption: question.correctOption || "",
-          options: [{ id: "o1:error", text: "Error loading options" }]
+          options: [
+            { id: "o1:Error", text: "Error loading options" },
+            { id: "o2:Try again", text: "Try again" },
+            { id: "o3:Contact support", text: "Contact support" },
+            { id: "o4:Skip this question", text: "Skip this question" }
+          ],
+          correctAnswer: question.correctAnswer || "Error loading options"
         };
       }
     });
-    
-    // Rest of the function remains the same...
-    console.log("Processed questions:", processed);
-    setProcessedQuestions(processed);
+
+    // Set the selectedSubtopicForQuiz with processed questions
+    console.log("Processed questions for quiz:", processed);
     setSelectedSubtopicForQuiz({
       ...subtopic,
       questions: processed
-    } as Subtopic<ProcessedQuestion>);
-    
+    });
+
     // Reset test session ID and mark for completion
     setCurrentTestSessionId(null);
     needsCompletionRef.current = false;
-  
+
     // Initialize a test session before opening the quiz modal
     const sessionId = await initializeTestSession(subtopic.id);
     console.log('Initialized session ID:', sessionId);
-    setCurrentTestSessionId(sessionId);
     
-    // Mark the session for completion if it was created successfully
     if (sessionId) {
+      setCurrentTestSessionId(sessionId);
       needsCompletionRef.current = true;
     }
-    
+
     // Open the quiz modal
     setIsQuizModalOpen(true);
   };
 
-  // Add this function to handle updating questions
+  // Handle question updates (e.g., after completing questions)
   const handleQuestionsUpdate = (updatedQuestions: ProcessedQuestion[]): void => {
     console.log('Updating questions with new data:', updatedQuestions);
-    setProcessedQuestions(updatedQuestions);
     
-    // Also update the selectedSubtopicForQuiz
+    // Update the selectedSubtopicForQuiz
     if (selectedSubtopicForQuiz) {
       setSelectedSubtopicForQuiz({
         ...selectedSubtopicForQuiz,
@@ -466,18 +346,22 @@ const TopicDetailPage = () => {
   // Handler to receive test session ID from the QuizModal
   const handleSessionIdUpdate = (sessionId: number | null): void => {
     console.log('Received test session ID update:', sessionId);
+    
     if (sessionId) {
       setCurrentTestSessionId(sessionId);
-      needsCompletionRef.current = true; // This session will need completion
+      needsCompletionRef.current = true;
+    } else {
+      setCurrentTestSessionId(null);
+      needsCompletionRef.current = false;
     }
   };
 
+  // Adapter to convert QuizQuestion to ProcessedQuestion
   const questionUpdateAdapter = (updatedQuestions: QuizQuestion[]): void => {
-    // This adapter function converts from QuizQuestion[] to ProcessedQuestion[]
     handleQuestionsUpdate(updatedQuestions as unknown as ProcessedQuestion[]);
   };
 
-  // Update the handleCloseQuizModal function to complete the session
+  // Close quiz modal and complete test session
   const handleCloseQuizModal = async (): Promise<void> => {
     // Complete the test session if one exists
     if (currentTestSessionId) {
@@ -499,10 +383,10 @@ const TopicDetailPage = () => {
     fetchTopicData().then(() => {
       console.log('Topic data refreshed');
       setSelectedSubtopicForQuiz(null);
-      setProcessedQuestions([]);
     });
   };
 
+  // Loading state
   if (!isLoaded || loading) {
     return (
       <div className="p-6 flex justify-center items-center min-h-screen">
@@ -514,6 +398,7 @@ const TopicDetailPage = () => {
     );
   }
 
+  // Unauthenticated state
   if (!user) {
     return (
       <div className="p-6 text-center">
@@ -528,6 +413,7 @@ const TopicDetailPage = () => {
     );
   }
 
+  // Error state
   if (error || !topicData) {
     return (
       <div className="p-6 text-center text-red-600">
@@ -584,24 +470,43 @@ const TopicDetailPage = () => {
       {/* Subtopics section */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Subtopics</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {subtopics.map((subtopic: Subtopic) => (
             <div 
               key={subtopic.id}
-              className="p-3 border rounded-lg cursor-pointer transition-colors border-gray-200 hover:bg-gray-50"
+              className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
               onClick={() => handleStartQuiz(subtopic)}
             >
-              <div className="font-medium">{subtopic.name}</div>
-              <div className="text-sm text-gray-600 mt-1">
+              <div className="font-medium text-lg mb-2">{subtopic.name}</div>
+              <div className="text-sm text-gray-600 mb-3">
                 {subtopic.stats.total} questions
               </div>
-              <div className="flex justify-between text-xs mt-2">
-                <span className="text-green-600">{subtopic.stats.mastered} mastered</span>
-                <span className="text-yellow-600">{subtopic.stats.learning} learning</span>
-                <span className="text-gray-600">{subtopic.stats.toStart} to start</span>
+              
+              {/* Progress bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                <div 
+                  className="bg-green-600 h-2.5 rounded-full" 
+                  style={{ width: `${(subtopic.stats.mastered / Math.max(subtopic.stats.total, 1)) * 100}%` }}
+                ></div>
               </div>
+              
+              <div className="flex justify-between text-xs mb-3">
+                <span className="flex items-center">
+                  <span className="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
+                  <span>{subtopic.stats.mastered} mastered</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="h-2 w-2 rounded-full bg-yellow-500 mr-1"></span>
+                  <span>{subtopic.stats.learning} learning</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="h-2 w-2 rounded-full bg-gray-400 mr-1"></span>
+                  <span>{subtopic.stats.toStart} to start</span>
+                </span>
+              </div>
+              
               <button 
-                className="w-full mt-3 px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                className="w-full py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   handleStartQuiz(subtopic);
@@ -617,23 +522,29 @@ const TopicDetailPage = () => {
       {/* Quiz Modal */}
       {selectedSubtopicForQuiz && (
         <QuizModal
-        isOpen={isQuizModalOpen}
-        onClose={handleCloseQuizModal}
-        subtopicName={selectedSubtopicForQuiz.name}
-        questions={selectedSubtopicForQuiz.questions as unknown as QuizQuestion[]}
-        userId={user.id}
-        topicId={topic.id}
-        onQuestionsUpdate={questionUpdateAdapter}
-        onSessionIdUpdate={handleSessionIdUpdate}
-        testSessionId={currentTestSessionId}
-      />
+          isOpen={isQuizModalOpen}
+          onClose={handleCloseQuizModal}
+          subtopicName={selectedSubtopicForQuiz.name}
+          questions={selectedSubtopicForQuiz.questions as QuizQuestion[]}
+          userId={user.id}
+          topicId={Number(topicId)}
+          onQuestionsUpdate={questionUpdateAdapter}
+          onSessionIdUpdate={handleSessionIdUpdate}
+          testSessionId={currentTestSessionId}
+        />
       )}
       
       {/* Debug information in development mode */}
-      {process.env.NODE_ENV === 'development' && currentTestSessionId && (
-        <div className="mt-4 p-2 bg-gray-100 text-xs text-gray-700 rounded">
-          Current test session: {currentTestSessionId} 
-          {needsCompletionRef.current ? ' (pending completion)' : ' (no completion needed)'}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+          <h3 className="text-sm font-semibold mb-2">Debug Information</h3>
+          <div className="text-xs text-gray-700">
+            <p>Current test session: {currentTestSessionId || 'None'}</p>
+            <p>Session needs completion: {needsCompletionRef.current ? 'Yes' : 'No'}</p>
+            <p>Total subtopics: {subtopics.length}</p>
+            <p>Total questions: {stats.totalQuestions}</p>
+            <p>Selected subtopic: {selectedSubtopicForQuiz?.name || 'None'}</p>
+          </div>
         </div>
       )}
     </div>
