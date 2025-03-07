@@ -63,7 +63,7 @@ export default function Home() {
   // };
 
   return (
-    <Container>
+    // <Container>
       <ContentLayout title="" showAds={false}>
       <div className="space-y-6">
         <SmartPractiseHome/>
@@ -113,6 +113,6 @@ export default function Home() {
       </div>
       <Toaster />
       </ContentLayout>
-    </Container>
+    // </Container>
   );
 }
