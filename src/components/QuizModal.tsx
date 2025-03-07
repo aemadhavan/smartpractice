@@ -95,6 +95,13 @@ const QuizModal: React.FC<QuizModalProps> = ({
       if (testSessionId) {
         setCurrentSessionId(testSessionId);
       }
+    } else {
+      // This prevents the summary from disappearing when modal props change
+      // Only reset if modal is actually closing
+      if (isQuizCompleted && showQuizSummary) {
+        console.log('Preserving quiz summary state even though modal props changed');
+        // Don't reset the state here
+      }
     }
   }, [isOpen, testSessionId]);
   
@@ -289,7 +296,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
   
   // Function to complete the quiz
   const completeQuiz = async () => {
-    // Show the quiz summary
+    // Show the quiz summary immediately and ensure it stays visible
     setShowQuizSummary(true);
     
     // Prepare the updated questions with mastery status
@@ -340,7 +347,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
       onQuestionsUpdate(updatedQuestions);
     }
     
-    // Complete the session if we have a session ID
+    // Use a try/catch to make API calls more resilient - don't let failures affect UI
     if (currentSessionId) {
       try {
         const completeResponse = await fetch('/api/quantitative/complete-session', {
@@ -368,12 +375,24 @@ const QuizModal: React.FC<QuizModalProps> = ({
         }
       } catch (error) {
         console.error('Error completing test session:', error);
+        // Failures shouldn't affect the UI state
       }
     }
+    
+    // Ensure summary stays visible after all async operations
+    setShowQuizSummary(true);
   };
   
   // Function to handle closing the modal
   const handleClose = () => {
+    // If summary is being shown, ask for confirmation
+    if (isQuizCompleted && showQuizSummary) {
+      const confirmClose = window.confirm('Are you sure you want to close the summary? You won\'t be able to see these results again.');
+      if (!confirmClose) {
+        return; // Don't close if user cancels
+      }
+    }
+    
     onClose();
   };
   
