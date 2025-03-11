@@ -14,7 +14,7 @@
 // import { Textarea } from "@/components/ui/textarea";
 //import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster";
-import Container from '@/components/Container';
+//import Container from '@/components/Container';
 //import WaitlistSignup from '@/components/waitlist-signup';
 //import VocabularyHome from "@/components/PracticeAreas";
 //import PracticeAreas from "@/components/PracticeAreas";

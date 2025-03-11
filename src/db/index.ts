@@ -29,6 +29,14 @@ import {
     quantTopicProgress,
     quantSubtopicProgress
 } from "@/db/quantitative-schema";
+import { mathQuestionAttempts, 
+  mathQuestions, 
+  mathSubtopicProgress, 
+  mathSubtopics, 
+  mathTestAttempts, 
+  mathTestCategories, 
+  mathTopicProgress, 
+  mathTopics } from "./maths-schema";
 
 // Define the full schema
 const schema = {
@@ -55,7 +63,18 @@ const schema = {
     quantTestAttempts,
     quantQuestionAttempts,
     quantTopicProgress,
-    quantSubtopicProgress
+    quantSubtopicProgress,
+
+    //mathematical reasoning schemas
+    mathTopics,
+    mathSubtopics,
+    mathQuestions,
+    mathTestCategories,
+    mathTestAttempts,
+    mathQuestionAttempts,
+    mathTopicProgress,
+    mathSubtopicProgress
+
 };
 
 // Singleton pool and db instances

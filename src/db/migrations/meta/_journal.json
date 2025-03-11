@@ -64,6 +64,13 @@
       "when": 1741182563686,
       "tag": "0011_talented_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1741404823323,
+      "tag": "0012_smart_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }
