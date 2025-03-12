@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GenerateQuestions } from "./components/generate-questions";
 import { QuestionBank } from "./components/question-bank";
 import Container from '@/components/Container';
+import { AddQuestions } from "./components/add-questions";
 
 export default function QuestionsPage() {
   return (
@@ -22,6 +23,7 @@ export default function QuestionsPage() {
             <TabsTrigger value="bank">Question Bank</TabsTrigger>
             <TabsTrigger value="generate">Generate Questions</TabsTrigger>
             <TabsTrigger value="test">Generate Test</TabsTrigger>
+            <TabsTrigger value="add">Add Questions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bank">
@@ -54,6 +56,17 @@ export default function QuestionsPage() {
               <CardContent>
                 {/* TestGenerator component will go here */}
                 <div>Test Generator coming soon...</div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="add">
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Questions to table</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* TestGenerator component will go here */}
+                <AddQuestions/>
               </CardContent>
             </Card>
           </TabsContent>
