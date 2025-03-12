@@ -1,4 +1,4 @@
-// Fix for src/app/api/quantitative/complete-session/route.ts
+// File for src/app/api/quantitative/complete-session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
 import { 

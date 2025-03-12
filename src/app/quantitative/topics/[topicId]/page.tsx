@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import QuizModal from '@/components/QuizModal';
+import EnhancedQuizModal from '@/components/EnhancedQuizModal';
 import { Option } from '@/lib/options';
 
 // Define the QuizQuestion type (matching the type in QuizModal)
@@ -84,18 +84,66 @@ type TopicData = {
   };
 };
 
-// This type is kept for documentation purposes but commented out to avoid the unused variable warning
-// type QuizModalProps = {
-//   isOpen: boolean;
-//   onClose: () => void;
-//   subtopicName: string;
-//   questions: QuizQuestion[];
-//   userId: string;
-//   topicId: number;
-//   onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
-//   onSessionIdUpdate?: (sessionId: number | null) => void;
-//   testSessionId?: number | null;
-// };
+const QUANTITATIVE_ENDPOINTS = {
+  initSession: '/api/quantitative/init-session',
+  trackAttempt: '/api/quantitative/track-attempt',
+  completeSession: '/api/quantitative/complete-session'
+};
+const MATH_ENDPOINTS = {
+  initSession: '/api/maths/init-session',
+  trackAttempt: '/api/maths/track-attempt',
+  completeSession: '/api/maths/complete-session'
+};
+
+// Function to render math formulas
+const renderFormula = (formula: string): React.ReactNode => {
+  // Check if MathJax is available globally
+  if (typeof window !== 'undefined' && 'MathJax' in window) {
+    try {
+      // Use a div reference to render the formula
+      const formulaElement = document.createElement('div');
+      formulaElement.innerHTML = formula;
+      
+      // @ts-ignore - MathJax is loaded globally
+      window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaElement]);
+      
+      return <div dangerouslySetInnerHTML={{ __html: formula }} />;
+    } catch (error) {
+      console.error('Error rendering formula with MathJax:', error);
+      return <pre className="font-mono text-sm">{formula}</pre>;
+    }
+  }
+  
+  // Fallback if MathJax is not available
+  return <pre className="font-mono text-sm">{formula}</pre>;
+};
+
+// Function to calculate new mastery status
+const calculateNewStatus = (
+  question: QuizQuestion, 
+  isCorrect: boolean, 
+  successRate: number
+): 'Mastered' | 'Learning' | 'To Start' => {
+  // Mastery rules for math questions
+  if (isCorrect) {
+    if (question.status === 'To Start') {
+      return 'Learning';
+    } else if (question.status === 'Learning' && successRate >= 75) {
+      return 'Mastered';
+    } else {
+      return question.status;
+    }
+  } else {
+    // If incorrect
+    if (question.status === 'Mastered') {
+      return 'Learning';
+    } else if (question.status === 'Learning' && successRate < 40) {
+      return 'To Start';
+    } else {
+      return question.status;
+    }
+  }
+};
 
 const TopicDetailPage = () => {
   const { user, isLoaded } = useUser();
@@ -108,7 +156,17 @@ const TopicDetailPage = () => {
   const [topicData, setTopicData] = useState<TopicData | null>(null);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic<ProcessedQuestion> | null>(null);
-  const [currentTestSessionId, setCurrentTestSessionId] = useState<number | null>(null);
+  
+  // Single session ID - only used to track the active session from the modal
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+
+  // This would be determined based on your routing or a prop
+  const subjectType = 'quantitative'; // or 'maths'
+  
+  // Select the appropriate API endpoints based on subject
+  const apiEndpoints = subjectType === 'quantitative' 
+    ? QUANTITATIVE_ENDPOINTS  // Use QUANTITATIVE_ENDPOINTS for 'quantitative'
+    : MATH_ENDPOINTS;         // Use MATH_ENDPOINTS for 'maths'
 
   // Ref to track if test session needs to be completed on unmount
   const needsCompletionRef = useRef(false);
@@ -156,7 +214,7 @@ const TopicDetailPage = () => {
     try {
       console.log('Completing test session:', sessionId);
       
-      const response = await fetch('/api/quantitative/complete-session', {
+      const response = await fetch(apiEndpoints.completeSession, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -178,18 +236,18 @@ const TopicDetailPage = () => {
       console.error('Error completing test session:', error);
       return false;
     }
-  }, [user?.id]);
+  }, [user?.id, apiEndpoints.completeSession]);
 
   // Effect to ensure test session completion when the component unmounts
   useEffect(() => {
     return () => {
-      if (needsCompletionRef.current && currentTestSessionId) {
-        completeTestSession(currentTestSessionId).then(() => {
-          console.log(`Test session ${currentTestSessionId} completed on unmount`);
+      if (needsCompletionRef.current && activeSessionId) {
+        completeTestSession(activeSessionId).then(() => {
+          console.log(`Test session ${activeSessionId} completed on unmount`);
         });
       }
     };
-  }, [currentTestSessionId, completeTestSession]);
+  }, [activeSessionId, completeTestSession]);
 
   // Load topic data when user is loaded
   useEffect(() => {
@@ -198,38 +256,6 @@ const TopicDetailPage = () => {
     }
   }, [isLoaded, fetchTopicData]);
  
-  // Initialize a test session for a subtopic
-  const initializeTestSession = async (subtopicId: number): Promise<number | null> => {
-    if (!user?.id) return null;
-    
-    try {
-      console.log('Initializing test session for subtopic:', subtopicId);
-      
-      const response = await fetch('/api/quantitative/init-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          subtopicId
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Successfully initialized test session:', result);
-        return result.testAttemptId;
-      } else {
-        console.error('Failed to initialize test session');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error initializing test session:', error);
-      return null;
-    }
-  };
-
   // Improved handleStartQuiz with better option processing
   const handleStartQuiz = async (subtopic: Subtopic): Promise<void> => {
     // Process questions to ensure options are properly handled
@@ -320,18 +346,11 @@ const TopicDetailPage = () => {
       questions: processed
     });
 
-    // Reset test session ID and mark for completion
-    setCurrentTestSessionId(null);
+    // Reset session management state before opening modal
     needsCompletionRef.current = false;
-
-    // Initialize a test session before opening the quiz modal
-    const sessionId = await initializeTestSession(subtopic.id);
-    console.log('Initialized session ID:', sessionId);
     
-    if (sessionId) {
-      setCurrentTestSessionId(sessionId);
-      needsCompletionRef.current = true;
-    }
+    // Don't reset activeSessionId here to avoid canceling existing sessions
+    // Let the modal handle session creation exclusively
 
     // Open the quiz modal
     setIsQuizModalOpen(true);
@@ -352,14 +371,17 @@ const TopicDetailPage = () => {
 
   // Handler to receive test session ID from the QuizModal
   const handleSessionIdUpdate = (sessionId: number | null): void => {
-    console.log('Received test session ID update:', sessionId);
+    console.log('[DEBUG SESSION] Received session ID update:', sessionId);
     
     if (sessionId) {
-      setCurrentTestSessionId(sessionId);
+      setActiveSessionId(sessionId);
       needsCompletionRef.current = true;
+      console.log('[DEBUG SESSION] Set activeSessionId to:', sessionId);
     } else {
-      setCurrentTestSessionId(null);
+      // Session completed or no longer active
+      setActiveSessionId(null);
       needsCompletionRef.current = false;
+      console.log('[DEBUG SESSION] Cleared activeSessionId');
     }
   };
 
@@ -370,27 +392,42 @@ const TopicDetailPage = () => {
 
   // Close quiz modal and complete test session
   const handleCloseQuizModal = async (): Promise<void> => {
-    // Complete the test session if one exists
-    if (currentTestSessionId) {
+    console.log('[DEBUG SESSION] Closing quiz modal - current session ID:', activeSessionId);
+    
+    // Complete the session if one exists
+    if (activeSessionId && needsCompletionRef.current) {
       try {
-        await completeTestSession(currentTestSessionId);
-        // Reset after completion
-        needsCompletionRef.current = false;
-        setCurrentTestSessionId(null);
+        console.log('[DEBUG SESSION] Attempting to complete session ID:', activeSessionId);
+        
+        const success = await completeTestSession(activeSessionId);
+        
+        if (success) {
+          console.log('[DEBUG SESSION] Successfully completed session ID:', activeSessionId);
+        } else {
+          console.warn('[DEBUG SESSION] Failed to complete session, may already be completed');
+        }
       } catch (error) {
-        console.error('Error completing test session on close:', error);
+        console.error('[DEBUG SESSION] Error completing test session on close:', error);
       }
+      
+      // Reset state after completion attempt
+      needsCompletionRef.current = false;
     }
+    
+    // Reset session ID reference
+    setActiveSessionId(null);
     
     // Close the modal
     setIsQuizModalOpen(false);
     
-    // Refresh topic data after closing
-    console.log('Refreshing topic data after quiz completion');
-    fetchTopicData().then(() => {
-      console.log('Topic data refreshed');
-      setSelectedSubtopicForQuiz(null);
-    });
+    // Refresh data after a delay to ensure proper cleanup
+    setTimeout(() => {
+      console.log('Refreshing topic data after quiz completion');
+      fetchTopicData().then(() => {
+        console.log('Topic data refreshed');
+        setSelectedSubtopicForQuiz(null);
+      });
+    }, 500);
   };
 
   // Loading state
@@ -525,28 +562,32 @@ const TopicDetailPage = () => {
           ))}
         </div>
       </div>
-
-      {/* Quiz Modal */}
+        
+      {/* Using the EnhancedQuizModal */}
       {selectedSubtopicForQuiz && (
-        <QuizModal
-          isOpen={isQuizModalOpen}
-          onClose={handleCloseQuizModal}
-          subtopicName={selectedSubtopicForQuiz.name}
-          questions={selectedSubtopicForQuiz.questions as QuizQuestion[]}
-          userId={user.id}
-          topicId={Number(topicId)}
-          onQuestionsUpdate={questionUpdateAdapter}
-          onSessionIdUpdate={handleSessionIdUpdate}
-          testSessionId={currentTestSessionId}
-        />
+          <EnhancedQuizModal
+            isOpen={isQuizModalOpen}
+            onClose={handleCloseQuizModal}
+            subtopicName={selectedSubtopicForQuiz.name}
+            questions={selectedSubtopicForQuiz.questions as QuizQuestion[]}
+            userId={user.id}
+            topicId={Number(topicId)}
+            onQuestionsUpdate={questionUpdateAdapter}
+            onSessionIdUpdate={handleSessionIdUpdate}
+            testSessionId={null} // Do not pass session ID - let the modal handle it
+            apiEndpoints={apiEndpoints}
+            renderFormula={subjectType === 'quantitative' ? renderFormula : undefined}
+            calculateNewStatus={subjectType === 'quantitative' ? calculateNewStatus : undefined}
+            subjectType={subjectType}
+          />
       )}
-      
+        
       {/* Debug information in development mode */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-8 p-4 bg-gray-100 rounded-lg">
           <h3 className="text-sm font-semibold mb-2">Debug Information</h3>
           <div className="text-xs text-gray-700">
-            <p>Current test session: {currentTestSessionId || 'None'}</p>
+            <p>Current session ID: {activeSessionId || 'None'}</p>
             <p>Session needs completion: {needsCompletionRef.current ? 'Yes' : 'No'}</p>
             <p>Total subtopics: {subtopics.length}</p>
             <p>Total questions: {stats.totalQuestions}</p>
