@@ -263,12 +263,12 @@ export default function MathTopicPage({ params }: { params: { topicId: string } 
           throw new Error(`No valid options found for question ${question.id}`);
         }
 
-        if (processedOptions.length !== 4) {
-          processedOptions = processedOptions.slice(0, 4).map((opt, index) => ({
-            id: `o${index + 1}:${opt.text}`,
-            text: opt.text,
-          }));
-        }
+       
+        processedOptions = processedOptions.map((opt, index) => ({
+          id: `o${index + 1}:${opt.text}`,
+          text: opt.text,
+        }));
+        
 
         return {
           ...question,

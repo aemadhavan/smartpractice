@@ -173,12 +173,12 @@ export async function GET(
       }
 
       // Ensure exactly 4 options
-      if (parsedOptions.length !== 4) {
-        parsedOptions = parsedOptions.slice(0, 4).map((opt, index) => ({
+      //if (parsedOptions.length !== 4) {
+        parsedOptions = parsedOptions.map((opt, index) => ({
           id: `o${index + 1}:${opt.text}`,
           text: opt.text
         }));
-      }
+      //}
 
       return {
         id: Number(row.id),
