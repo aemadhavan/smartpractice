@@ -12,7 +12,7 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { Check, AlertCircle, Upload } from "lucide-react";
+import { Check, AlertCircle } from "lucide-react";
 
 interface MathQuestion {
   topic: number;
@@ -46,7 +46,7 @@ export function AddQuestions() {
           const jsonData = JSON.parse(event.target?.result as string);
           setPreviewData(jsonData.slice(0, 3)); // Preview first 3 questions
           setErrorMessage('');
-        } catch (err) {
+        } catch {
           setErrorMessage('Invalid JSON file. Please check the file format.');
           setPreviewData([]);
         }

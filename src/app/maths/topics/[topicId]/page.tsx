@@ -96,7 +96,7 @@ const renderFormula = (formula: string): React.ReactNode => {
     try {
       const formulaElement = document.createElement('div');
       formulaElement.innerHTML = formula;
-      // @ts-ignore - MathJax is loaded globally
+      // @ts-expect-error - MathJax is loaded globally but not typed
       window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaElement]);
       return <div dangerouslySetInnerHTML={{ __html: formula }} />;
     } catch (error) {
@@ -175,7 +175,7 @@ export default function MathTopicPage({ params }: { params: { topicId: string } 
         setLoading(false);
       }
     },
-    [user?.id, topicData, lastFetched, topicId]
+    [user?.id, topicData, lastFetched, topicId, CACHE_TIME]
   );
 
   const completeTestSession = useCallback(

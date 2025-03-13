@@ -11,7 +11,7 @@ import {
   Edit3,
   Calculator,
   MessageSquare,
-  Star,
+  // Star, // Removed unused import
   Headphones,
   RotateCw
 } from 'lucide-react';
@@ -30,6 +30,8 @@ const SmartPractiseHome = () => {
     { title: 'Writing', date: 'March 2025' }
   ];
 
+  // Commented out unused variable
+  /*
   const testimonials = [
     {
       quote: "Smart Practise helped my daughter gain confidence in all exam areas. The personalized approach made a huge difference!",
@@ -47,6 +49,7 @@ const SmartPractiseHome = () => {
       role: "Education Consultant"
     }
   ];
+  */
 
   const faqs = [
     {
@@ -63,7 +66,7 @@ const SmartPractiseHome = () => {
     },
     {
       question: "Do you offer personalized study plans?",
-      answer: "Yes, our AI technology creates personalized study plans based on your child's strengths and areas for improvement, adapting as they progress."
+      answer: "Yes, our AI technology creates personalized study plans based on your child&apos;s strengths and areas for improvement, adapting as they progress."
     },
     {
       question: "Can I track my child's progress?",
@@ -86,7 +89,7 @@ const SmartPractiseHome = () => {
               {/* Victorian */}
             </h2>
             <p className="text-gray-600 mb-8">
-              Comprehensive practice resources designed specifically for Year 8 students preparing for the June exam. Master all five exam categories and gain entry to Melbourne's elite selective schools.
+              Comprehensive practice resources designed specifically for Year 8 students preparing for the June exam. Master all five exam categories and gain entry to Melbourne&apos;s elite selective schools.
             </p>
             <div className="flex flex-wrap gap-4 mb-8">
               {/* <button className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all">
@@ -137,7 +140,7 @@ const SmartPractiseHome = () => {
               {/* Question content */}
               <div className="mb-8">
                 <p className="text-gray-700 mb-4">
-                  Read the passage and answer the following questions about the author's main argument and supporting evidence.
+                  Read the passage and answer the following questions about the author&apos;s main argument and supporting evidence.
                 </p>
                 
                 <div className="bg-blue-50 p-6 rounded-lg mb-6">
@@ -233,7 +236,7 @@ const SmartPractiseHome = () => {
                 </Badge>
               </div>
               <p className="text-gray-600 mb-6">
-                Master the art of problem-solving with our comprehensive Quantitative Reasoning module. With over 100+ practice problems and AI-powered feedback, you'll be ready for any challenge.
+                Master the art of problem-solving with our comprehensive Quantitative Reasoning module. With over 100+ practice problems and AI-powered feedback, you&apos;ll be ready for any challenge.
               </p>
               <button 
                 onClick={() => handleStartPractice('quantitative')}

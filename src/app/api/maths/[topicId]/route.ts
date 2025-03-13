@@ -4,9 +4,9 @@ import { db } from '@/db/index';
 import { 
   mathTopics, 
   mathSubtopics,
-  mathQuestions,
-  mathTestAttempts,
-  mathQuestionAttempts
+  //mathQuestions,
+  //mathTestAttempts,
+  //mathQuestionAttempts
 } from '@/db/maths-schema';
 import { and, eq, sql } from 'drizzle-orm';
 

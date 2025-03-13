@@ -11,7 +11,7 @@ export default function AboutUs() {
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Our Story</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            From one parent's journey to a community of dreamers and achievers
+            From one parent&apos;s journey to a community of dreamers and achievers
           </p>
         </div>
 
@@ -29,14 +29,14 @@ export default function AboutUs() {
           <div className="md:w-1/2">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">It Started with a Dream</h2>
             <p className="text-lg text-gray-700 mb-4">
-              Like many stories of innovation, Smart Practise began with a parent's love and determination. 
-              When my own child faced the challenge of preparing for Victoria's selective high school exam, 
+              Like many stories of innovation, Smart Practise began with a parent&apos;s love and determination. 
+              When my own child faced the challenge of preparing for Victoria&apos;s selective high school exam, 
               I discovered a gap in the resources available—nothing that truly adapted to individual learning styles 
               or provided the kind of personalized feedback that makes learning stick.
             </p>
             <p className="text-lg text-gray-700 mb-4">
               Late nights after work became devoted to creating practice questions, developing 
-              explanations, and building a system that could grow with my child's progress. What started 
+              explanations, and building a system that could grow with my child&apos;s progress. What started 
               as spreadsheets and handwritten notes gradually evolved into something more.
             </p>
             <p className="text-lg text-gray-700">
@@ -70,7 +70,7 @@ export default function AboutUs() {
               <h3 className="text-xl font-semibold text-center mb-4">Built by Parents, for Parents</h3>
               <p className="text-gray-600">
                 We understand the unique challenges of guiding a child through selective exams because 
-                we've lived it. Our platform provides not just student resources, but parent guidance at every step.
+                we&apos;ve lived it. Our platform provides not just student resources, but parent guidance at every step.
               </p>
             </div>
             
@@ -82,7 +82,7 @@ export default function AboutUs() {
               </div>
               <h3 className="text-xl font-semibold text-center mb-4">AI that Adapts & Grows</h3>
               <p className="text-gray-600">
-                Unlike static practice tests, our AI-powered system learns your child's strengths and challenges, 
+                Unlike static practice tests, our AI-powered system learns your child&apos;s strengths and challenges, 
                 adjusting in real-time to provide the perfect level of challenge and targeted feedback.
               </p>
             </div>
@@ -95,7 +95,7 @@ export default function AboutUs() {
               </div>
               <h3 className="text-xl font-semibold text-center mb-4">Community-Centered</h3>
               <p className="text-gray-600">
-                We're constantly evolving based on community feedback. The insights and experiences of 
+                We&apos;re constantly evolving based on community feedback. The insights and experiences of 
                 students and parents shape our platform, creating a resource that truly serves your needs.
               </p>
             </div>
@@ -116,17 +116,17 @@ export default function AboutUs() {
           <div className="md:w-1/2">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">The Journey Continues</h2>
             <p className="text-lg text-gray-700 mb-4">
-              What began as one parent's solution has grown into a platform serving thousands of Victorian 
+              What began as one parent&apos;s solution has grown into a platform serving thousands of Victorian 
               families. Every success story—every student who gains confidence, masters a difficult concept, 
               or achieves their dream of selective school entry—adds a new chapter to our story.
             </p>
             <p className="text-lg text-gray-700 mb-4">
               Today, Smart Practise combines cutting-edge AI technology with the heart and understanding of 
-              parents who've walked this path. We're more than a practice platform—we're a community of 
+              parents who&apos;ve walked this path. We&apos;re more than a practice platform—we&apos;re a community of 
               families supporting each other toward educational excellence.
             </p>
             <p className="text-lg text-gray-700">
-              And we're just getting started. Join us as we continue to innovate, inspire, and illuminate 
+              And we&apos;re just getting started. Join us as we continue to innovate, inspire, and illuminate 
               the path to selective school success.
             </p>
           </div>
@@ -183,7 +183,7 @@ export default function AboutUs() {
         <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-12 text-center text-white">
           <h2 className="text-3xl font-bold mb-6">Join Our Community of Achievers</h2>
           <p className="text-xl mb-8 max-w-3xl mx-auto">
-            Start your child's journey to selective school success with personalized, AI-powered practice that grows with them.
+            Start your child&apos;s journey to selective school success with personalized, AI-powered practice that grows with them.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 

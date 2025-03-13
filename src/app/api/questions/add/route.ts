@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }));
     
     // Insert questions into database
-    const result = await db.insert(mathQuestions).values(processedQuestions);
+    await db.insert(mathQuestions).values(processedQuestions);
     
     return NextResponse.json({
       success: true,

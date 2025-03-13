@@ -103,7 +103,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
         // Don't reset the state here
       }
     }
-  }, [isOpen, testSessionId]);
+  }, [isOpen, testSessionId, isQuizCompleted, showQuizSummary]);
   
   // Get the current question
   const currentQuestion = questions[currentQuestionIndex];

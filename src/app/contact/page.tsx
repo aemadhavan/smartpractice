@@ -46,7 +46,7 @@ export default function Contact() {
         subject: '',
         message: ''
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
@@ -65,7 +65,7 @@ export default function Contact() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Have questions about our exam preparation platform? We're here to help your child succeed.
+            Have questions about our exam preparation platform? We&apos;re here to help your child succeed.
           </p>
         </div>
 
@@ -230,7 +230,7 @@ export default function Contact() {
             
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Is Smart Practise suitable for all Year 8 students?</h3>
-              <p className="text-gray-600">Yes, our platform is designed for students of all ability levels. The adaptive technology adjusts to each student's strengths and weaknesses.</p>
+              <p className="text-gray-600">Yes, our platform is designed for students of all ability levels. The adaptive technology adjusts to each student&apos;s strengths and weaknesses.</p>
             </div>
             
             <div>

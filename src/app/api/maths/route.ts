@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 
     // Get daily goal progress
     const dailyGoal = 20; // Default daily goal
-    let dailyProgress = 7; // Placeholder value - would be replaced with actual query
+    const  dailyProgress = 7; // Placeholder value - would be replaced with actual query
 
     console.log('API request completed successfully');
     return NextResponse.json({ 

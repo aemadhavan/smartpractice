@@ -104,7 +104,7 @@ const renderFormula = (formula: string): React.ReactNode => {
       const formulaElement = document.createElement('div');
       formulaElement.innerHTML = formula;
       
-      // @ts-ignore - MathJax is loaded globally
+      // @ts-expect-error - MathJax is loaded globally but not typed
       window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaElement]);
       
       return <div dangerouslySetInnerHTML={{ __html: formula }} />;
