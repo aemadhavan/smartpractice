@@ -1,14 +1,12 @@
-// File: /src/app/api/maths/complete-session/route.ts
-// Similar to quantitative but uses math-specific tables
-
+// File: src/app/api/maths/complete-session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/index';
-import { 
-  mathTestAttempts, 
-  mathQuestionAttempts, 
+import {
+  mathTestAttempts,
+  mathQuestionAttempts,
   mathTopicProgress,
   mathSubtopics,
-  mathSubtopicProgress
+  mathSubtopicProgress,
 } from '@/db/maths-schema';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -16,25 +14,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { testSessionId, userId } = body;
-    
-    console.log('COMPLETE MATH SESSION - Received request:', { 
-      testSessionId, 
-      userId, 
-      timestamp: new Date().toISOString() 
+
+    const db = await getDb();
+
+    console.log('COMPLETE MATH SESSION - Received request:', {
+      testSessionId,
+      userId,
+      timestamp: new Date().toISOString(),
     });
-    
-    // Validate required fields
+
     if (!testSessionId || !userId) {
       return NextResponse.json(
-        { error: "Both testSessionId and userId are required" },
+        { error: 'Both testSessionId and userId are required' },
         { status: 400 }
       );
     }
-    
-    // Get the DB instance
-    const db = await getDb();
-    
-    // Check if the test attempt exists
+
     const testAttemptResult = await db
       .select()
       .from(mathTestAttempts)
@@ -49,105 +44,266 @@ export async function POST(request: NextRequest) {
     if (!testAttempt) {
       console.error('COMPLETE MATH SESSION - Test session not found', { testSessionId, userId });
       return NextResponse.json(
-        { error: "Math test session not found" },
+        { error: 'Test session not found' },
         { status: 404 }
       );
     }
 
-    // If the session is already completed, just return success
     if (testAttempt.status !== 'in_progress') {
       console.log('COMPLETE MATH SESSION - Session already completed', {
         testSessionId,
-        currentStatus: testAttempt.status
+        currentStatus: testAttempt.status,
       });
       return NextResponse.json({
         success: true,
-        message: "Math test session was already completed",
+        message: 'Test session was already completed',
         sessionStats: {
           testSessionId,
           totalQuestions: testAttempt.totalQuestions || 0,
           timeSpent: testAttempt.timeSpent || 0,
-          score: testAttempt.score || 0
-        }
+          score: testAttempt.score || 0,
+        },
       });
     }
 
-    // Calculate session duration
     const startTime = testAttempt.startTime;
     const endTime = new Date();
     const durationInSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
 
-    // Get all unique questions attempted in this session
     const uniqueQuestionsResult = await db
       .select({
-        count: sql<number>`count(DISTINCT ${mathQuestionAttempts.questionId})`
+        count: sql<number>`COUNT(DISTINCT ${mathQuestionAttempts.questionId})`,
       })
       .from(mathQuestionAttempts)
       .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
     
     const totalQuestions = uniqueQuestionsResult[0]?.count || 0;
 
-    // Get unique correct answers
     const correctAnswersResult = await db
       .select({
-        count: sql<number>`count(DISTINCT ${mathQuestionAttempts.questionId}) filter (where ${mathQuestionAttempts.isCorrect} = true)`
+        count: sql<number>`COUNT(DISTINCT ${mathQuestionAttempts.questionId}) FILTER (WHERE ${mathQuestionAttempts.isCorrect} = true)`,
       })
       .from(mathQuestionAttempts)
       .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
     
     const correctAnswers = correctAnswersResult[0]?.count || 0;
-    
-    // Calculate score
+
+    const allAttempts = await db
+      .select({
+        questionId: mathQuestionAttempts.questionId,
+        isCorrect: mathQuestionAttempts.isCorrect,
+      })
+      .from(mathQuestionAttempts)
+      .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
+
     const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
 
-    // Update the test attempt to mark it as completed
+    console.log('COMPLETE MATH SESSION - Detailed Attempt Breakdown', {
+      testSessionId,
+      totalQuestions,
+      correctAnswers,
+      score,
+      timeSpent: durationInSeconds,
+      attempts: allAttempts.map(a => ({
+        questionId: a.questionId,
+        isCorrect: a.isCorrect,
+      })),
+    });
+
     await db
       .update(mathTestAttempts)
       .set({
         status: 'completed',
         endTime,
         timeSpent: durationInSeconds,
-        correctAnswers: correctAnswers,
-        totalQuestions: totalQuestions,
-        score: score
+        correctAnswers,
+        totalQuestions,
+        score,
       })
       .where(and(
         eq(mathTestAttempts.id, testSessionId),
         eq(mathTestAttempts.userId, userId)
       ));
-    
-    // Similar update logic for updating topic and subtopic progress would go here
-    // This would be similar to the quantitative version but use mathTopicProgress, etc.
+
+    try {
+      const subtopicResult = await db
+        .select({ topicId: mathSubtopics.topicId })
+        .from(mathSubtopics)
+        .where(eq(mathSubtopics.id, testAttempt.subtopicId))
+        .limit(1);
+      
+      const subtopicInfo = subtopicResult[0];
+      
+      if (subtopicInfo) {
+        const topicId = subtopicInfo.topicId;
+
+        const uniqueCorrectQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id)
+          FROM "mathQuestionAttempts" qqa
+          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "mathQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.topic_id = ${topicId}
+          AND qqa.is_correct = true
+        `);
+        
+        const uniqueCorrectQuestions = Number(uniqueCorrectQuestionsResult.rows[0]?.count) || 0;
+        
+        const uniqueAttemptedQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id)
+          FROM "mathQuestionAttempts" qqa
+          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "mathQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.topic_id = ${topicId}
+        `);
+        
+        const uniqueAttemptedQuestions = Number(uniqueAttemptedQuestionsResult.rows[0]?.count) || 0;
+        
+        const totalTopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(*) FROM "mathQuestions"
+          WHERE topic_id = ${topicId}
+          AND is_active = true
+        `);
+        
+        const totalTopicQuestions = Number(totalTopicQuestionsResult.rows[0]?.count) || 1;
+        
+        const masteryLevel = Math.round((uniqueCorrectQuestions / totalTopicQuestions) * 100);
+        
+        console.log('COMPLETE MATH SESSION - Topic Progress Calculation:', {
+          topicId,
+          uniqueCorrectQuestions,
+          uniqueAttemptedQuestions,
+          totalTopicQuestions,
+          masteryLevel,
+        });
+        
+        await db.transaction(async (tx) => {
+          const updateResult = await tx
+            .update(mathTopicProgress)
+            .set({
+              questionsCorrect: uniqueCorrectQuestions,
+              questionsAttempted: uniqueAttemptedQuestions,
+              masteryLevel,
+              lastAttemptAt: new Date(),
+            })
+            .where(and(
+              eq(mathTopicProgress.userId, userId),
+              eq(mathTopicProgress.topicId, topicId)
+            ));
+          
+          if (updateResult.rowCount === 0) {
+            await tx
+              .insert(mathTopicProgress)
+              .values({
+                userId,
+                topicId,
+                questionsCorrect: uniqueCorrectQuestions,
+                questionsAttempted: uniqueAttemptedQuestions,
+                masteryLevel,
+                lastAttemptAt: new Date(),
+              });
+          }
+        });
+
+        const subtopicId = testAttempt.subtopicId;
+
+        const uniqueCorrectSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id)
+          FROM "mathQuestionAttempts" qqa
+          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "mathQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.subtopic_id = ${subtopicId}
+          AND qqa.is_correct = true
+        `);
+        
+        const uniqueCorrectSubtopicQuestions = Number(uniqueCorrectSubtopicQuestionsResult.rows[0]?.count) || 0;
+        
+        const uniqueAttemptedSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(DISTINCT qqa.question_id)
+          FROM "mathQuestionAttempts" qqa
+          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
+          JOIN "mathQuestions" qq ON qqa.question_id = qq.id
+          WHERE qta.user_id = ${userId}
+          AND qq.subtopic_id = ${subtopicId}
+        `);
+        
+        const uniqueAttemptedSubtopicQuestions = Number(uniqueAttemptedSubtopicQuestionsResult.rows[0]?.count) || 0;
+        
+        const totalSubtopicQuestionsResult = await db.execute(sql`
+          SELECT COUNT(*) FROM "mathQuestions"
+          WHERE subtopic_id = ${subtopicId}
+          AND is_active = true
+        `);
+        
+        const totalSubtopicQuestions = Number(totalSubtopicQuestionsResult.rows[0]?.count) || 1;
+        
+        const subtopicMasteryLevel = Math.round((uniqueCorrectSubtopicQuestions / totalSubtopicQuestions) * 100);
+        
+        await db.transaction(async (tx) => {
+          const updateResult = await tx
+            .update(mathSubtopicProgress)
+            .set({
+              questionsCorrect: uniqueCorrectSubtopicQuestions,
+              questionsAttempted: uniqueAttemptedSubtopicQuestions,
+              masteryLevel: subtopicMasteryLevel,
+              lastAttemptAt: new Date(),
+            })
+            .where(and(
+              eq(mathSubtopicProgress.userId, userId),
+              eq(mathSubtopicProgress.subtopicId, subtopicId)
+            ));
+          
+          if (updateResult.rowCount === 0) {
+            await tx
+              .insert(mathSubtopicProgress)
+              .values({
+                userId,
+                subtopicId,
+                questionsCorrect: uniqueCorrectSubtopicQuestions,
+                questionsAttempted: uniqueAttemptedSubtopicQuestions,
+                masteryLevel: subtopicMasteryLevel,
+                lastAttemptAt: new Date(),
+              });
+          }
+        });
+
+        console.log('COMPLETE MATH SESSION - Progress updated for topic and subtopic', {
+          topicId,
+          subtopicId,
+          topicMastery: masteryLevel,
+          subtopicMastery: subtopicMasteryLevel,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating topic/subtopic progress:', error);
+    }
 
     console.log('COMPLETE MATH SESSION - Final Update', {
       testSessionId,
       totalQuestions,
       correctAnswers,
       score,
-      timeSpent: durationInSeconds
+      timeSpent: durationInSeconds,
     });
 
     return NextResponse.json({
       success: true,
-      message: "Math test session completed successfully",
+      message: 'Test session completed successfully',
       sessionStats: {
         testSessionId,
         totalQuestions,
         timeSpent: durationInSeconds,
         correctAnswers,
-        score
-      }
+        score,
+      },
     });
-    
   } catch (error) {
     console.error('COMPLETE MATH SESSION - Error completing test session:', error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'Unknown error occurred';
-    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
-      { error: "Failed to complete math test session", details: errorMessage },
+      { error: 'Failed to complete test session', details: errorMessage },
       { status: 500 }
     );
   }
