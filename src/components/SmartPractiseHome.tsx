@@ -16,6 +16,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
+import Link from 'next/link';
 
 const SmartPractiseHome = () => {
   const handleStartPractice = (area: string) => {
@@ -50,7 +51,7 @@ const SmartPractiseHome = () => {
   const faqs = [
     {
       question: "When is the Victorian Selective Entry High School exam held?",
-      answer: "The exam is typically held in June each year for Year 8 students seeking entry into Year 9 at Melbourne's selective schools."
+      answer: "The Victorian Selective Entry High School exam is typically held in June or July each year. For Year 9 entry, students in Year 8 take the exam to secure a place in the following year. The exact date can vary slightly from year to year, but generally, it occurs in mid-June. "
     },
     {
       question: "How does your platform help with exam preparation?",
@@ -81,19 +82,21 @@ const SmartPractiseHome = () => {
               AI-Powered Preparation
             </h1>
             <h2 className="text-3xl font-bold mb-4">
-              for Victorian Selective Entry Exams
+              for Selective Entry High School Exam 
+              {/* Victorian */}
             </h2>
             <p className="text-gray-600 mb-8">
               Comprehensive practice resources designed specifically for Year 8 students preparing for the June exam. Master all five exam categories and gain entry to Melbourne's elite selective schools.
             </p>
             <div className="flex flex-wrap gap-4 mb-8">
-              <button className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all">
+              {/* <button className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all">
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="group inline-flex items-center gap-2 border border-blue-500 text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-all">
+              </button> */}
+              {/* <button className="group inline-flex items-center gap-2 border border-blue-500 text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-all">
                 Explore Practice Areas
-              </button>
+              </button> */}
+              <Link href="/practice-areas" className="group inline-flex items-center gap-2 border border-blue-500 text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-all"> Explore Practice Areas</Link>
             </div>
             <div className="flex items-center mb-8">
               <div className="flex -space-x-2">
@@ -101,12 +104,12 @@ const SmartPractiseHome = () => {
                   <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white" />
                 ))}
               </div>
-              <span className="ml-3 text-sm text-gray-600">2,500+ students preparing with us</span>
+              <span className="ml-3 text-sm text-gray-600">Join thousands of students preparing for success</span>
             </div>
             
             {/* Practice area pills */}
             <div className="flex flex-wrap gap-3 mb-10">
-              {['Reading', 'Writing', 'Mathematics', 'Verbal', 'Quantitative'].map((area) => (
+              {['Vocabulary','Reading', 'Writing', 'Verbal', 'Quantitative', 'Mathematics'].map((area) => (
                 <button key={area} className="px-6 py-2 bg-white rounded-full text-gray-700 text-sm font-medium shadow-sm hover:shadow transition-all">
                   {area}
                 </button>
@@ -216,6 +219,203 @@ const SmartPractiseHome = () => {
             Master all five exam categories with our specialized practice modules designed specifically for the Victorian Selective Entry High School exam.
           </p>
         </div>
+        {/* Quantitative Reasoning Module */}
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">                
+                <Calculator className="w-6 h-6 text-blue-600" />
+                <h3 className="text-2xl font-bold">Quantitative Reasoning</h3>
+                <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Beta
+                </Badge>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Master the art of problem-solving with our comprehensive Quantitative Reasoning module. With over 100+ practice problems and AI-powered feedback, you'll be ready for any challenge.
+              </p>
+              <button 
+                onClick={() => handleStartPractice('quantitative')}
+                className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+              >
+                Start Practice
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 lg:w-1/3">
+              <div className="flex items-center justify-between">
+                <span className="text-xl font-bold">355+</span>
+                <span className="text-gray-600">Practice Problems</span>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <span className="text-sm">AI-Powered Feedback</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm">Real-time Progress Tracking</span>
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full w-3/4"></div>
+                </div>
+                <div className="text-xs text-right mt-1 text-gray-500">Adaptive Learning Path</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Mathematical Reasoning Module */}
+        
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <Calculator className="w-6 h-6 text-blue-600" />
+                <h3 className="text-2xl font-bold">Mathematical Reasoning</h3>
+                <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Beta
+                </Badge>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Develop critical mathematical reasoning skills with our AI-powered platform. Practice numerical problem-solving, data interpretation, and pattern recognition with adaptive learning technology.
+              </p>
+              <button 
+                onClick={() => handleStartPractice('maths')}
+                className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+              >
+                Start Practice
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 lg:w-1/3">
+              <div className="flex items-center justify-between">
+                <span className="text-xl font-bold">1,200+</span>
+                <span className="text-gray-600">Practice Problems</span>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <span className="text-sm">AI-Powered Feedback</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm">Real-time Progress Tracking</span>
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full w-3/4"></div>
+                </div>
+                <div className="text-xs text-right mt-1 text-gray-500">Adaptive Learning Path</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Vocabulary Module */}
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <MessageSquare className="w-6 h-6 text-blue-600" />
+                <h3 className="text-2xl font-bold">Vocabulary</h3>
+                <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Beta
+                </Badge>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Expand your vocabulary with our AI-powered platform. Practice word definitions, synonyms, and antonyms with personalized learning technology.
+              </p>
+              <button 
+                onClick={() => handleStartPractice('vocabulary')}
+                className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+              >
+                Start Practice
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 lg:w-1/3">
+              <div className="flex items-center justify-between">
+                <span className="text-xl font-bold">2,000+</span>
+                <span className="text-gray-600">Practice Words</span>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <span className="text-sm">AI-Powered Feedback</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm">Real-time Progress Tracking</span>
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full w-3/4"></div>
+                </div>
+                <div className="text-xs text-right mt-1 text-gray-500">Adaptive Learning Path</div>
+              </div>
+            </div>
+          </div>
+        </div> 
+
+        {/* Verbal Reasoning Module */}
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
+          <div className="flex flex-col lg:flex-row gap-8"></div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-4">
+              <MessageSquare className="w-6 h-6 text-blue-600" />
+              <h3 className="text-2xl font-bold">Verbal Reasoning</h3>
+              <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
+              <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Beta
+              </Badge>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Enhance your verbal reasoning skills with our AI-powered platform. Practice word definitions, analogies, and logical reasoning with personalized learning technology.
+            </p>
+            <button 
+              // onClick={() => handleStartPractice('verbal')}
+              className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+            >
+              Start Practice soon
+              {/* <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> */}
+            </button>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-1"></div>
+            <div className="flex flex-col gap-4 lg:w-1/3">
+              <div className="flex items-center justify-between">
+                <span className="text-xl font-bold">1,500+</span>
+                <span className="text-gray-600">Practice Problems</span>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <span className="text-sm">AI-Powered Feedback</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm">Real-time Progress Tracking</span>
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full w-3/4"></div>
+                </div>
+                <div className="text-xs text-right mt-1 text-gray-500">Adaptive Learning Path</div>
+              </div>
+            </div>
+          </div>
+        </div>                    
 
         {/* Reading Comprehension Module */}
         <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
@@ -237,8 +437,8 @@ const SmartPractiseHome = () => {
                 onClick={() => handleStartPractice('reading')}
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
               >
-                Start Practice
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Start Practice soon
+                {/* <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> */}
               </button>
             </div>
             <div className="flex flex-col gap-4 lg:w-1/3">
@@ -286,8 +486,8 @@ const SmartPractiseHome = () => {
                 onClick={() => handleStartPractice('writing')}
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
               >
-                Start Practice
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Start Practice soon
+                {/* <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> */}
               </button>
             </div>
             <div className="flex flex-col gap-4 lg:w-1/3">
@@ -313,56 +513,7 @@ const SmartPractiseHome = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Quantitative Module */}
-        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 mb-12 transform transition-all duration-300 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1">
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <Calculator className="w-6 h-6 text-blue-600" />
-                <h3 className="text-2xl font-bold">Quantitative Reasoning</h3>
-                <Badge className="bg-green-100 text-green-800 ml-2">New!</Badge>
-                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  Beta
-                </Badge>
-              </div>
-              <p className="text-gray-600 mb-6">
-                Enhance your mathematical reasoning skills with our AI-powered platform. Practice numerical problem-solving, data interpretation, and pattern recognition with personalized learning technology.
-              </p>
-              <button 
-                onClick={() => handleStartPractice('quantitative')}
-                className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
-              >
-                Start Practice
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4 lg:w-1/3">
-              <div className="flex items-center justify-between">
-                <span className="text-xl font-bold">800+</span>
-                <span className="text-gray-600">Practice Problems</span>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                  <span className="text-sm">AI-Powered Feedback</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm">Real-time Progress Tracking</span>
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full w-3/4"></div>
-                </div>
-                <div className="text-xs text-right mt-1 text-gray-500">Adaptive Learning Path</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </div>       
 
         {/* Upcoming Modules Grid */}
         <div className="mb-16">
@@ -385,7 +536,7 @@ const SmartPractiseHome = () => {
           </div>
         </div>
 
-        {/* Testimonials / Success Stories */}
+        {/* Testimonials / Success Stories 
         <div className="mb-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-3">Success Stories</h2>
@@ -409,7 +560,7 @@ const SmartPractiseHome = () => {
               </div>
             ))}
           </div>
-        </div>
+        </div>*/}
 
         {/* CTA Banner */}
         <div className="bg-blue-600 text-white rounded-2xl p-12 mb-16 text-center">

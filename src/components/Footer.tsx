@@ -32,6 +32,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/vocabulary" className="text-sm text-blue-600 hover:underline">
+                  Vocabulary
+                </Link>
+              </li>
+              <li>
                 <Link href="/mathematics" className="text-sm text-blue-600 hover:underline">
                   Mathematics
                 </Link>
@@ -42,7 +47,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/quantitative-reasoning" className="text-sm text-blue-600 hover:underline">
+                <Link href="/quantitative" className="text-sm text-blue-600 hover:underline">
                   Quantitative Reasoning
                 </Link>
               </li>
@@ -54,22 +59,22 @@ export default function Footer() {
             <h3 className="font-bold mb-4">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/practice-tests" className="text-sm text-blue-600 hover:underline">
+                <Link href="/resources" className="text-sm text-blue-600 hover:underline">
                   Practice Tests
                 </Link>
               </li>
               <li>
-                <Link href="/study-guides" className="text-sm text-blue-600 hover:underline">
+                <Link href="/resources" className="text-sm text-blue-600 hover:underline">
                   Study Guides
                 </Link>
               </li>
               <li>
-                <Link href="/exam-tips" className="text-sm text-blue-600 hover:underline">
+                <Link href="/resources" className="text-sm text-blue-600 hover:underline">
                   Exam Tips
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-sm text-blue-600 hover:underline">
+                <Link href="/resources" className="text-sm text-blue-600 hover:underline">
                   FAQ
                 </Link>
               </li>
@@ -81,7 +86,7 @@ export default function Footer() {
             <h3 className="font-bold mb-4">Contact</h3>
             <p className="text-sm text-gray-600 mb-2">
               <a href="mailto:support@smartpractise.com.au" className="hover:underline">
-                support@smartpractise.com.au
+                smartpractise.ai@gmail.com
               </a>
             </p>
             <p className="text-sm text-gray-600 mb-4">Melbourne, Victoria</p>
