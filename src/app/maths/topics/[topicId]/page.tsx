@@ -124,9 +124,9 @@ const calculateNewStatus = (
   }
 };
 
-export default function MathTopicPage({ params }: { params: { topicId: string } }) {
+export default function MathTopicPage() {
   const router = useRouter();
-  const pathParams = useParams();
+  const params = useParams();
   const { user, isLoaded } = useUser();
   const [topicData, setTopicData] = useState<TopicData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +138,7 @@ export default function MathTopicPage({ params }: { params: { topicId: string } 
   const needsCompletionRef = useRef(false);
   const CACHE_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-  const topicId = pathParams.topicId as string || params.topicId;
+  const topicId = params.topicId as string;
   const subjectType = 'maths';
 
   const fetchTopicData = useCallback(
