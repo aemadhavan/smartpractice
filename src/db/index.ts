@@ -2,6 +2,9 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool, PoolConfig } from "pg";
 import { sql } from "drizzle-orm";
+import * as dns from 'dns';
+import * as net from 'net';
+
 import { 
     categories,
     difficultyLevels,
@@ -87,12 +90,18 @@ let connectionErrors = 0;
 const connectionOptions: PoolConfig = {
     max: 10,                      // Maximum number of clients in the pool
     idleTimeoutMillis: 30000,     // How long a client is allowed to remain idle before being closed
-    connectionTimeoutMillis: 10000, // Increased from 2000ms to 10000ms (10 seconds)
-    allowExitOnIdle: false        // Don't allow the pool to exit while we have clients
+    connectionTimeoutMillis: 20000, // Increased from 2000ms to 20000ms (20 seconds)
+    allowExitOnIdle: false,        // Don't allow the pool to exit while we have clients
+    ssl: process.env.POSTGRES_USE_SSL === 'true' ? {
+        rejectUnauthorized: process.env.POSTGRES_REJECT_UNAUTHORIZED !== 'false'
+    } : undefined
 };
 
 /**
  * Initialize a fresh database connection pool with retry logic
+ */
+/**
+ * Initialize a fresh database connection pool with improved diagnostics and retry logic
  */
 async function initializePool(retryAttempt = 0, maxRetries = 3): Promise<Pool> {
   const connectionString = process.env.XATA_DATABASE_URL;
@@ -101,11 +110,21 @@ async function initializePool(retryAttempt = 0, maxRetries = 3): Promise<Pool> {
     throw new Error('Database connection string not found in environment variables');
   }
 
+  console.log(`Connecting to database: ${maskConnectionString(connectionString)}`);
+  
+  // Run diagnostics on first attempt
+  if (retryAttempt === 0) {
+    await runConnectionDiagnostics(connectionString);
+  }
+
   try {
     // Create a new pool
+    console.log('Creating connection pool...');
     const newPool = new Pool({ 
       connectionString, 
-      ...connectionOptions 
+      ...connectionOptions,
+      // Add application_name for better identification in database logs
+      application_name: 'smartpractice_app' 
     });
     
     // Set up event handlers
@@ -128,27 +147,121 @@ async function initializePool(retryAttempt = 0, maxRetries = 3): Promise<Pool> {
     });
 
     // Test the connection before returning
+    console.log('Testing database connection...');
     const client = await newPool.connect();
-    await client.query('SELECT 1'); // Simple query to test connection
+    console.log('Connection established, running test query...');
+    const result = await client.query('SELECT version()');
+    console.log(`Database connection test successful. Server version: ${result.rows[0].version}`);
     client.release();
-    console.log('Database connection test successful');
     return newPool;
     
   } catch (error: unknown) {
-    // Implement retry logic manually
+    // Log detailed error information
+    console.error(`Database connection attempt ${retryAttempt + 1} failed:`);
+    if (error instanceof Error) {
+      console.error(`Error name: ${error.name}`);
+      console.error(`Error message: ${error.message}`);
+      console.error(`Error stack: ${error.stack}`);
+    } else {
+      console.error(`Unknown error type:`, error);
+    }
+    
+    // Implement retry logic with more detailed logging
     if (retryAttempt < maxRetries) {
       const nextRetry = retryAttempt + 1;
       const retryDelay = Math.min(Math.pow(2, nextRetry) * 1000, 10000); // Exponential backoff with 10s max
       
-      console.error(`Database connection attempt ${nextRetry} failed:`, error);
-      console.log(`Retrying in ${retryDelay}ms...`);
+      console.log(`Retrying in ${retryDelay}ms (attempt ${nextRetry}/${maxRetries})...`);
       
       await new Promise(resolve => setTimeout(resolve, retryDelay));
       return initializePool(nextRetry, maxRetries);
     } else {
-      console.error(`Failed to connect to database after ${maxRetries} attempts:`, error);
+      console.error(`Failed to connect to database after ${maxRetries} attempts`);
       throw error;
     }
+  }
+}
+
+/**
+ * Safely masks sensitive parts of the connection string for logging
+ */
+function maskConnectionString(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    // Mask the password if present
+    if (url.password) {
+      url.password = '******';
+    }
+    return url.toString();
+  } catch (e) {
+    // If parsing fails, mask the entire string except for the protocol and host
+    const parts = connectionString.split('@');
+    if (parts.length > 1) {
+      return `[credentials masked]@${parts[parts.length - 1]}`;
+    }
+    return '[malformed connection string]';
+  }
+}
+/**
+ * Pre-connection diagnostics to help identify issues
+ */
+async function runConnectionDiagnostics(connectionString: string): Promise<void> {
+  try {
+    console.log('Running database connection diagnostics...');
+    
+    // Parse the connection URL
+    const url = new URL(connectionString);
+    const host = url.hostname;
+    const port = url.port || '5432';
+    
+    console.log(`Testing connectivity to ${host}:${port}...`);
+    
+    // 1. Test DNS resolution
+    try {
+      console.log(`Resolving hostname: ${host}`);
+      const addresses = await dns.promises.lookup(host, { all: true });
+      console.log(`DNS resolution successful. IP addresses: ${addresses.map(a => a.address).join(', ')}`);
+    } catch (err: unknown) {
+      console.error(`DNS resolution failed for ${host}: ${err instanceof Error ? err.message : String(err)}`);
+      console.log('This suggests the hostname cannot be resolved. Check your DNS settings and connection.');
+      return;
+    }
+    
+    // 2. Test TCP connectivity
+    console.log(`Testing TCP connection to ${host}:${port}`);
+    const socket = new net.Socket();
+    
+    try {
+      await new Promise<void>((resolve, reject) => {
+        // Set a timeout for the connection attempt
+        socket.setTimeout(5000);
+        
+        socket.on('connect', () => {
+          console.log(`TCP connection successful to ${host}:${port}`);
+          socket.end();
+          resolve();
+        });
+        
+        socket.on('timeout', () => {
+          socket.destroy();
+          reject(new Error(`Connection timed out after 5 seconds`));
+        });
+        
+        socket.on('error', (err) => {
+          reject(err);
+        });
+        
+        socket.connect(parseInt(port), host);
+      });
+    } catch (err: unknown) {
+      console.error(`TCP connection failed to ${host}:${port}: ${err instanceof Error ? err.message : String(err)}`);
+      console.log('This suggests a network connectivity issue or firewall blocking.');
+      return;
+    }
+    
+    console.log('Basic connectivity checks passed. Proceeding with PostgreSQL connection.');
+  } catch (err) {
+    console.error('Failed to run connection diagnostics:', err);
   }
 }
 
@@ -181,11 +294,14 @@ export async function getDb() {
     return dbInstance;
   } catch (error: unknown) {
     console.error('Fatal database connection error:', error);
+    // Reset connection state so next request will try again
+    isConnecting = false;
     throw error;
   } finally {
     isConnecting = false;
   }
 }
+
 
 /**
  * Creates a backward compatible version that returns a promise
