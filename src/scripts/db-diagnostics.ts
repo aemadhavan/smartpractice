@@ -1,15 +1,14 @@
-// File: scripts/db-diagnostics.ts
+// File: src/scripts/db-diagnostics.ts
+
 import { Pool } from 'pg';
 import * as dns from 'dns';
 import * as net from 'net';
-import * as http from 'http';
 import * as https from 'https';
-import * as url from 'url';
 
 // Run this script with: 
-// ts-node scripts/db-diagnostics.ts
+// npx tsx src/scripts/db-diagnostics.ts
 
-async function testDbConnection() {
+async function testDbConnection(): Promise<void> {
   // Get the database URL from environment
   const dbUrl = process.env.XATA_DATABASE_URL;
   
@@ -69,7 +68,8 @@ async function testDbConnection() {
         reject(err);
       });
       
-      socket.connect(parseInt(port), host);
+      // Connect to the host - wrap in IIFE to properly handle the expression
+      (() => { socket.connect(parseInt(port), host); })();
     });
     
     try {
@@ -125,7 +125,8 @@ async function testDbConnection() {
                 const status = JSON.parse(data);
                 console.log(`✅ Xata API accessible. Status: ${status.status.description}`);
                 resolve();
-              } catch (e) {
+              } catch (err:unknown) {
+                console.error(`❌ Failed to parse Xata status response: ${err instanceof Error?err.message:String(err)}`);
                 reject(new Error('Failed to parse Xata status response'));
               }
             });

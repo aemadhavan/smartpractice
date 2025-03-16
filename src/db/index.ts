@@ -195,6 +195,7 @@ function maskConnectionString(connectionString: string): string {
     return url.toString();
   } catch (e) {
     // If parsing fails, mask the entire string except for the protocol and host
+    console.error('Failed to parse connection string:', e);
     const parts = connectionString.split('@');
     if (parts.length > 1) {
       return `[credentials masked]@${parts[parts.length - 1]}`;
