@@ -1,3 +1,5 @@
+//File: /src/components/AdBanner.tsx
+
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 

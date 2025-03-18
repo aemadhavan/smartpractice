@@ -1,71 +1,62 @@
 // File: /src/lib/mathjax-config.ts
 
-// Simplified MathJax configuration for better-react-mathjax
-const config = {
-  loader: { 
-    load: ["[tex]/html"]
-  },
-  tex: {
-    packages: { "[+]": ["html"] },
-    inlineMath: [["\\(", "\\)"], ["$", "$"]],
-    displayMath: [["\\[", "\\]"], ["$$", "$$"]],
-    processEscapes: true,
-    processEnvironments: true
-  },
-  startup: {
-    typeset: true  // Force typesetting of the entire document
-  }
-};
-
-// Utility function to process mathematical expressions with error handling
+// Enhanced formula processing function
 const processMathExpression = (expression: string | undefined): string => {
   if (!expression || expression.trim() === '') {
-    console.warn('Empty or undefined math expression provided');
     return '';
   }
 
-  // Trim and normalize the expression
-  const trimmedExpr = expression.trim();
+  let processedExpr = expression.trim();
   
-  // Check and normalize different math delimiter formats
-  const mathDelimiters = [
-    { start: '\\(', end: '\\)' },
-    { start: '\\[', end: '\\]' },
-    { start: '$$', end: '$$' },
-    { start: '$', end: '$' }
-  ];
-
-  // Escape any existing HTML entities to prevent rendering issues
-  const escapedExpr = trimmedExpr
+  // Special case for the common quiz formula pattern
+  if (processedExpr.includes('\\text{Total outfits)') || 
+      processedExpr.includes('Number of t-shirts') || 
+      processedExpr.includes('Number of shorts')) {
+    
+    // Fix the specific pattern with unclosed text commands
+    processedExpr = processedExpr
+      .replace(/\\text\{\(Total outfits\)[^}]*\}/g, '\\text{(Total outfits)}')
+      .replace(/\\text\{\(Number of t-shirts\)[^}]*\}/g, '\\text{(Number of t-shirts)}')
+      .replace(/\\text\{\(Number of shorts\)[^}]*\}/g, '\\text{(Number of shorts)}');
+  }
+  
+  // Continue with your existing processing...
+  processedExpr = processedExpr
+    // Escape HTML entities
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    // Fix common escaping issues with LaTeX commands
+    .replace(/\\\\text/g, '\\text')
+    .replace(/\\\\times/g, '\\times')
+    // ...rest of your existing code
+    // Add additional fixes for common formatting issues
+  .replace(/(\d+)\s*\\times\s*([a-zA-Z])/g, '$1\\times $2') // Add space after \times
+  .replace(/(\d+)\s*times\s*([a-zA-Z])/g, '$1\\times $2')   // Convert "times" to \times
+  .replace(/\b(\d+)([a-zA-Z])\b/g, '$1$2')                  // Fix "3x" formatting without spaces
+  // Simplify basic expressions to avoid recursive processing
+  //.replace(/(\d+)\s*\\times\s*x/g, '$1x') 
 
-  // Fix spacing issues in formulas by ensuring there's a space after each operation
-  // This matches common math operators and adds a space after if not already there
-  let spacedExpr = escapedExpr
-    .replace(/([=×+\-*\/:])([\dA-Za-z])/g, '$1 $2')
-    .replace(/([\dA-Za-z])([=×+\-*\/:])/g, '$1 $2');
+  // Add more robust handling of nested \text commands
+  processedExpr = processedExpr.replace(/\\text\{([^{}]*)\}/g, (match, content) => {
+    // Count opening and closing braces
+    const openBraces = (content.match(/\{/g) || []).length;
+    const closeBraces = (content.match(/\}/g) || []).length;
     
-  // Add spaces around ×, =, + when needed
-  spacedExpr = spacedExpr
-    .replace(/(\d+)×(\d+)/g, '$1 × $2')
-    .replace(/(\d+)=(\d+)/g, '$1 = $2')
-    .replace(/(\d+)\+(\d+)/g, '$1 + $2')
-    .replace(/(\d+)-(\d+)/g, '$1 - $2')
-    .replace(/(\d+)\/(\d+)/g, '$1 / $2');
-    
-  // Check if already properly delimited
-  const isDelimited = mathDelimiters.some(delim => 
-    spacedExpr.startsWith(delim.start) && spacedExpr.endsWith(delim.end)
-  );
+    if (openBraces > closeBraces) {
+      // Add missing closing braces
+      return `\\text{${content}}${'}'.repeat(openBraces - closeBraces)}`;
+    }
+    return match;
+  });
+  
+  // Ensure \text commands have proper braces
+  processedExpr = processedExpr.replace(/\\text([^{])/g, '\\text{$1}');
+  
+  // Fix nested \text commands without braces
+  processedExpr = processedExpr.replace(/\\text\{([^{}]*)(\\text)([^{])/g, '\\text{$1}\\text{$3}');
 
-  // If not delimited, wrap in inline math
-  if (!isDelimited) {
-    return `\\(${spacedExpr}\\)`;
-  }
-
-  return spacedExpr;
+  return processedExpr;
 };
 
 // Utility function to process explanation with math delimiters
@@ -86,11 +77,35 @@ const processExplanation = (explanation: string): string => {
   
   while ((mathMatch = mathRegex.exec(tempExplanation)) !== null) {
     const placeholder = `__MATH_PLACEHOLDER_${i}__`;
+    
+    // Process the math content to fix any issues with \text commands
+    let mathContent = mathMatch[2];
+    
+    // Fix nested \text commands by ensuring proper braces
+    mathContent = mathContent.replace(/\\text\{([^{}]*)\}/g, (match, content) => {
+      // Check if content contains an opening brace without a closing one
+      const openBraces = (content.match(/\{/g) || []).length;
+      const closeBraces = (content.match(/\}/g) || []).length;
+      
+      if (openBraces > closeBraces) {
+        // Add missing closing braces
+        return `\\text{${content}}${'}'.repeat(openBraces - closeBraces)}`;
+      }
+      return match;
+    });
+    
+    // Ensure \text commands have proper braces
+    mathContent = mathContent.replace(/\\text([^{])/g, '\\text{$1}');
+    
+    // Fix nested \text commands without braces
+    mathContent = mathContent.replace(/\\text\{([^{}]*)(\\text)([^{])/g, '\\text{$1}\\text{$3}');
+    
     mathSections.push({
       placeholder,
-      original: mathMatch[0],
-      content: mathMatch[2]
+      original: mathMatch[1] + mathContent + mathMatch[3],
+      content: mathContent
     });
+    
     tempExplanation = tempExplanation.replace(mathMatch[0], placeholder);
     i++;
   }
@@ -144,9 +159,32 @@ const logMathJaxError = (error: unknown, context?: string) => {
   return ''; // Return empty string to prevent rendering issues
 };
 
+// Helper function to typeset MathJax content
+const typesetMathJax = (element: HTMLElement | null) => {
+  if (!element) return;
+  
+  // Check if MathJax is available
+  if (typeof window !== 'undefined' && 'MathJax' in window) {
+    const MathJax = window.MathJax;
+    
+    // Wait for MathJax to be fully loaded
+    if (MathJax && MathJax.typesetPromise) {
+      // Process the content
+      try {
+        // Typeset the math in the container
+        MathJax.typesetPromise([element]).catch((err: Error) => {
+          console.error('MathJax typesetting failed:', err);
+        });
+      } catch (error) {
+        console.error('Error processing MathJax:', error);
+      }
+    }
+  }
+};
+
 export { 
-  config, 
   processMathExpression, 
   processExplanation,
-  logMathJaxError
+  logMathJaxError,
+  typesetMathJax
 };

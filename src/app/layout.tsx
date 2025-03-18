@@ -11,7 +11,6 @@ import AdSense from '@/components/AdSense';
 import PrivacyConsent from '@/components/PrivacyConsent';
 import Script from 'next/script';
 
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -58,6 +57,87 @@ export default function RootLayout({
                 });
               `,
             }}
+          />
+          
+          {/* MathJax configuration - load before MathJax itself */}
+          <Script
+            id="mathjax-config"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.MathJax = {
+                  tex: {
+                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+                    processEscapes: true,
+                    processEnvironments: true,
+                    packages: {'[+]': ['ams', 'noerrors']}
+                  },
+                  options: {
+                    enableMenu: false,
+                    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                    processHtmlClass: 'tex2jax_process',
+                    renderActions: {
+                      // Add a custom action to prevent re-processing of already processed math
+                      find: [10, function (doc) {
+                        for (const math of doc.math) {
+                          if (math.state() >= 1) {
+                            math.data.skipReprocess = true;
+                          }
+                        }
+                      }],
+                      reprocess: [1000, function (doc) {
+                        for (const math of doc.math) {
+                          // Skip math that has already been processed
+                          if (math.data && math.data.skipReprocess) {
+                            delete math.data.skipReprocess;
+                            math.state(1);
+                          }
+                        }
+                      }]
+                    }
+                  },
+                  startup: {
+                    typeset: true,
+                    // Add a ready function to ensure MathJax is fully initialized
+                    ready: function() {
+                      console.log('MathJax is ready');
+                      MathJax.startup.defaultReady();
+                      
+                      // Create a global flag to indicate MathJax is ready
+                      window.mathJaxReady = true;
+                      
+                      // Create a global function to safely typeset content
+                      window.safeTypesetMathJax = function(elements) {
+                        if (!window.MathJax || !window.MathJax.typesetPromise) {
+                          console.warn('MathJax is not fully loaded');
+                          return Promise.resolve();
+                        }
+                        
+                        // Use a timeout to ensure the DOM is updated
+                        return new Promise((resolve) => {
+                          setTimeout(() => {
+                            MathJax.typesetPromise(elements)
+                              .then(resolve)
+                              .catch((err) => {
+                                console.error('MathJax typesetting failed:', err);
+                                resolve();
+                              });
+                          }, 50);
+                        });
+                      };
+                    }
+                  }
+                };
+              `,
+            }}
+          />
+          
+          {/* MathJax CDN */}
+          <Script
+            id="mathjax-cdn"
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+            strategy="afterInteractive"
           />
         </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
