@@ -53,7 +53,7 @@ export interface MathJaxDoc {
 // Global window augmentation
 declare global {
   interface Window {
-    MathJax?: MathJax;
+    MathJax?: MathJax; // Use the correct type here
     mathJaxReady?: boolean;
     safeTypesetMathJax?: (elements?: HTMLElement[]) => Promise<void>;
   }

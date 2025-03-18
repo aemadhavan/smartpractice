@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { MathJaxContext } from 'better-react-mathjax';
-import { MathJax } from '@/types/mathjax'; // Import MathJax type from your centralized types file
+//import { MathJax } from '@/types/mathjax'; // Import MathJax type from your centralized types file
 
 
 interface UnifiedMathLayoutProps {
