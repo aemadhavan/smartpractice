@@ -7,7 +7,7 @@ import {
   Option, 
   formatOptionText
 } from '@/lib/options';
-import QuizMathRenderer from './QuizMathRenderer';
+import QuizMathRenderer from '@/components/QuizMathRenderer';
 import { processMathExpression } from '@/lib/mathjax-config';
 
 // Define the QuizQuestion type to match the ProcessedQuestion type in page.tsx

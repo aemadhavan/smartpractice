@@ -29,15 +29,16 @@ export interface MathJaxTexOptions {
 
 /**
  * MathJax interface definition
+ * Modified to ensure parameter compatibility across the application
  */
 export interface MathJax {
-  typesetPromise: (elements: HTMLElement[]) => Promise<void>;
-  typeset?: (elements: HTMLElement[]) => void;
-  tex2chtml?: (latex: string, options?: Record<string, any>) => HTMLElement;
+  typesetPromise: (elements?: HTMLElement[]) => Promise<void>;
+  typeset?: (elements?: HTMLElement[]) => void;
+  tex2chtml?: (latex: string, options?: Record<string, unknown>) => HTMLElement;
   startup: MathJaxStartup;
   options?: MathJaxOptions;
   tex?: MathJaxTexOptions;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

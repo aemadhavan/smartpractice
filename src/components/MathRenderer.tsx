@@ -2,7 +2,7 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
 import { processMathExpression } from '@/lib/mathjax-config';
-import { containsLatex, ensureLatexDelimiters } from '@/hooks/useMathJax';
+import { containsLatex } from '@/hooks/useMathJax';
 
 // Update interface to make formula optional
 interface MathRendererProps {

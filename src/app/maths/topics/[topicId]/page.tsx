@@ -793,32 +793,38 @@ export default function MathTopicPage() {
       )}
 
       {/* Quiz Modal */}
-      {selectedSubtopicForQuiz && (
-        <>
-          {console.log('Rendering EnhancedQuizModal with:', {
-            isOpen: isQuizModalOpen,
-            subtopicName: selectedSubtopicForQuiz.name,
-            subtopicId: selectedSubtopicForQuiz.id,
-            questionCount: selectedSubtopicForQuiz.questions.length
-          })}
-          
+      {selectedSubtopicForQuiz && (()=>{
+        
+        console.log('Rendering EnhancedQuizModal with:', {
+          isOpen: isQuizModalOpen,
+          subtopicName: selectedSubtopicForQuiz.name,
+          subtopicId: selectedSubtopicForQuiz.id,
+          questionCount: selectedSubtopicForQuiz.questions.length
+        });
+        
+        return(
           <EnhancedQuizModal
-            isOpen={isQuizModalOpen}
-            onClose={handleCloseQuizModal}
-            subtopicName={selectedSubtopicForQuiz.name}
-            questions={selectedSubtopicForQuiz.questions as QuizQuestion[]}
-            userId={user.id}
-            topicId={Number(topicId)}
-            onQuestionsUpdate={safeQuestionUpdateAdapter}
-            onSessionIdUpdate={handleSessionIdUpdate}
-            testSessionId={activeSessionId}
-            apiEndpoints={MATH_ENDPOINTS}
-            renderFormula={renderFormula}
-            calculateNewStatus={calculateNewStatus}
-            subjectType={subjectType}
-          />
-        </>
-      )}
+          isOpen={isQuizModalOpen}
+          onClose={handleCloseQuizModal}
+          subtopicName={selectedSubtopicForQuiz.name}
+          questions={selectedSubtopicForQuiz.questions as QuizQuestion[]}
+          userId={user.id}
+          topicId={Number(topicId)}
+          onQuestionsUpdate={safeQuestionUpdateAdapter}
+          onSessionIdUpdate={handleSessionIdUpdate}
+          testSessionId={activeSessionId}
+          apiEndpoints={MATH_ENDPOINTS}
+          renderFormula={renderFormula}
+          calculateNewStatus={calculateNewStatus}
+          subjectType={subjectType}
+        />
+        )
+        
+      })()}
+        
+          
+      
+      
 
       {/* Debug Information */}
       {process.env.NODE_ENV === 'development' && (

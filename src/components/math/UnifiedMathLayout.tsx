@@ -4,6 +4,8 @@
 
 import React from 'react';
 import { MathJaxContext } from 'better-react-mathjax';
+import { MathJax } from '@/types/mathjax'; // Import MathJax type from your centralized types file
+
 
 interface UnifiedMathLayoutProps {
   children: React.ReactNode;
@@ -70,12 +72,3 @@ export const UnifiedMathLayout: React.FC<UnifiedMathLayoutProps> = ({ children }
     </MathJaxContext>
   );
 };
-
-// Add the global type declaration
-declare global {
-  interface Window {
-    mathJaxReady?: boolean;
-    safeTypesetMathJax?: (elements?: HTMLElement[]) => Promise<void>;
-    MathJax?: any;
-  }
-}

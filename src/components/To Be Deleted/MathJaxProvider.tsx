@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { UnifiedMathLayout } from './math/UnifiedMathLayout';
+import { UnifiedMathLayout } from '@/components/math/UnifiedMathLayout';
 
 interface MathJaxProviderProps {
   children: React.ReactNode;

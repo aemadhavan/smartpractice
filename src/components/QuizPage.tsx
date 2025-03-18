@@ -8,9 +8,8 @@ import ImprovedLatexRenderer from './ImprovedLatexRenderer';
 import sessionManager from '@/lib/session-manager';
 import { MathJax } from 'better-react-mathjax';
 import MathFormula from './MathFormula';
-import OptionText from './OptionText';
 import { useMathJax, containsLatex } from '@/hooks/useMathJax';
-import type { MathJax as MathJaxType } from '@/types/mathjax';
+
 
 // Define the QuizQuestion type
 export type QuizQuestion = {
@@ -99,7 +98,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
-  const [timeSpentOnQuestion, setTimeSpentOnQuestion] = useState<number>(0);
+  // For debugging purposes only
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_timeSpentOnQuestion, setTimeSpentOnQuestion] = useState<number>(0);
   
   // UI state
   const [contentLoading, setContentLoading] = useState(true);
@@ -114,7 +115,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   );
   
   // Set up MathJax processing with a single hook call
-  const { isProcessing, isProcessed } = useMathJax(
+  const { /* containerRef */ } = useMathJax(
     [
       currentQuestionIndex,
       currentQuestion?.question,
@@ -444,7 +445,8 @@ const QuizPage: React.FC<QuizPageProps> = ({
   }, [currentSessionId, apiEndpoints.completeSession, userId, subjectType, onSessionIdUpdate, router, topicId]);
   
   // Memoized option text renderer
-  const renderOptionText = useCallback((text: string | Option | null | undefined) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _renderOptionText = useCallback((text: string | Option | null | undefined) => {
     // Get the text value
     let textValue: string;
     

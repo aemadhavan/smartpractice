@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import EnhancedQuizModal from '@/components/EnhancedQuizModal';
 import { Option } from '@/lib/options';
 import sessionManager from '@/lib/session-manager';
+import { processMathExpression } from '@/lib/mathjax-config';
 
 // Define types (keeping existing ones and adding necessary ones for EnhancedQuizModal)
 type Question = {
@@ -94,25 +95,14 @@ const QUANTITATIVE_ENDPOINTS = {
 
 // Function to render math formulas
 const renderFormula = (formula: string): React.ReactNode => {
-  // Check if MathJax is available globally
-  if (typeof window !== 'undefined' && 'MathJax' in window) {
-    try {
-      // Use a div reference to render the formula
-      const formulaElement = document.createElement('div');
-      formulaElement.innerHTML = formula;
-      
-      //// @ts-expect-error - MathJax is loaded globally but not typed
-      window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaElement]);
-      
-      return <div dangerouslySetInnerHTML={{ __html: formula }} />;
-    } catch (error) {
-      console.error('Error rendering formula with MathJax:', error);
-      return <pre className="font-mono text-sm">{formula}</pre>;
-    }
+  try {
+    // Use the processMathExpression function from mathjax-config
+    const processedFormula = processMathExpression(formula);
+    return <div className="math-formula" dangerouslySetInnerHTML={{ __html: processedFormula }} />;
+  } catch (error) {
+    console.error('Error rendering formula with MathJax:', error);
+    return <pre className="font-mono text-sm">{formula}</pre>;
   }
-  
-  // Fallback if MathJax is not available
-  return <pre className="font-mono text-sm">{formula}</pre>;
 };
 
 // Function to calculate new mastery status
@@ -801,16 +791,16 @@ export default function QuantitativeTopicPage() {
       )}
 
       {/* Quiz Modal */}
-      {selectedSubtopicForQuiz && (
-        <>
-          {console.log('Rendering EnhancedQuizModal with:', {
+      {selectedSubtopicForQuiz && (()=>{
+        
+        console.log('Rendering EnhancedQuizModal with:', {
             isOpen: isQuizModalOpen,
             subtopicName: selectedSubtopicForQuiz.name,
             subtopicId: selectedSubtopicForQuiz.id,
             questionCount: selectedSubtopicForQuiz.questions.length
-          })}
-          
-          <EnhancedQuizModal
+          });
+          return(
+            <EnhancedQuizModal
             isOpen={isQuizModalOpen}
             onClose={handleCloseQuizModal}
             subtopicName={selectedSubtopicForQuiz.name}
@@ -825,8 +815,10 @@ export default function QuantitativeTopicPage() {
             calculateNewStatus={calculateNewStatus}
             subjectType={subjectType}
           />
-        </>
-      )}
+          );
+          
+        
+      })()}
 
       {/* Debug Information */}
       {process.env.NODE_ENV === 'development' && (

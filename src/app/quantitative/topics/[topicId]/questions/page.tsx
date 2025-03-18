@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import QuizPage from '@/components/QuizPage';
 import { Option } from '@/lib/options';
+import { processMathExpression } from '@/lib/mathjax-config';
 
 // API endpoints for quantitative
 const QUANTITATIVE_ENDPOINTS = {
@@ -47,25 +48,14 @@ type Subtopic = {
 
 // Function to render math formulas
 const renderFormula = (formula: string): React.ReactNode => {
-  // Check if MathJax is available globally
-  if (typeof window !== 'undefined' && 'MathJax' in window) {
-    try {
-      // Use a div reference to render the formula
-      const formulaElement = document.createElement('div');
-      formulaElement.innerHTML = formula;
-      
-      // // @ts-expect-error - MathJax is loaded globally but not typed
-      window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaElement]);
-      
-      return <div dangerouslySetInnerHTML={{ __html: formula }} />;
-    } catch (error) {
-      console.error('Error rendering formula with MathJax:', error);
-      return <pre className="font-mono text-sm">{formula}</pre>;
-    }
+  try {
+    // Use the processMathExpression function from mathjax-config
+    const processedFormula = processMathExpression(formula);
+    return <div className="math-formula" dangerouslySetInnerHTML={{ __html: processedFormula }} />;
+  } catch (error) {
+    console.error('Error rendering formula with MathJax:', error);
+    return <pre className="font-mono text-sm">{formula}</pre>;
   }
-  
-  // Fallback if MathJax is not available
-  return <pre className="font-mono text-sm">{formula}</pre>;
 };
 
 // Function to calculate new mastery status

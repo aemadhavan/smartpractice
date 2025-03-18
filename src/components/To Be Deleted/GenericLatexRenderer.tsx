@@ -1,6 +1,6 @@
 // File: /src/components/GenericLatexRenderer.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { MathJax } from '../types/mathjax';
+import { MathJax } from '@/types/mathjax'; // Import MathJax type from your centralized types file 
 
 interface GenericLatexRendererProps {
   formula: string;

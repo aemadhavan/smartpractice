@@ -2,12 +2,13 @@
 // Enhanced hook for MathJax rendering with better performance and UX
 'use client';
 import { useEffect, useRef, useState, DependencyList, useCallback } from 'react';
+import { MathJax as MathJaxType } from '@/types/mathjax';
 
 // Define a proper interface for the Window with MathJax
 interface WindowWithMathJax extends Window {
   mathJaxReady?: boolean;
   safeTypesetMathJax?: (elements?: HTMLElement[]) => Promise<void>;
-  MathJax?: any;
+  MathJax?: MathJaxType;
 }
 
 interface UseMathJaxOptions {
@@ -16,6 +17,7 @@ interface UseMathJaxOptions {
   fallbackDelay?: number;
   debugLabel?: string;
   onProcessed?: () => void;
+  maxAttempts?: number; // Added option for configurable max attempts
 }
 
 interface UseMathJaxResult {
@@ -31,15 +33,16 @@ interface UseMathJaxResult {
  * @returns Object with processing state
  */
 export function useMathJax(
-  dependencies: any[] = [], 
+  dependencies: readonly unknown [] = [], 
   options: UseMathJaxOptions = {}
 ): UseMathJaxResult {
   const {
     elementRef,
     delay = 100,
-    fallbackDelay = 1500, // Increase this timeout
+    fallbackDelay = 1500,
     debugLabel = 'MathJax',
-    onProcessed
+    onProcessed,
+    maxAttempts = 5 // Increased from 3 to 5 attempts
   } = options;
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -65,6 +68,13 @@ export function useMathJax(
     }
   }, []);
   
+  // Check if MathJax is available
+  const isMathJaxAvailable = useCallback(() => {
+    const win = window as unknown as WindowWithMathJax;
+    return (win.mathJaxReady && win.safeTypesetMathJax) || 
+           (win.MathJax && typeof win.MathJax.typesetPromise === 'function');
+  }, []);
+  
   // Process MathJax content
   const processMathJax = useCallback(async () => {
     if (!mountedRef.current) return;
@@ -85,14 +95,30 @@ export function useMathJax(
       }, fallbackDelay);
       
       // Limit retry attempts
-      if (attemptCountRef.current > 3) {
-        console.warn(`[${debugLabel}] Too many MathJax processing attempts, skipping`);
+      if (attemptCountRef.current > maxAttempts) {
+        console.warn(`[${debugLabel}] Max MathJax processing attempts (${maxAttempts}) reached, skipping`);
         setIsProcessing(false);
         setIsProcessed(true);
         cleanup();
         
         if (onProcessed) onProcessed();
         return;
+      }
+      
+      // Wait for MathJax to become available with a timeout
+      if (!isMathJaxAvailable()) {
+        const checkInterval = 100; // Check every 100ms
+        let waitTime = 0;
+        const maxWaitTime = 2000; // Wait at most 2 seconds
+        
+        while (!isMathJaxAvailable() && waitTime < maxWaitTime) {
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+          waitTime += checkInterval;
+        }
+        
+        if (!isMathJaxAvailable()) {
+          throw new Error('MathJax not available after waiting');
+        }
       }
       
       // Try to process using the appropriate MathJax method
@@ -127,19 +153,31 @@ export function useMathJax(
       
       if (!mountedRef.current) return;
       
+      // Retry after a short delay if we haven't exceeded max attempts
+      if (attemptCountRef.current <= maxAttempts) {
+        cleanup();
+        processingTimerRef.current = setTimeout(() => {
+          processMathJax();
+        }, 300); // Retry after 300ms
+        return;
+      }
+      
       // Still mark as processed to prevent UI blocking
       setIsProcessing(false);
       setIsProcessed(true);
       
       if (onProcessed) onProcessed();
     }
-  }, [cleanup, debugLabel, fallbackDelay, onProcessed, elementRef]);
+  }, [cleanup, debugLabel, fallbackDelay, onProcessed, elementRef, maxAttempts, isMathJaxAvailable]);
   
   // Set up effect to process MathJax when dependencies change
   useEffect(() => {
     mountedRef.current = true;
     setIsProcessed(false);
     cleanup();
+    
+    // Reset attempt counter when dependencies change
+    attemptCountRef.current = 0;
     
     // Delay processing to allow component to render first
     processingTimerRef.current = setTimeout(() => {
