@@ -1,4 +1,4 @@
-// MathRenderer.tsx - Component for rendering LaTeX formulas
+//File: /src/components/MathRenderer.tsx - Component for rendering LaTeX formulas
 'use client';
 import React, { useEffect, useRef } from 'react';
 import { processMathExpression } from '@/lib/mathjax-config';

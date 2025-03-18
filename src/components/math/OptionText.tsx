@@ -1,8 +1,9 @@
-//File : /src/components/math/OptionText.tsx
+//File: /src/components/math/OptionText.tsx
 'use client';
 
 import React from 'react';
-import { QuizMathContent } from './QuizMathContent';
+import { mightContainLatex } from '@/lib/mathUtils';
+import { MathJax } from 'better-react-mathjax';
 import { Option } from '@/lib/options';
 
 interface OptionTextProps {
@@ -11,14 +12,14 @@ interface OptionTextProps {
 }
 
 /**
- * Component to handle rendering option text in quizzes
- * Works with different formats of option data
+ * Optimized component for rendering option text in quizzes
+ * Handles both plain text and LaTeX content
  */
-export const OptionText: React.FC<OptionTextProps> = ({
+const OptionText: React.FC<OptionTextProps> = ({
   children,
   className = "option-text"
 }) => {
-  // Handle different types of input
+  // Extract text content from various input types
   let textContent: string;
   
   if (typeof children === 'string') {
@@ -31,11 +32,22 @@ export const OptionText: React.FC<OptionTextProps> = ({
     textContent = children ? String(children) : '';
   }
   
-  // Special handling for currency values
+  // Handle currency values specially
   if (/^\$\d+(\.\d+)?$/.test(textContent)) {
     return <span className={`${className} currency-value`}>{textContent}</span>;
   }
   
-  // Use our QuizMathContent component to handle potential LaTeX content
-  return <QuizMathContent content={textContent} className={className} />;
+  // For content without LaTeX, render directly
+  if (!mightContainLatex(textContent)) {
+    return <span className={className}>{textContent}</span>;
+  }
+  
+  // For content with LaTeX, use MathJax
+  return (
+    <MathJax hideUntilTypeset="first" className={className}>
+      {textContent}
+    </MathJax>
+  );
 };
+
+export default React.memo(OptionText);

@@ -1,4 +1,4 @@
-// QuizMathRenderer.tsx - Using custom hook for rendering math
+//File: /src/components/QuizMathRenderer.tsx - Using custom hook for rendering math
 'use client';
 import React, { useEffect, useRef } from 'react';
 import { containsLatex, ensureLatexDelimiters } from '@/hooks/useMathJax';

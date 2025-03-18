@@ -1,26 +1,23 @@
 // File: /src/components/QuizPage.tsx
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-// Remove unused Link import
 import { Option, formatOptionText } from '@/lib/options';
-// Import the fixed version instead of the original
-import FixedQuizMathRenderer from './FixedQuizMathRenderer';
-// Remove unused imports
+import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
 import ImprovedLatexRenderer from './ImprovedLatexRenderer';
 import sessionManager from '@/lib/session-manager';
 import { MathJax } from 'better-react-mathjax';
 import MathFormula from './MathFormula';
 import OptionText from './OptionText';
-// Import the MathJax type from your types file
+import { useMathJax, containsLatex } from '@/hooks/useMathJax';
 import type { MathJax as MathJaxType } from '@/types/mathjax';
 
 // Define the QuizQuestion type
 export type QuizQuestion = {
   id: number;
   question: string;
-  options: Option[]; // Array of { id: string; text: string }
-  correctAnswer: string; // Text value (e.g., "15", not "o3")
+  options: Option[];
+  correctAnswer: string;
   explanation: string;
   formula?: string;
   difficultyLevelId: number;
@@ -55,16 +52,13 @@ type QuizPageProps = {
   testSessionId?: number | null;
   apiEndpoints: ApiEndpoints;
   renderFormula?: (formula: string) => React.ReactNode;
-  calculateNewStatus?: (question: QuizQuestion, isCorrect: boolean, successRate: number) => 'Mastered' | 'Learning' | 'To Start';
+  calculateNewStatus?: (
+    question: QuizQuestion, 
+    isCorrect: boolean, 
+    successRate: number
+  ) => 'Mastered' | 'Learning' | 'To Start';
   subjectType: 'maths' | 'quantitative';
 };
-
-// Define a proper interface for the Window with MathJax
-interface WindowWithMathJax {
-  mathJaxReady?: boolean;
-  safeTypesetMathJax?: () => void;
-  MathJax?: MathJaxType;
-}
 
 const QuizPage: React.FC<QuizPageProps> = ({
   subtopicName,
@@ -75,11 +69,12 @@ const QuizPage: React.FC<QuizPageProps> = ({
   onSessionIdUpdate,
   testSessionId,
   apiEndpoints,
-  // renderFormula, // Commented out since it's unused
   calculateNewStatus,
   subjectType
 }) => {
   const router = useRouter();
+  
+  // Core quiz state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
@@ -93,43 +88,60 @@ const QuizPage: React.FC<QuizPageProps> = ({
     totalCount: 0,
     questions: []
   });
+  
+  // Session and quiz completion state
   const [isQuizCompleted, setIsQuizCompleted] = useState(false);
   const [showQuizSummary, setShowQuizSummary] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   
-  // Use a ref to track session creation status to prevent race conditions
-  const sessionInitializationRef = useRef<boolean>(false);
-  
-  // Add timer-related state
+  // Timer state
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
-  
-  // Debug state to track time spent calculation
   const [timeSpentOnQuestion, setTimeSpentOnQuestion] = useState<number>(0);
-  const [optionsReady, setOptionsReady] = useState(false);
   
-  // Add a ref for the options container (not used but kept to avoid refactoring dependencies)
- // const optionsContainerRef = useRef<HTMLDivElement>(null);
+  // UI state
+  const [contentLoading, setContentLoading] = useState(true);
+  
+  // Session initialization ref
+  const sessionInitializationRef = useRef<boolean>(false);
+  
+  // Memoize current question to prevent unnecessary re-renders
+  const currentQuestion = useMemo(() => 
+    questions[currentQuestionIndex] || null, 
+    [questions, currentQuestionIndex]
+  );
+  
+  // Set up MathJax processing with a single hook call
+  const { isProcessing, isProcessed } = useMathJax(
+    [
+      currentQuestionIndex,
+      currentQuestion?.question,
+      currentQuestion?.options?.map(o => o.text).join(''),
+      currentQuestion?.explanation,
+      isAnswerSubmitted
+    ],
+    {
+      delay: 100,
+      fallbackDelay: 1000,
+      debugLabel: `${subjectType}-question`,
+      onProcessed: () => {
+        setContentLoading(false);
+      }
+    }
+  );
   
   // Initialize session when component mounts
   useEffect(() => {
-    // Don't proceed if questions are missing
-    if (questions.length === 0) {
-      console.log(`[${subjectType}] No questions available, cannot initialize session`);
-      return;
-    }
-    
-    // Don't proceed if we already have a session ID
-    if (currentSessionId) {
-      console.log(`[${subjectType}] Already have session ID:`, currentSessionId);
-      return;
-    }
+    if (questions.length === 0 || currentSessionId) return;
     
     const initSession = async () => {
       try {
-        // Use the session manager to handle initialization
+        // Prevent multiple initializations
+        if (sessionInitializationRef.current) return;
+        sessionInitializationRef.current = true;
+        
         const sessionId = await sessionManager.initSession(
           userId,
           questions[0].subtopicId,
@@ -137,10 +149,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
         );
         
         if (sessionId) {
-          // Update state with new session ID
           setCurrentSessionId(sessionId);
-          
-          // Notify parent component of session ID
           if (onSessionIdUpdate) {
             onSessionIdUpdate(sessionId);
           }
@@ -153,20 +162,15 @@ const QuizPage: React.FC<QuizPageProps> = ({
       }
     };
     
-    // Initialize the session
     initSession();
   }, [questions, userId, apiEndpoints.initSession, currentSessionId, subjectType, onSessionIdUpdate]);
   
   // Handle testSessionId changes from parent if provided
   useEffect(() => {
     if (testSessionId && testSessionId !== currentSessionId && !sessionInitializationRef.current) {
-      console.log(`[${subjectType}] Using testSessionId from parent:`, testSessionId);
       setCurrentSessionId(testSessionId);
     }
-  }, [testSessionId, currentSessionId, subjectType]);
-  
-  // Get the current question
-  const currentQuestion = questions[currentQuestionIndex];
+  }, [testSessionId, currentSessionId]);
   
   // Initialize timer when question changes
   useEffect(() => {
@@ -174,96 +178,21 @@ const QuizPage: React.FC<QuizPageProps> = ({
       setTimeLeft(currentQuestion.timeAllocation);
       setQuestionStartTime(Date.now());
       setIsPaused(false);
-      
-      // Ensure MathJax is typeset when a new question is loaded
-      if (typeof window !== 'undefined') {
-        // Wait for MathJax to be fully loaded and ready
-        const waitForMathJax = () => {
-          const win = window as unknown as WindowWithMathJax;
-          
-          if (win.mathJaxReady && win.safeTypesetMathJax) {
-            // Use the global safe typesetting function
-            win.safeTypesetMathJax();
-          } else if (win.MathJax && win.MathJax.typesetPromise) {
-            // Fall back to direct MathJax typesetting
-            try {
-              // Use an empty array to let MathJax process all elements
-              win.MathJax.typesetPromise([document.body])
-                .catch((err: Error) => {
-                  console.error('MathJax typesetting failed:', err);
-                });
-            } catch (error) {
-              console.error('Error processing MathJax:', error);
-            }
-          } else {
-            // Check again in 100ms
-            setTimeout(waitForMathJax, 100);
-          }
-        };
-        
-        // Start waiting for MathJax to be ready
-        waitForMathJax();
-      }
+      setContentLoading(true);
     }
-  }, [currentQuestion, currentQuestionIndex]);
-
-  // More robust MathJax and options rendering approach
-  // More robust MathJax and options rendering approach
+  }, [currentQuestion]);
+  
+  // Provide a safety fallback for content display
   useEffect(() => {
-    if (currentQuestion) {
-      // First set options to loading state, but don't hide them completely
-      setOptionsReady(false);
-      
-      // Schedule MathJax processing with a smoother reveal
-      const attempts = [100, 300, 500];
-      
-      attempts.forEach((delay, index) => {
-        setTimeout(() => {
-          const win = window as unknown as WindowWithMathJax;
-          
-          if (typeof window !== 'undefined' && win.MathJax) {
-            try {
-              // Process MathJax
-              if (win.MathJax.typesetPromise) {
-                win.MathJax.typesetPromise([document.body])
-                  .then(() => {
-                    if (index === attempts.length - 1 || !optionsReady) {
-                      // Use a slight delay for the reveal to ensure rendering is complete
-                      setTimeout(() => setOptionsReady(true), 50);
-                    }
-                  })
-                  .catch(() => {
-                    if (index === attempts.length - 1) {
-                      setTimeout(() => setOptionsReady(true), 50);
-                    }
-                  });
-              } else {
-                if (index === attempts.length - 1) {
-                  setTimeout(() => setOptionsReady(true), 50);
-                }
-              }
-            } catch (error) {
-              console.error(`[${subjectType}] Error processing MathJax:`, error);
-              if (index === attempts.length - 1) {
-                setTimeout(() => setOptionsReady(true), 50);
-              }
-            }
-          } else if (index === attempts.length - 1) {
-            setTimeout(() => setOptionsReady(true), 50);
-          }
-        }, delay);
-      });
-      
-      // Safety fallback, slightly reduced since we're showing skeletons anyway
-      const fallbackTimer = setTimeout(() => {
-        if (!optionsReady) {
-          setOptionsReady(true);
-        }
-      }, 1500);
-      
-      return () => clearTimeout(fallbackTimer);
-    }
-  }, [currentQuestion, optionsReady, subjectType]);
+    const fallbackTimer = setTimeout(() => {
+      if (contentLoading) {
+        console.log(`[${subjectType}] Fallback timer triggered for content`);
+        setContentLoading(false);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(fallbackTimer);
+  }, [currentQuestionIndex, subjectType, contentLoading]);
   
   // Timer effect
   useEffect(() => {
@@ -276,31 +205,29 @@ const QuizPage: React.FC<QuizPageProps> = ({
     return () => clearInterval(timer);
   }, [isPaused, isAnswerSubmitted, timeLeft]);
   
-  // Debug logging for options
+  // Update time spent for debugging
   useEffect(() => {
-    if (currentQuestion) {
-      console.log(`[${subjectType}] Current question:`, currentQuestion);
-      console.log(`[${subjectType}] Options:`, currentQuestion.options.map(o => ({
-        id: o.id,
-        text: o.text,
-        idType: typeof o.id,
-        textType: typeof o.text
-      })));
-    }
-  }, [currentQuestion, subjectType]);
+    if (isPaused || isAnswerSubmitted) return;
+    
+    const timer = setInterval(() => {
+      setTimeSpentOnQuestion(Math.round((Date.now() - questionStartTime) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [questionStartTime, isPaused, isAnswerSubmitted]);
   
   // Function to check the answer
   const checkAnswer = useCallback(async () => {
     if (!selectedOption || isAnswerSubmitted || !currentQuestion) return;
     
-    // Get the correct answer and selected option values
+    // Get values
     const correctAnswerValue = currentQuestion.correctAnswer;
     const selectedOptionValue = currentQuestion.options.find(opt => opt.id === selectedOption)?.text || '';
     
-    // Check if the answer is correct by comparing text values
+    // Check if correct
     const isCorrect = correctAnswerValue === selectedOptionValue;
     
-    // Set the answer submission state
+    // Update state
     setIsAnswerSubmitted(true);
     setIsAnswerCorrect(isCorrect);
     
@@ -312,48 +239,44 @@ const QuizPage: React.FC<QuizPageProps> = ({
         ...prev.questions,
         {
           ...currentQuestion,
-          // Store the user's answer for later review
           userAnswer: selectedOptionValue
         }
       ]
     }));
     
-    
     // Calculate time spent
     const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
     
-    // Submit the answer to the API only if we have a session ID
+    // Submit to API
     if (currentSessionId) {
-        try {
-          await sessionManager.trackAttempt(
-            {
-              userId,
-              questionId: currentQuestion.id,
-              topicId,
-              subtopicId: currentQuestion.subtopicId,
-              isCorrect,
-              userAnswer: selectedOptionValue,
-              timeSpent
-            },
-            apiEndpoints.trackAttempt
-          );
-        } catch (error) {
-          console.error(`[${subjectType}] Error submitting answer:`, error);
-        }
-      } else {
-        console.error(`[${subjectType}] Cannot track attempt - no valid session ID`);
+      try {
+        await sessionManager.trackAttempt(
+          {
+            userId,
+            questionId: currentQuestion.id,
+            topicId,
+            subtopicId: currentQuestion.subtopicId,
+            isCorrect,
+            userAnswer: selectedOptionValue,
+            timeSpent
+          },
+          apiEndpoints.trackAttempt
+        );
+      } catch (error) {
+        console.error(`[${subjectType}] Error submitting answer:`, error);
       }
-    }, [
-      selectedOption, 
-      isAnswerSubmitted, 
-      currentQuestion, 
-      questionStartTime, 
-      currentSessionId, 
-      userId, 
-      topicId, 
-      apiEndpoints.trackAttempt,
-      subjectType
-    ]);
+    }
+  }, [
+    selectedOption, 
+    isAnswerSubmitted, 
+    currentQuestion, 
+    questionStartTime, 
+    currentSessionId, 
+    userId, 
+    topicId, 
+    apiEndpoints.trackAttempt,
+    subjectType
+  ]);
   
   // Auto-submit when timer runs out
   useEffect(() => {
@@ -362,23 +285,12 @@ const QuizPage: React.FC<QuizPageProps> = ({
     }
   }, [timeLeft, isAnswerSubmitted, selectedOption, checkAnswer]);
   
-  // Update time spent for debugging
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (!isPaused && !isAnswerSubmitted) {
-        setTimeSpentOnQuestion(Math.round((Date.now() - questionStartTime) / 1000));
-      }
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [questionStartTime, isPaused, isAnswerSubmitted]);
-  
   // Function to handle option selection
-  const handleOptionSelect = (optionId: string) => {
+  const handleOptionSelect = useCallback((optionId: string) => {
     if (!isAnswerSubmitted) {
       setSelectedOption(optionId);
     }
-  };
+  }, [isAnswerSubmitted]);
   
   // Function to format time
   const formatTime = (seconds: number) => {
@@ -388,81 +300,51 @@ const QuizPage: React.FC<QuizPageProps> = ({
   };
   
   // Function to toggle pause
-  const togglePause = () => {
-    setIsPaused(!isPaused);
-  };
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
   
   // Function to move to the next question
-  const nextQuestion = () => {
-    // If we're at the last question, complete the quiz
+  const nextQuestion = useCallback(() => {
     if (currentQuestionIndex === questions.length - 1) {
       setIsQuizCompleted(true);
       setShowQuizSummary(false);
       return;
     }
     
-    // Otherwise, move to the next question
-    setCurrentQuestionIndex(currentQuestionIndex + 1);
+    setCurrentQuestionIndex(prev => prev + 1);
     setSelectedOption(null);
     setIsAnswerSubmitted(false);
     setIsAnswerCorrect(false);
-    
-    // Ensure MathJax is typeset after moving to the next question
-    if (typeof window !== 'undefined') {
-      const waitForMathJax = () => {
-        const win = window as unknown as WindowWithMathJax;
-        
-        if (win.mathJaxReady && win.safeTypesetMathJax) {
-          win.safeTypesetMathJax();
-        } else if (win.MathJax && win.MathJax.typesetPromise) {
-          try {
-            win.MathJax.typesetPromise([document.body])
-              .catch((err: Error) => {
-                console.error('MathJax typesetting failed after question change:', err);
-              });
-          } catch (error) {
-            console.error('Error processing MathJax after question change:', error);
-          }
-        } else {
-          setTimeout(waitForMathJax, 100);
-        }
-      };
-      
-      waitForMathJax();
-    }
-  };
+    setContentLoading(true);
+  }, [currentQuestionIndex, questions.length]);
   
   // Default status calculation function
-  const defaultCalculateNewStatus = (question: QuizQuestion, isCorrect: boolean, newSuccessRate: number): 'Mastered' | 'Learning' | 'To Start' => {
+  const defaultCalculateNewStatus = (
+    question: QuizQuestion, 
+    isCorrect: boolean, 
+    newSuccessRate: number
+  ): 'Mastered' | 'Learning' | 'To Start' => {
     if (isCorrect) {
-      // If correct, move up in mastery
-      if (question.status === 'To Start') {
-        return 'Learning';
-      } else if (question.status === 'Learning' && newSuccessRate >= 70) {
-        return 'Mastered';
-      }
+      if (question.status === 'To Start') return 'Learning';
+      if (question.status === 'Learning' && newSuccessRate >= 70) return 'Mastered';
     } else {
-      // If incorrect, move down in mastery or stay the same
-      if (question.status === 'Mastered') {
-        return 'Learning';
-      }
+      if (question.status === 'Mastered') return 'Learning';
+      if (question.status === 'Learning' && newSuccessRate < 40) return 'To Start';
     }
     return question.status;
   };
 
   // Function to complete the quiz
-  const completeQuiz = async () => {
-    // Set the quiz summary to visible first thing
+  const completeQuiz = useCallback(async () => {
     setShowQuizSummary(true);
     
-    // Calculate updated questions scores and mastery status
+    // Calculate updated questions
     const updatedQuestions = questions.map((question, index) => {
-      // Only update if this question was answered
       if (index < results.questions.length) {
         const resultQuestion = results.questions[index];
         const isCorrect = resultQuestion.correctAnswer === resultQuestion.userAnswer;
         
-        // Calculate new success rate
         const totalAttempts = question.attemptCount + 1;
         const oldSuccessCount = Math.round(question.successRate * question.attemptCount / 100);
         const newSuccessCount = oldSuccessCount + (isCorrect ? 1 : 0);
@@ -470,7 +352,6 @@ const QuizPage: React.FC<QuizPageProps> = ({
           ? (newSuccessCount / totalAttempts) * 100 
           : 0;
         
-        // Calculate new status
         const newStatus = calculateNewStatus 
           ? calculateNewStatus(question, isCorrect, newSuccessRate)
           : defaultCalculateNewStatus(question, isCorrect, newSuccessRate);
@@ -486,7 +367,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
       return question;
     });
     
-    // First, update questions in parent component
+    // Update questions in parent
     if (onQuestionsUpdate) {
       try {
         onQuestionsUpdate(updatedQuestions);
@@ -495,40 +376,39 @@ const QuizPage: React.FC<QuizPageProps> = ({
       }
     }
     
-    // Complete the session using the session manager
+    // Complete the session
     if (currentSessionId) {
       try {
         const completed = await sessionManager.completeSession(userId, apiEndpoints.completeSession);
         
         if (completed) {
-          // Notify parent component session is completed
           if (onSessionIdUpdate) {
             onSessionIdUpdate(null);
           }
           
-          // Set current session ID to null to allow a new one to be created
           setCurrentSessionId(null);
-          
-          // Reset session initialization status
           sessionInitializationRef.current = false;
         }
       } catch (error) {
         console.error(`[${subjectType}] Error completing test session:`, error);
       }
     }
-    
-    // Ensure the summary stays visible
-    setTimeout(() => {
-      setShowQuizSummary(true);
-    }, 100);
-  };
+  }, [
+    questions, 
+    results, 
+    onQuestionsUpdate, 
+    currentSessionId, 
+    userId, 
+    apiEndpoints.completeSession, 
+    onSessionIdUpdate, 
+    calculateNewStatus, 
+    subjectType
+  ]);
   
   // Function to go back to topics page
-  const goBackToTopics = () => {
-    // Complete the session if needed before navigating
+  const goBackToTopics = useCallback(() => {
     if (currentSessionId) {
       try {
-        console.log(`[${subjectType}] Completing session before navigation:`, currentSessionId);
         fetch(apiEndpoints.completeSession, {
           method: 'POST',
           headers: {
@@ -545,72 +425,52 @@ const QuizPage: React.FC<QuizPageProps> = ({
             console.warn(`[${subjectType}] Failed to complete session on navigation`);
           }
           
-          // Reset session state
           setCurrentSessionId(null);
           sessionInitializationRef.current = false;
           
-          // Notify parent
           if (onSessionIdUpdate) {
             onSessionIdUpdate(null);
           }
           
-          // Navigate back
           router.push(`/maths/topics/${topicId}`);
         });
       } catch (error) {
         console.error(`[${subjectType}] Error completing session on navigation:`, error);
-        // Navigate back anyway
         router.push(`/maths/topics/${topicId}`);
       }
     } else {
-      // No session to complete, just navigate
       router.push(`/maths/topics/${topicId}`);
     }
-  };
+  }, [currentSessionId, apiEndpoints.completeSession, userId, subjectType, onSessionIdUpdate, router, topicId]);
   
- // Helper function to render option text
- const renderOptionText = (text: string | Option | null | undefined) => {
+  // Memoized option text renderer
+  const renderOptionText = useCallback((text: string | Option | null | undefined) => {
     // Get the text value
     let textValue: string;
     
-    // If text is already a string, use it directly
     if (typeof text === 'string') {
       textValue = text;
-    } 
-    // If text is an object with a text property
-    else if (typeof text === 'object' && text && 'text' in text) {
+    } else if (typeof text === 'object' && text && 'text' in text) {
       textValue = String((text as Option).text);
-    } 
-    // Fallback - convert to string or use empty string
-    else {
+    } else {
       textValue = text ? String(text) : '';
     }
     
-    // Apply any formatOptionText function if provided
     textValue = formatOptionText ? formatOptionText(textValue) : textValue;
     
-    // CURRENCY DETECTION - Special case for currency values
-    // This pattern matches dollar amounts like $1.61, $2.71, etc.
+    // Handle different content types
     if (/^\$\d+(\.\d+)?$/.test(textValue)) {
-      console.log(`[${subjectType}] Rendering currency: ${textValue}`);
       return <span className="currency-value">{textValue}</span>;
     }
     
-    // LATEX CONTENT - Check for actual LaTeX notation
-    if (textValue.includes('\\') || 
-        (textValue.includes('$') && textValue.indexOf('$') !== 0) || 
-        (textValue.match(/\$/g) || []).length > 1) {
-      console.log(`[${subjectType}] Rendering LaTeX: ${textValue}`);
+    if (containsLatex(textValue)) {
       return <ImprovedLatexRenderer formula={textValue} />;
     }
     
-    // PLAIN TEXT - For all other content
-    console.log(`[${subjectType}] Rendering plain text: ${textValue}`);
     return <FixedQuizMathRenderer content={textValue} />;
-  };
-  
+  }, []);
 
-  // Show initialization error if there is one
+  // Show initialization error
   if (initError) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -634,7 +494,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     );
   }
   
-  // Show loading state if we don't have a current question yet
+  // Show loading state
   if (!currentQuestion) {
     return (
       <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[50vh]">
@@ -693,70 +553,71 @@ const QuizPage: React.FC<QuizPageProps> = ({
               </span>
             </div>
 
-            {/* Session ID display */}
-            <div className="mb-4 text-xs text-gray-500">
+            {/* Session ID display - can be hidden in production */}
+            {/* <div className="mb-4 text-xs text-gray-500">
               Session ID: {currentSessionId || 'Not set yet'} | 
               Answered: {results.totalCount} |
-              Time spent: {timeSpentOnQuestion}s
-            </div>
+              Time spent: {timeSpentOnQuestion}s |
+              MathJax: {isProcessing ? 'Processing...' : isProcessed ? 'Processed' : 'Waiting...'}
+            </div> */}
             
             {/* Question */}
             <div className="mb-6 question-container">
-              <p className="text-lg">
-                <FixedQuizMathRenderer content={currentQuestion.question} />
-              </p>
-              {currentQuestion.formula && (
-                <div className="formula-container" id="formula-container">
+              {contentLoading ? (
+                <>
+                  <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4 mb-2"></div>
+                  <div className="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
+                </>
+              ) : (
+                <div className="text-lg">
+                  <FixedQuizMathRenderer content={currentQuestion.question} />
+                </div>
+              )}
+              
+              {currentQuestion.formula && !contentLoading && (
+                <div className="formula-container mt-2">
                   <MathFormula formula={currentQuestion.formula} />
                 </div>
               )}
             </div>
             
-            {/* Options - always render them, but control visibility with CSS */}
-            <div className="space-y-3 mb-6 options-container" 
-            style={{ 
-                opacity: optionsReady ? 1 : 0.6,
-                pointerEvents: optionsReady ? 'auto' : 'none'
-            }}
-            >
-            {currentQuestion.options.map((option) => (
-                <div
-                key={option.id}
-                className={`p-3 border rounded cursor-pointer transition-colors ${
-                    selectedOption === option.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:bg-gray-50'
-                } ${
-                    isAnswerSubmitted && option.text === currentQuestion.correctAnswer
-                    ? 'bg-green-50 border-green-500'
-                    : ''
-                } ${
-                    isAnswerSubmitted && 
-                    selectedOption === option.id && 
-                    option.text !== currentQuestion.correctAnswer
-                    ? 'bg-red-50 border-red-500'
-                    : ''
-                }`}
-                onClick={() => handleOptionSelect(option.id)}
-                >
-                {optionsReady ? (
-                    <OptionText>{option.text}</OptionText>
-                ) : (
-                    <div className="skeleton-option h-6 bg-gray-100 rounded animate-pulse w-3/4"></div>
-                )}
-                </div>
-            ))}
-            </div>
-            
-            {/* Options loading indicator */}
-            {!optionsReady && (
-              <div className="space-y-3 mb-6">
-                <div className="p-3 border rounded text-center">
-                  <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent mr-2"></div>
-                  <span className="text-gray-500">Loading options...</span>
-                </div>
+            {/* Options */}
+            <div className="space-y-3 mb-6 options-container" style={{ 
+                opacity: contentLoading ? 0.6 : 1,
+                transition: 'opacity 0.3s ease-in-out'
+              }}>
+                {currentQuestion.options.map((option) => (
+                  <div
+                    key={option.id}
+                    className={`p-3 border rounded cursor-pointer transition-colors ${
+                      contentLoading ? 'pointer-events-none' : ''
+                    } ${
+                      selectedOption === option.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    } ${
+                      isAnswerSubmitted && option.text === currentQuestion.correctAnswer
+                        ? 'bg-green-50 border-green-500'
+                        : ''
+                    } ${
+                      isAnswerSubmitted && 
+                      selectedOption === option.id && 
+                      option.text !== currentQuestion.correctAnswer
+                        ? 'bg-red-50 border-red-500'
+                        : ''
+                    }`}
+                    onClick={() => handleOptionSelect(option.id)}
+                  >
+                    {contentLoading ? (
+                      <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4"></div>
+                    ) : (
+                      <div className="option-text-container">
+                        {option.text}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
             
             {/* Explanation (shown after answering) */}
             {isAnswerSubmitted && (
@@ -785,14 +646,14 @@ const QuizPage: React.FC<QuizPageProps> = ({
                 {!isAnswerSubmitted ? (
                   <button
                     onClick={checkAnswer}
-                    disabled={!selectedOption || !optionsReady}
+                    disabled={!selectedOption || contentLoading}
                     className={`px-4 py-2 rounded ${
-                      selectedOption && optionsReady
+                      selectedOption && !contentLoading
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    Check Answer
+                    {contentLoading ? 'Loading...' : 'Check Answer'}
                   </button>
                 ) : (
                   <button
@@ -830,7 +691,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
               </div>
             ) : (
               <div>
-                <h3 className={`text-xl font-semibold mb-4 ${results.questions.length > 6 ? 'sticky top-0 bg-white pt-2 pb-2 z-10' : ''}`}>Quiz Summary</h3>
+                <h3 className={`text-xl font-semibold mb-4 ${results.questions.length > 6 ? 'sticky top-0 bg-white pt-2 pb-2 z-10' : ''}`}>
+                  Quiz Summary
+                </h3>
                 
                 {/* Results stats */}
                 <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 ${results.questions.length > 6 ? 'sticky top-14 bg-white z-10 pb-2' : ''}`}>
@@ -842,61 +705,40 @@ const QuizPage: React.FC<QuizPageProps> = ({
                     <div className="text-sm text-green-700">Correct Answers</div>
                     <div className="text-2xl font-bold text-green-800">{results.correctCount}</div>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-lg text-center">
-                    <div className="text-sm text-purple-700">Score</div>
-                    <div className="text-2xl font-bold text-purple-800">
-                      {Math.round((results.correctCount / questions.length) * 100)}%
-                    </div>
+                  <div className="bg-red-50 p-4 rounded-lg text-center">
+                    <div className="text-sm text-red-700">Incorrect Answers</div>
+                    <div className="text-2xl font-bold text-red-800">{results.totalCount - results.correctCount}</div>
                   </div>
                 </div>
                 
                 {/* Question list */}
-                <div className={`${results.questions.length > 6 ? 'max-h-[40vh] overflow-y-auto' : ''} pr-2 mb-6`}>
-                  <div className="space-y-4">
-                    {results.questions.map((question, index) => {
-                      const isCorrect = question.correctAnswer === question.userAnswer;
-                      
-                      return (
-                        <div 
-                          key={index}
-                          className={`p-3 border rounded ${
-                            isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
-                          }`}
-                        >
-                          <div className="font-medium mb-1">Question {index + 1}:</div>
-                          <div className="mb-1">
-                            <FixedQuizMathRenderer content={question.question} />
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">Your answer:</span>{' '}
-                            {renderOptionText(question.userAnswer)}
-                          </div>
-                          {!isCorrect && (
-                            <div className="text-sm text-green-700">
-                              <span className="font-medium">Correct answer:</span>{' '}
-                              {renderOptionText(question.correctAnswer)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {results.questions.map((question, index) => (
+                    <div key={question.id} className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="mb-2">
+                        <span className="font-medium">Question {index + 1}:</span> {question.question}
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-medium">Your Answer:</span> {question.userAnswer}
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-medium">Correct Answer:</span> {question.correctAnswer}
+                      </div>
+                      <div>
+                        <span className="font-medium">Explanation:</span> {question.explanation}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 
-                <div className={`flex justify-between mt-4 ${results.questions.length > 6 ? 'sticky bottom-0 bg-white pb-2 pt-2' : 'pb-2 pt-2'}`}>
-                  <button
-                    onClick={() => setShowQuizSummary(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={goBackToTopics}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Back to Topics
-                  </button>
-                </div>
+                {/* Action buttons */}
+                <div className="flex justify-between items-center mb-4"></div>
+                <button
+                  onClick={goBackToTopics}
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Back to Topics
+                </button>
               </div>
             )}
           </div>

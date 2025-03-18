@@ -10,26 +10,15 @@ interface UnifiedMathLayoutProps {
 }
 
 export const UnifiedMathLayout: React.FC<UnifiedMathLayoutProps> = ({ children }) => {
-  // Advanced MathJax configuration
+  // Minimal MathJax configuration to avoid recursion issues
   const config = {
     tex: {
       inlineMath: [['$', '$'], ['\\(', '\\)']],
       displayMath: [['$$', '$$'], ['\\[', '\\]']],
       processEscapes: true,
-      processEnvironments: true,
-      maxMacros: 5000,  // Set a reasonable limit on macro expansion
-    maxBuffer: 5 * 1024,  // Increase buffer size
-      macros: {
-        // Common macros for counting principles
-        Total: "\\text{Total}",
-        Number: "\\text{Number}",
-        //times: "\\times",
-        // Add common macros for trigonometric functions
-        sin: "\\sin",
-        cos: "\\cos",
-        tan: "\\tan"
-      },
-      packages: {'[+]': ['ams', 'noerrors', 'color', 'boldsymbol', 'unicode']}
+      // Reduce these values to prevent stack overflow
+      maxMacros: 50,
+      maxBuffer: 1024
     },
     options: {
       enableMenu: false,
@@ -38,25 +27,32 @@ export const UnifiedMathLayout: React.FC<UnifiedMathLayoutProps> = ({ children }
       ignoreHtmlClass: 'no-mathjax'
     },
     startup: {
-      typeset: false, // Set to false initially for better performance
+      typeset: true,
       ready: () => {
         if (typeof window !== 'undefined') {
-          // Create a global flag to indicate MathJax is ready
-          window.mathJaxReady = true;
-          
-          // Create a global function for legacy component support
-          window.safeTypesetMathJax = (elements?: HTMLElement[]) => {
-            if (window.MathJax && window.MathJax.typesetPromise) {
-              return window.MathJax.typesetPromise(elements || [])
-                .catch((err: Error) => console.error('MathJax typesetting failed:', err));
+          try {
+            window.mathJaxReady = true;
+            
+            // Simple typeset function with basic error handling
+            window.safeTypesetMathJax = async (elements?: HTMLElement[]) => {
+              if (!window.MathJax || !window.MathJax.typesetPromise) {
+                return Promise.resolve();
+              }
+              
+              try {
+                return await window.MathJax.typesetPromise(elements || []);
+              } catch (err) {
+                console.error('MathJax typesetting failed:', err);
+                return Promise.resolve();
+              }
+            };
+            
+            if (window.MathJax && window.MathJax.startup) {
+              window.MathJax.startup.defaultReady();
+              console.log('MathJax is ready for rendering');
             }
-            return Promise.resolve();
-          };
-          
-          // Ready callback from MathJax
-          if (window.MathJax && window.MathJax.startup) {
-            window.MathJax.startup.defaultReady();
-            console.log('MathJax is ready for rendering');
+          } catch (error) {
+            console.error('Error initializing MathJax:', error);
           }
         }
       }
@@ -74,3 +70,12 @@ export const UnifiedMathLayout: React.FC<UnifiedMathLayoutProps> = ({ children }
     </MathJaxContext>
   );
 };
+
+// Add the global type declaration
+declare global {
+  interface Window {
+    mathJaxReady?: boolean;
+    safeTypesetMathJax?: (elements?: HTMLElement[]) => Promise<void>;
+    MathJax?: any;
+  }
+}

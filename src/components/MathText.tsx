@@ -1,4 +1,4 @@
-// MathText.tsx - Component for handling mixed content (text and LaTeX)
+//File: /src/components/MathText.tsx - Component for handling mixed content (text and LaTeX)
 'use client';
 import React, { useEffect, useRef } from 'react';
 import { containsLatex } from '@/hooks/useMathJax';

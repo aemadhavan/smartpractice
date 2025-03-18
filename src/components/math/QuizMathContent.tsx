@@ -2,24 +2,15 @@
 'use client';
 
 import React from 'react';
-import { mightContainLatex } from '../../lib/mathUtils';
 import { MathJax } from 'better-react-mathjax';
 
 interface QuizMathContentProps {
-  /**
-   * The content to render - may contain LaTeX expressions
-   */
   content: string | null | undefined;
-  
-  /**
-   * Additional CSS class
-   */
   className?: string;
 }
 
 /**
- * Specialized component for rendering quiz content that may contain LaTeX
- * Handles null/undefined content gracefully
+ * Simplified component for rendering quiz content with potential LaTeX
  */
 export const QuizMathContent: React.FC<QuizMathContentProps> = ({
   content,
@@ -30,19 +21,25 @@ export const QuizMathContent: React.FC<QuizMathContentProps> = ({
     return <span className={className}></span>;
   }
   
-    if (!mightContainLatex(content)) {
-        return <span className={className}>{content}</span>;
-    }
+  // Simple check for math content
+  const hasMathContent = 
+    content.includes('$') || 
+    (content.includes('\\') && 
+     (content.includes('frac') || 
+      content.includes('sqrt') || 
+      content.includes('text')));
   
-  // For content that doesn't appear to have LaTeX, just render it directly
-  if (!mightContainLatex(content)) {
+  // For plain text content
+  if (!hasMathContent) {
     return <span className={className}>{content}</span>;
   }
   
-  // Otherwise use MathJax to render it
+  // For math content, use MathJax with minimal options
   return (
-    <MathJax className={className} hideUntilTypeset="first">
+    <MathJax className={className}>
       {content}
     </MathJax>
   );
 };
+
+export default QuizMathContent;

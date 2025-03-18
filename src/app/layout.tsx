@@ -34,73 +34,70 @@ export default function RootLayout({
   const adSenseId = "pub-2425712839519303";
   
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <head>
-          <AdSense adSense={adSenseId} />
-          <meta name="google-adsense-account" content={`ca-${adSenseId}`} />
-          
-          {/* Google Tag Manager script for consent management */}
-          <Script
-            id="consent-management-init"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('consent', 'default', {
-                  'ad_storage': 'denied',
-                  'analytics_storage': 'denied',
-                  'personalization_storage': 'denied',
-                  'functionality_storage': 'granted',
-                  'security_storage': 'granted',
-                });
-              `,
-            }}
-          />
-          
-          {/* MathJax configuration - load before MathJax itself */}
-          <Script
-            id="mathjax-config"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.MathJax = {
-                  tex: {
-                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-                    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-                    processEscapes: true,
-                    processEnvironments: true,
-                    packages: {'[+]': ['ams', 'noerrors']}
-                  },
-                  options: {
-                    enableMenu: false,
-                    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-                    processHtmlClass: 'tex2jax_process',
-                    renderActions: {
-                      // Add a custom action to prevent re-processing of already processed math
-                      find: [10, function (doc) {
-                        for (const math of doc.math) {
-                          if (math.state() >= 1) {
-                            math.data.skipReprocess = true;
-                          }
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <AdSense adSense={adSenseId} />
+        <meta name="google-adsense-account" content={`ca-${adSenseId}`} />
+        
+        {/* Google Tag Manager script for consent management */}
+        <Script
+          id="consent-management-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('consent', 'default', {
+                'ad_storage': 'denied',
+                'analytics_storage': 'denied',
+                'personalization_storage': 'denied',
+                'functionality_storage': 'granted',
+                'security_storage': 'granted',
+              });
+            `,
+          }}
+        />
+        
+        {/* MathJax configuration - load before MathJax itself */}
+        <Script
+          id="mathjax-config"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.MathJax = {
+                tex: {
+                  inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                  displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+                  processEscapes: true,
+                  processEnvironments: true,
+                  packages: {'[+]': ['ams', 'noerrors']}
+                },
+                options: {
+                  enableMenu: false,
+                  skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                  processHtmlClass: 'tex2jax_process',
+                  renderActions: {
+                    find: [10, function (doc) {
+                      for (const math of doc.math) {
+                        if (math.state() >= 1) {
+                          math.data.skipReprocess = true;
                         }
-                      }],
-                      reprocess: [1000, function (doc) {
-                        for (const math of doc.math) {
-                          // Skip math that has already been processed
-                          if (math.data && math.data.skipReprocess) {
-                            delete math.data.skipReprocess;
-                            math.state(1);
-                          }
+                      }
+                    }],
+                    reprocess: [1000, function (doc) {
+                      for (const math of doc.math) {
+                        if (math.data && math.data.skipReprocess) {
+                          delete math.data.skipReprocess;
+                          math.state(1);
                         }
-                      }]
-                    }
-                  },
-                  startup: {
-                    typeset: true,
-                    // Add a ready function to ensure MathJax is fully initialized
-                    ready: function() {
+                      }
+                    }]
+                  }
+                },
+                startup: {
+                  typeset: true,
+                  ready: function() {
+                    if (typeof window !== 'undefined') {
                       console.log('MathJax is ready');
                       MathJax.startup.defaultReady();
                       
@@ -128,19 +125,25 @@ export default function RootLayout({
                       };
                     }
                   }
-                };
-              `,
-            }}
-          />
-          
-          {/* MathJax CDN */}
-          <Script
-            id="mathjax-cdn"
-            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
-            strategy="afterInteractive"
-          />
-        </head>
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+                }
+              };
+            `,
+          }}
+        />
+        
+        {/* MathJax CDN */}
+        <Script
+          id="mathjax-cdn"
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+          strategy="afterInteractive"
+        />
+      </head>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
+      >
+        {/* Move ClerkProvider inside the body */}
+        <ClerkProvider>
           <Suspense fallback={null}>
             {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
               <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
@@ -152,8 +155,8 @@ export default function RootLayout({
           
           {/* Add Privacy Consent Component */}
           <PrivacyConsent />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
