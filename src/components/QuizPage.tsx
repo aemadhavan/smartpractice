@@ -432,14 +432,14 @@ const QuizPage: React.FC<QuizPageProps> = ({
             onSessionIdUpdate(null);
           }
           
-          router.push(`/maths/topics/${topicId}`);
+          router.push(`/${subjectType}/topics/${topicId}`);
         });
       } catch (error) {
         console.error(`[${subjectType}] Error completing session on navigation:`, error);
-        router.push(`/maths/topics/${topicId}`);
+        router.push(`/${subjectType}/topics/${topicId}`);
       }
     } else {
-      router.push(`/maths/topics/${topicId}`);
+      router.push(`/${subjectType}/topics/${topicId}`);
     }
   }, [currentSessionId, apiEndpoints.completeSession, userId, subjectType, onSessionIdUpdate, router, topicId]);
   

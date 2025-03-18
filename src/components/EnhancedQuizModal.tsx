@@ -2,13 +2,10 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Option, 
-  //formatOptionText
-} from '@/lib/options';
+import { Option } from '@/lib/options';
 import sessionManager from '@/lib/session-manager';
 
-// Keep the original types for compatibility
+// Define the QuizQuestion type for compatibility across subjects
 export type QuizQuestion = {
   id: number;
   question: string;
@@ -25,13 +22,14 @@ export type QuizQuestion = {
   subtopicId: number;
 };
 
+// Define the ApiEndpoints interface (unused in this component but kept for prop compatibility)
 interface ApiEndpoints {
   initSession: string;
   trackAttempt: string;
   completeSession: string;
 }
 
-// Keep original props to maintain backwards compatibility
+// Define the props interface, maintaining backwards compatibility
 type EnhancedQuizModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -44,13 +42,18 @@ type EnhancedQuizModalProps = {
   testSessionId?: number | null;
   apiEndpoints: ApiEndpoints;
   renderFormula?: (formula: string) => React.ReactNode;
-  calculateNewStatus?: (question: QuizQuestion, isCorrect: boolean, successRate: number) => 'Mastered' | 'Learning' | 'To Start';
+  calculateNewStatus?: (
+    question: QuizQuestion,
+    isCorrect: boolean,
+    successRate: number
+  ) => 'Mastered' | 'Learning' | 'To Start';
   subjectType: 'maths' | 'quantitative';
 };
 
 /**
- * This component is now a redirect wrapper instead of a modal.
- * It redirects to the questions page when isOpen is true.
+ * EnhancedQuizModal is a redirect wrapper that navigates to the questions page
+ * when isOpen is true. It dynamically supports 'maths' and 'quantitative' subjects
+ * using the subjectType prop and integrates with a generic session-manager.
  */
 const EnhancedQuizModal: React.FC<EnhancedQuizModalProps> = ({
   isOpen,
@@ -58,41 +61,42 @@ const EnhancedQuizModal: React.FC<EnhancedQuizModalProps> = ({
   topicId,
   onSessionIdUpdate,
   questions,
-  //userId,
-  //apiEndpoints,
-  subjectType
+  subjectType,
 }) => {
   const router = useRouter();
-  
-  // Reset session manager when the component is mounted or questions change
+
+  // Reset session manager when questions change to ensure a clean state
   useEffect(() => {
     if (questions && questions.length > 0) {
       console.log(`[${subjectType}] EnhancedQuizModal - Ensuring clean session state`);
       sessionManager.reset();
     }
   }, [questions, subjectType]);
-  
-  // Redirect to the questions page when isOpen becomes true
+
+  // Handle redirection to the questions page when isOpen is true
   useEffect(() => {
     if (isOpen && questions && questions.length > 0) {
       console.log(`[${subjectType}] Redirecting to questions page for topic:`, topicId);
-      
-      // Clear any session state first
+
+      // Reset session state before redirecting
       sessionManager.reset();
-      
+
+      // Clear session ID in parent component if callback is provided
       if (onSessionIdUpdate) {
         onSessionIdUpdate(null);
       }
-      
-      // Call onClose to clean up state in parent component
+
+      // Trigger onClose to update parent state (e.g., set isOpen to false)
       onClose();
-      
-      // Redirect to questions page
-      router.push(`/maths/topics/${topicId}/questions?subtopicId=${questions[0]?.subtopicId || topicId}`);
+
+      // Redirect to the questions page with a dynamic subject path
+      router.push(
+        `/${subjectType}/topics/${topicId}/questions?subtopicId=${questions[0]?.subtopicId || topicId}`
+      );
     }
   }, [isOpen, topicId, router, onClose, onSessionIdUpdate, questions, subjectType]);
-  
-  // Don't render anything - this is just a redirect handler
+
+  // Return null as this component is a redirect handler, not a UI renderer
   return null;
 };
 
