@@ -3,7 +3,7 @@ import React from 'react';
 import { QuizQuestionResult } from './QuizPage';
 import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
 import { MathJax } from 'better-react-mathjax';
-import { AiTestFeedback } from './AiTestFeedback';
+import AiTestFeedback from './AiTestFeedback';
 
 type QuizSummaryProps = {
   questions: QuizQuestionResult[];
@@ -74,7 +74,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
             {`You scored ${correctCount} out of ${totalCount} questions (${Math.round((correctCount / totalCount) * 100)}%)`}
           </div>
         </div>
-        
+
         {/* AI Feedback Section */}
         {testAttemptId && (
           <div className="mb-8">
