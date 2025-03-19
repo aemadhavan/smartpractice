@@ -697,6 +697,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
         //onTryAgain={resetQuiz}
         moduleTitle={subtopicName}
         testAttemptId={currentSessionId ?? undefined}
+        subjectType={subjectType} 
       />
             )}
           </div>

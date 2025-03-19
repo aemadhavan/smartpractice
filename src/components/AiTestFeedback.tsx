@@ -40,12 +40,14 @@ interface AiTestFeedbackProps {
   testAttemptId: number;
   title?: string;
   showHeader?: boolean;
+  subjectType?: 'maths' | 'quantitative';
 }
 
 const AiTestFeedback: React.FC<AiTestFeedbackProps> = ({
   testAttemptId,
   title = "AI Teacher Feedback",
-  showHeader = true
+  showHeader = true,
+  subjectType = 'maths'
 }) => {
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,7 +78,11 @@ const AiTestFeedback: React.FC<AiTestFeedbackProps> = ({
     }, 600);
     
     try {
-      const response = await fetch('/api/maths/generate-feedback', {
+      const endpoint = subjectType === 'quantitative' 
+        ? '/api/quantitative/generate-feedback' 
+        : '/api/maths/generate-feedback';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

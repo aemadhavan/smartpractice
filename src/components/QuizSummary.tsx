@@ -12,6 +12,7 @@ type QuizSummaryProps = {
   onTryAgain?: () => void;
   moduleTitle?: string;
   testAttemptId?: number;
+  subjectType?: 'maths' | 'quantitative';
 };
 
 const QuizSummary: React.FC<QuizSummaryProps> = ({
@@ -20,7 +21,8 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
   onBackToTopics,
   onTryAgain,
   moduleTitle = 'Quiz',
-  testAttemptId
+  testAttemptId,
+  subjectType = 'maths'
 }) => {
   const totalCount = questions.length;
   const incorrectCount = totalCount - correctCount;
@@ -79,7 +81,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
         {testAttemptId && (
           <div className="mb-8">
             <h3 className="text-xl font-medium mb-4">AI Teacher Feedback</h3>
-            <AiTestFeedback testAttemptId={testAttemptId} />
+            <AiTestFeedback testAttemptId={testAttemptId} subjectType={subjectType}/>
           </div>
         )}
 
