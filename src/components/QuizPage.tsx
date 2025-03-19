@@ -9,6 +9,7 @@ import sessionManager from '@/lib/session-manager';
 import { MathJax } from 'better-react-mathjax';
 import MathFormula from './MathFormula';
 import { useMathJax, containsLatex } from '@/hooks/useMathJax';
+import QuizSummary from './QuizSummary';
 
 
 // Define the QuizQuestion type
@@ -29,7 +30,7 @@ export type QuizQuestion = {
 };
 
 // Define the QuizQuestionResult type to include user answers
-type QuizQuestionResult = QuizQuestion & {
+export type QuizQuestionResult = QuizQuestion & {
   userAnswer: string;
 };
 
@@ -692,56 +693,13 @@ const QuizPage: React.FC<QuizPageProps> = ({
                 </button>
               </div>
             ) : (
-              <div>
-                <h3 className={`text-xl font-semibold mb-4 ${results.questions.length > 6 ? 'sticky top-0 bg-white pt-2 pb-2 z-10' : ''}`}>
-                  Quiz Summary
-                </h3>
-                
-                {/* Results stats */}
-                <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 ${results.questions.length > 6 ? 'sticky top-14 bg-white z-10 pb-2' : ''}`}>
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <div className="text-sm text-blue-700">Total Questions</div>
-                    <div className="text-2xl font-bold text-blue-800">{questions.length}</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <div className="text-sm text-green-700">Correct Answers</div>
-                    <div className="text-2xl font-bold text-green-800">{results.correctCount}</div>
-                  </div>
-                  <div className="bg-red-50 p-4 rounded-lg text-center">
-                    <div className="text-sm text-red-700">Incorrect Answers</div>
-                    <div className="text-2xl font-bold text-red-800">{results.totalCount - results.correctCount}</div>
-                  </div>
-                </div>
-                
-                {/* Question list */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  {results.questions.map((question, index) => (
-                    <div key={question.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="mb-2">
-                        <span className="font-medium">Question {index + 1}:</span> {question.question}
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-medium">Your Answer:</span> {question.userAnswer}
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-medium">Correct Answer:</span> {question.correctAnswer}
-                      </div>
-                      <div>
-                        <span className="font-medium">Explanation:</span> {question.explanation}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Action buttons */}
-                <div className="flex justify-between items-center mb-4"></div>
-                <button
-                  onClick={goBackToTopics}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  Back to Topics
-                </button>
-              </div>
+              <QuizSummary 
+        questions={results.questions}
+        correctCount={results.correctCount}
+        onBackToTopics={goBackToTopics}
+        //onTryAgain={resetQuiz}
+        moduleTitle={subtopicName}
+      />
             )}
           </div>
         )}
