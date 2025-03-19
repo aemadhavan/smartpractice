@@ -399,7 +399,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     currentSessionId, 
     userId, 
     apiEndpoints.completeSession, 
-    onSessionIdUpdate, 
+    //onSessionIdUpdate, 
     calculateNewStatus, 
     subjectType
   ]);

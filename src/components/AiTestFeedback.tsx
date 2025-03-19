@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, 
+//    CardFooter 
+} from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-// Add the indicatorClassName prop to Progress
-interface ProgressProps {
-  value: number;
-  className?: string;
-  indicatorClassName?: string;
-}
-import { Separator } from '@/components/ui/separator';
+
+//import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -19,10 +16,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   Workflow,
-  ArrowRight,
+  //ArrowRight,
   RefreshCw
 } from 'lucide-react';
 
+// Add the indicatorClassName prop to Progress
+// interface ProgressProps {
+//     value: number;
+//     className?: string;
+//     indicatorClassName?: string;
+//   }
 // Interface for feedback data structure
 interface FeedbackData {
   overallPerformance: string;
