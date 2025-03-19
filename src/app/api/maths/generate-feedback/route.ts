@@ -6,6 +6,15 @@ import { mathQuestionAttempts, mathQuestions, mathTestAttempts } from '@/db/math
 import { eq, inArray } from 'drizzle-orm';
 import { auth } from '@clerk/nextjs/server';
 
+interface FeedbackData {
+  overallPerformance: string;
+  strengths: string;
+  areasForImprovement: string;
+  actionableAdvice: string;
+  overall: string;
+  rawFeedback?: string;
+}
+
 export async function POST(req: NextRequest) {
   // Authenticate the user
   const { userId } = await auth();
@@ -14,8 +23,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Parse the request to get the test attempt ID
-    const { testAttemptId } = await req.json();
+    // Parse the request to get the test attempt ID and feedback type
+    const { testAttemptId, feedbackType = 'standard' } = await req.json();
     console.log(`Generating feedback for test attempt ID: ${testAttemptId}`);
     
     // Verify the test attempt exists
@@ -43,6 +52,11 @@ export async function POST(req: NextRequest) {
       console.log(`No question attempts found for test ${testAttemptId}`);
       return NextResponse.json({ error: 'No question attempts found' }, { status: 404 });
     }
+
+    // Calculate performance metrics
+    const correctCount = questionAttempts.filter(a => a.isCorrect).length;
+    const incorrectCount = questionAttempts.length - correctCount;
+    const percentageScore = Math.round((correctCount / questionAttempts.length) * 100);
 
     // Get the question IDs from the attempts
     const questionIds = questionAttempts.map(attempt => attempt.questionId);
@@ -85,15 +99,47 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Format questions and answers for the AI model
+    // Create performance summary
+    const promptSummary = `
+Performance Summary:
+- Total Questions: ${questionAttempts.length}
+- Correct Answers: ${correctCount} (${percentageScore}%)
+- Incorrect Answers: ${incorrectCount}
+
+Detailed Question Analysis:
+`;
+
+    // Format questions and answers for the AI model with clear marking of correctness
     const questionsAndAnswers = combinedData.map((attempt, index) => {
+      // Safely access the explanation property with explicit null check
+      const explanation = attempt.question.explanation;
+      const explanationText = explanation !== null && explanation !== undefined
+        ? `Explanation: ${explanation}` 
+        : '';
+      
+      const correctnessMarker = attempt.isCorrect 
+        ? "✓ CORRECT" 
+        : "✗ INCORRECT";
+        
       return `Question ${index + 1}: ${attempt.question.question}
+Status: ${correctnessMarker}
 Your Answer: ${attempt.userAnswer || "Not answered"}
 Correct Answer: ${attempt.question.correctAnswer}
-${attempt.question.explanation ? `Explanation: ${attempt.question.explanation}` : ''}`;
+${explanationText}`;
     }).join('\n\n');
 
+    // Combine summary with detailed questions
+    const fullPrompt = promptSummary + questionsAndAnswers;
+
     console.log('Prepared questions and answers for AI model');
+
+    // Select the appropriate system prompt based on feedback type
+    let systemPrompt = "";
+    if (feedbackType === 'alternative') {
+      systemPrompt = "You are an experienced Australian Year 8 Mathematics teacher providing structured feedback with a focus on growth mindset and positive reinforcement. Your response should be ONLY in JSON format with the following fields: overallPerformance (including percentage score but emphasizing effort over grades), strengths (highlighting specific concepts mastered), areasForImprovement (framed as growth opportunities), actionableAdvice (concrete next steps with resources), and overall (encouraging conclusion that emphasizes progress). Keep each section concise and focused on motivating the student while being informative for parents.";
+    } else {
+      systemPrompt = "You are an experienced Australian Year 8 Mathematics teacher providing structured feedback. Your response should be ONLY in JSON format with the following fields: overallPerformance (including percentage score), strengths, areasForImprovement, actionableAdvice, and overall (brief conclusion). Keep each section concise and focused on helping parents understand their child's performance. Ensure you accurately identify all incorrect questions in your feedback.";
+    }
 
     // Generate feedback using Groq API
     const groq = new Groq({
@@ -106,11 +152,11 @@ ${attempt.question.explanation ? `Explanation: ${attempt.question.explanation}` 
       messages: [
         {
           role: "system",
-          content: "You are an experienced Australian Year 8 Mathematics teacher providing feedback to a student. Be encouraging but specific about strengths and areas to improve. Include percentage scores where relevant and provide actionable advice."
+          content: systemPrompt
         },
         {
           role: "user",
-          content: `Please evaluate this student's performance on the following math questions and provide detailed feedback:\n\n${questionsAndAnswers}`
+          content: `Please evaluate this student's performance on the following math questions and provide structured feedback in JSON format only:\n\n${fullPrompt}`
         }
       ],
       model: "qwen-2.5-32b",
@@ -118,13 +164,55 @@ ${attempt.question.explanation ? `Explanation: ${attempt.question.explanation}` 
       max_tokens: 4096,
       top_p: 0.95
     });
+      
+    // Parse the JSON response
+    let feedbackData: FeedbackData;
+    try {
+      // Safely access the response content
+      const responseContent = chatCompletion.choices[0]?.message?.content;
+      
+      if (!responseContent) {
+        throw new Error('Empty response from AI model');
+      }
 
-    console.log('Received response from Groq API');
+      // Try to parse the model's response as JSON
+      const parsedResponse = JSON.parse(responseContent);
+      
+      // Validate the score representation in the feedback
+      const percentageMatch = parsedResponse.overallPerformance.match(/(\d+)%/);
+      const reportedPercentage = percentageMatch ? parseInt(percentageMatch[1]) : null;
+      
+      // If there's a significant discrepancy, adjust the performance text
+      if (reportedPercentage && Math.abs(reportedPercentage - percentageScore) > 5) {
+        parsedResponse.overallPerformance = 
+          `${percentageScore}% (${correctCount} correct out of ${questionAttempts.length}). ${parsedResponse.overallPerformance}`;
+      }
+      
+      // Initialize with validated data
+      feedbackData = {
+        overallPerformance: parsedResponse.overallPerformance || `${percentageScore}% (${correctCount} correct out of ${questionAttempts.length})`,
+        strengths: parsedResponse.strengths || "Not provided",
+        areasForImprovement: parsedResponse.areasForImprovement || "Not provided",
+        actionableAdvice: parsedResponse.actionableAdvice || "Not provided",
+        overall: parsedResponse.overall || "Not provided",
+      };
+      
+    } catch (e) {
+      // If parsing fails, create a structured format from the raw text
+      console.error('Failed to parse AI response as JSON:', e);
+      const rawFeedback = chatCompletion.choices[0]?.message?.content || '';
+      
+      feedbackData = {
+        overallPerformance: `${percentageScore}% (${correctCount} correct out of ${questionAttempts.length})`,
+        strengths: "Strengths information could not be structured automatically.",
+        areasForImprovement: "Areas for improvement could not be structured automatically.",
+        actionableAdvice: "Advice could not be structured automatically.",
+        overall: "Please review the detailed feedback for complete information.",
+        rawFeedback: rawFeedback // This is now guaranteed to be a string
+      };
+    }
 
-    // Extract and return the feedback
-    const feedback = chatCompletion.choices[0].message.content;
-    
-    return NextResponse.json({ feedback });
+    return NextResponse.json({ feedback: feedbackData });
   } catch (error) {
     console.error('Error generating feedback:', error);
     return NextResponse.json({ 
