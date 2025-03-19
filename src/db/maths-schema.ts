@@ -254,6 +254,27 @@ export const mathSubtopicApplicationsRelations = relations(mathSubtopicApplicati
   })
 }));
 
+// Add to maths-schema.ts
+export const mathTestFeedback = pgTable('mathTestFeedback', {
+  id: serial('id').primaryKey(),
+  testAttemptId: integer('test_attempt_id').notNull().references(() => mathTestAttempts.id),
+  feedback: text('feedback').notNull(),
+  strengths: text('strengths'),
+  areasToImprove: text('areas_to_improve'),
+  suggestedTopics: text('suggested_topics'),
+  percentageScore: integer('percentage_score'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Add relations
+export const mathTestFeedbackRelations = relations(mathTestFeedback, ({ one }) => ({
+  testAttempt: one(mathTestAttempts, {
+    fields: [mathTestFeedback.testAttemptId],
+    references: [mathTestAttempts.id],
+  }),
+}));
+
 // Types
 export type MathTopic = typeof mathTopics.$inferSelect;
 export type NewMathTopic = typeof mathTopics.$inferInsert;

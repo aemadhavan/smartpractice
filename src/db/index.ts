@@ -39,7 +39,13 @@ import { mathQuestionAttempts,
   mathTestAttempts, 
   mathTestCategories, 
   mathTopicProgress, 
-  mathTopics } from "./maths-schema";
+  mathTopics,
+  mathQuestionAttemptsRelations,
+  mathQuestionsRelations,
+  mathSubtopicsRelations,
+  mathTestAttemptsRelations,
+  mathTopicsRelations, 
+} from "./maths-schema";
 
 // Define the full schema
 const schema = {
@@ -76,7 +82,13 @@ const schema = {
     mathTestAttempts,
     mathQuestionAttempts,
     mathTopicProgress,
-    mathSubtopicProgress
+    mathSubtopicProgress,
+    mathQuestionAttemptsRelations,
+    mathQuestionsRelations,
+    mathSubtopicsRelations,
+    mathTestAttemptsRelations,
+    mathTopicsRelations,
+    
 
 };
 

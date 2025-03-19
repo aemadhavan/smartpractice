@@ -3,6 +3,7 @@ import React from 'react';
 import { QuizQuestionResult } from './QuizPage';
 import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
 import { MathJax } from 'better-react-mathjax';
+import { AiTestFeedback } from './AiTestFeedback';
 
 type QuizSummaryProps = {
   questions: QuizQuestionResult[];
@@ -10,6 +11,7 @@ type QuizSummaryProps = {
   onBackToTopics: () => void;
   onTryAgain?: () => void;
   moduleTitle?: string;
+  testAttemptId?: number;
 };
 
 const QuizSummary: React.FC<QuizSummaryProps> = ({
@@ -17,7 +19,8 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
   correctCount,
   onBackToTopics,
   onTryAgain,
-  moduleTitle = 'Quiz'
+  moduleTitle = 'Quiz',
+  testAttemptId
 }) => {
   const totalCount = questions.length;
   const incorrectCount = totalCount - correctCount;
@@ -72,6 +75,14 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
           </div>
         </div>
         
+        {/* AI Feedback Section */}
+        {testAttemptId && (
+          <div className="mb-8">
+            <h3 className="text-xl font-medium mb-4">AI Teacher Feedback</h3>
+            <AiTestFeedback testAttemptId={testAttemptId} />
+          </div>
+        )}
+
         {/* Questions List */}
         <h3 className="text-xl font-medium mb-4">Question Details</h3>
         <div className="space-y-4 mb-8">

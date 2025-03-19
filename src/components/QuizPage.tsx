@@ -383,14 +383,11 @@ const QuizPage: React.FC<QuizPageProps> = ({
       try {
         const completed = await sessionManager.completeSession(userId, apiEndpoints.completeSession);
         
-        if (completed) {
-          if (onSessionIdUpdate) {
-            onSessionIdUpdate(null);
-          }
-          
-          setCurrentSessionId(null);
-          sessionInitializationRef.current = false;
-        }
+        // Don't reset the session ID yet - still need it for the QuizSummary component
+      // Only reset session initialization flag to allow future sessions
+      if (completed) {
+        sessionInitializationRef.current = false;
+      }
       } catch (error) {
         console.error(`[${subjectType}] Error completing test session:`, error);
       }
@@ -699,6 +696,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
         onBackToTopics={goBackToTopics}
         //onTryAgain={resetQuiz}
         moduleTitle={subtopicName}
+        testAttemptId={currentSessionId ?? undefined}
       />
             )}
           </div>
