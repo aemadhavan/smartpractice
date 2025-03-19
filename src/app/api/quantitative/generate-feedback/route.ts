@@ -165,9 +165,9 @@ ${explanationText}`;
           content: `Please evaluate this student's performance on the following quantitative reasoning questions and provide structured feedback in JSON format only:\n\n${fullPrompt}`
         }
       ],
-      model: "qwen-2.5-7b", // Use a smaller model for faster processing
+      model: "qwen-2.5-32b", // Use a smaller model for faster processing
       temperature: 0.6,
-      max_tokens: 2048,
+      max_tokens: 4096,
       top_p: 0.95
     });
       
