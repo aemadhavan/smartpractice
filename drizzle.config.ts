@@ -12,8 +12,9 @@ if(!process.env.XATA_DATABASE_URL) {
 export default defineConfig({
     dialect: "postgresql",
     schema: ["./src/db/schema.ts", 
-                "./src/db/quantitative-schema.ts",
-                "./src/db/maths-schema.ts"], //./src/db/schema.ts
+             "./src/db/quantitative-schema.ts",
+             "./src/db/maths-schema.ts",
+             "./src/db/adaptive-schema.ts"], //./src/db/schema.ts
     out: "./src/db/migrations",
     dbCredentials: {
         url: process.env.XATA_DATABASE_URL,    

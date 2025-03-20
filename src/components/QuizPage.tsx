@@ -10,7 +10,7 @@ import { MathJax } from 'better-react-mathjax';
 import MathFormula from './MathFormula';
 import { useMathJax, containsLatex } from '@/hooks/useMathJax';
 import QuizSummary from './QuizSummary';
-
+import { Brain } from 'lucide-react';
 
 // Define the QuizQuestion type
 export type QuizQuestion = {
@@ -41,6 +41,20 @@ interface ApiEndpoints {
   completeSession: string;
 }
 
+interface LearningGap {
+  id: number;
+  subtopicId: number;
+  conceptDescription: string;
+  severity: number;
+  status: string;
+}
+
+interface Recommendation {
+  type: string;
+  message: string;
+  action: string;
+}
+
 // QuizPage props
 type QuizPageProps = {
   subtopicName: string;
@@ -58,6 +72,7 @@ type QuizPageProps = {
     successRate: number
   ) => 'Mastered' | 'Learning' | 'To Start';
   subjectType: 'maths' | 'quantitative';
+  useAdaptiveLearning?: boolean;
 };
 
 const QuizPage: React.FC<QuizPageProps> = ({
@@ -70,7 +85,8 @@ const QuizPage: React.FC<QuizPageProps> = ({
   testSessionId,
   apiEndpoints,
   calculateNewStatus,
-  subjectType
+  subjectType,
+  useAdaptiveLearning = true,
 }) => {
   const router = useRouter();
   
@@ -94,6 +110,10 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const [showQuizSummary, setShowQuizSummary] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+
+  const [adaptiveLearningEnabled, setAdaptiveLearningEnabled] = useState(useAdaptiveLearning);
+  const [adaptiveRecommendations, setAdaptiveRecommendations] = useState<Recommendation[]>([]);
+  const [learningGaps, setLearningGaps] = useState<LearningGap[]>([]);
   
   // Timer state
   const [timeLeft, setTimeLeft] = useState(0);
@@ -268,6 +288,39 @@ const QuizPage: React.FC<QuizPageProps> = ({
         console.error(`[${subjectType}] Error submitting answer:`, error);
       }
     }
+
+    if (currentSessionId && adaptiveLearningEnabled) {
+      try {
+        // Send results to adaptive feedback API
+        const adaptiveResponse = await fetch('/api/maths/adaptive-feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            testAttemptId: currentSessionId,
+            questionResults: [{
+              questionId: currentQuestion.id,
+              isCorrect: isCorrect,
+              timeSpent
+            }]
+          })
+        });
+        
+        if (adaptiveResponse.ok) {
+          const adaptiveData = await adaptiveResponse.json();
+          
+          if (adaptiveData.success) {
+            // Store any learning gaps or recommendations
+            setLearningGaps(adaptiveData.gaps || []);
+            setAdaptiveRecommendations(adaptiveData.recommendations || []);
+          }
+        }
+      } catch (error) {
+        console.error(`[${subjectType}] Error submitting adaptive feedback:`, error);
+      }
+    }
+
   }, [
     selectedOption, 
     isAnswerSubmitted, 
@@ -277,7 +330,8 @@ const QuizPage: React.FC<QuizPageProps> = ({
     userId, 
     topicId, 
     apiEndpoints.trackAttempt,
-    subjectType
+    subjectType,
+    adaptiveLearningEnabled
   ]);
   
   // Auto-submit when timer runs out
@@ -337,8 +391,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
     return question.status;
   };
 
-  // Function to complete the quiz
+  // Modify completedQuiz function to include adaptive learning data
   const completeQuiz = useCallback(async () => {
+    // Existing code for showing summary and updating questions
     setShowQuizSummary(true);
     
     // Calculate updated questions
@@ -383,11 +438,32 @@ const QuizPage: React.FC<QuizPageProps> = ({
       try {
         const completed = await sessionManager.completeSession(userId, apiEndpoints.completeSession);
         
-        // Don't reset the session ID yet - still need it for the QuizSummary component
-      // Only reset session initialization flag to allow future sessions
-      if (completed) {
-        sessionInitializationRef.current = false;
-      }
+        // If adaptive learning is enabled, send the full results for analysis
+        if (adaptiveLearningEnabled) {
+          try {
+            await fetch('/api/maths/adaptive-feedback', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                testAttemptId: currentSessionId,
+                questionResults: results.questions.map(q => ({
+                  questionId: q.id,
+                  isCorrect: q.correctAnswer === q.userAnswer,
+                  timeSpent: 0 // Time spent not tracked per question in this context
+                }))
+              })
+            });
+          } catch (error) {
+            console.error(`[${subjectType}] Error submitting final adaptive feedback:`, error);
+          }
+        }
+        
+        // Only reset session initialization flag to allow future sessions
+        if (completed) {
+          sessionInitializationRef.current = false;
+        }
       } catch (error) {
         console.error(`[${subjectType}] Error completing test session:`, error);
       }
@@ -398,11 +474,72 @@ const QuizPage: React.FC<QuizPageProps> = ({
     onQuestionsUpdate, 
     currentSessionId, 
     userId, 
-    apiEndpoints.completeSession, 
-    //onSessionIdUpdate, 
+    apiEndpoints.completeSession,
     calculateNewStatus, 
-    subjectType
+    subjectType,
+    adaptiveLearningEnabled
   ]);
+  
+  // Add a useEffect to fetch adaptive learning settings when component mounts
+  useEffect(() => {
+    const fetchAdaptiveSettings = async () => {
+      if (!userId) return;
+
+      try {
+        const response = await fetch('/api/maths/adaptive-settings');
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success) {
+            setAdaptiveLearningEnabled(data.settings.enableAdaptiveLearning);
+          }
+        }
+      } catch (error) {
+        console.error(`[${subjectType}] Error fetching adaptive settings:`, error);
+        // Default to using whatever was passed in props
+        setAdaptiveLearningEnabled(useAdaptiveLearning);
+      }
+    };
+
+    fetchAdaptiveSettings();
+  }, [userId, subjectType, useAdaptiveLearning]);
+
+  // Add an AdaptiveRecommendations component to display during the quiz
+  const renderAdaptiveRecommendations = useCallback(() => {
+    if (!adaptiveLearningEnabled || adaptiveRecommendations.length === 0) {
+      return null;
+    }
+  
+    return (
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Brain className="h-5 w-5 text-blue-600" />
+          <h4 className="font-medium text-blue-800">Adaptive Learning Suggestion</h4>
+        </div>
+        <div className="text-sm text-blue-700">
+          {adaptiveRecommendations[0].message}
+        </div>
+        <div className="text-xs text-blue-600 mt-1">
+          {adaptiveRecommendations[0].action}
+        </div>
+      </div>
+    );
+  }, [adaptiveLearningEnabled, adaptiveRecommendations]);
+
+   // Add an adaptive learning indicator to the UI
+   const renderAdaptiveIndicator = useCallback(() => {
+    if (!adaptiveLearningEnabled) {
+      return null;
+    }
+  
+    return (
+      <div className="inline-flex items-center text-xs gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+        <Brain className="h-3 w-3" />
+        <span>Adaptive</span>
+      </div>
+    );
+  }, [adaptiveLearningEnabled]);
   
   // Function to go back to topics page
   const goBackToTopics = useCallback(() => {
@@ -470,6 +607,21 @@ const QuizPage: React.FC<QuizPageProps> = ({
     return <FixedQuizMathRenderer content={textValue} />;
   }, []);
 
+  // Prepare quiz summary content - move this outside of conditional rendering
+  const quizSummaryContent = (
+    <QuizSummary 
+      questions={results.questions}
+      correctCount={results.correctCount}
+      onBackToTopics={goBackToTopics}
+      moduleTitle={subtopicName}
+      testAttemptId={currentSessionId ?? undefined}
+      subjectType={subjectType}
+      learningGaps={learningGaps}
+      adaptiveRecommendations={adaptiveRecommendations}
+      adaptiveLearningEnabled={adaptiveLearningEnabled}
+    />
+  );
+
   // Show initialization error
   if (initError) {
     return (
@@ -506,159 +658,159 @@ const QuizPage: React.FC<QuizPageProps> = ({
     );
   }
 
+  // Main component render
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Back button */}
-      <div className="p-4 flex items-center">
-        <button 
-          onClick={goBackToTopics}
-          className="flex items-center text-blue-600 hover:text-blue-800"
-        >
-          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Topics
-        </button>
-      </div>
+      {/* If showing the quiz summary, return that directly */}
+      {isQuizCompleted && showQuizSummary ? (
+        quizSummaryContent
+      ) : (
+        <>
+          {/* Back button */}
+          <div className="p-4 flex items-center">
+            <button 
+              onClick={goBackToTopics}
+              className="flex items-center text-blue-600 hover:text-blue-800"
+            >
+              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Topics
+            </button>
+          </div>
 
-      <div className="bg-white rounded-lg shadow-lg">
-        {/* Quiz content */}
-        {!isQuizCompleted ? (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              {subtopicName} - Question {currentQuestionIndex + 1} of {questions.length}
-            </h2>
-            <div className="w-full bg-gray-200 h-2 mb-4 rounded-full overflow-hidden">
-              <div 
-                className="bg-blue-600 h-full transition-all duration-300 ease-out" 
-                style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }}
-              />
-            </div>
-            
-            {/* Timer and status display */}
-            <div className="mb-4 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className={`inline-block px-3 py-1 rounded ${
-                  timeLeft > 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                } font-medium text-sm`}>
-                  Time: {formatTime(timeLeft)}
-                </span>
-                <button
-                  className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-                  onClick={togglePause}
-                >
-                  {isPaused ? 'Resume' : 'Pause'}
-                </button>
-              </div>
-              <span className={`inline-block px-3 py-1 rounded ${
-                currentQuestion.status === 'Mastered' ? 'bg-green-100 text-green-800' :
-                currentQuestion.status === 'Learning' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              } font-medium text-sm`}>
-                {currentQuestion.status}
-              </span>
-            </div>
-
-            {/* Session ID display - can be hidden in production */}
-            {/* <div className="mb-4 text-xs text-gray-500">
-              Session ID: {currentSessionId || 'Not set yet'} | 
-              Answered: {results.totalCount} |
-              Time spent: {timeSpentOnQuestion}s |
-              MathJax: {isProcessing ? 'Processing...' : isProcessed ? 'Processed' : 'Waiting...'}
-            </div> */}
-            
-            {/* Question */}
-            <div className="mb-6 question-container">
-              {contentLoading ? (
-                <>
-                  <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4 mb-2"></div>
-                  <div className="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
-                </>
-              ) : (
-                <div className="text-lg">
-                  <FixedQuizMathRenderer content={currentQuestion.question} />
+          <div className="bg-white rounded-lg shadow-lg">
+            {/* Quiz content */}
+            {!isQuizCompleted ? (
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  {subtopicName} - Question {currentQuestionIndex + 1} of {questions.length}
+                </h2>
+                <div className="w-full bg-gray-200 h-2 mb-4 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-full transition-all duration-300 ease-out" 
+                    style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }}
+                  />
                 </div>
-              )}
-            </div>
-            
-            {/* Options */}
-            <div className="space-y-3 mb-6 options-container" style={{ 
-                opacity: contentLoading ? 0.6 : 1,
-                transition: 'opacity 0.3s ease-in-out'
-              }}>
-                {currentQuestion.options.map((option,index) => (
-                  <div
-                    key={option.id}
-                    className={`p-3 border rounded cursor-pointer transition-colors ${
-                      contentLoading ? 'pointer-events-none' : ''
-                    } ${
-                      selectedOption === option.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    } ${
-                      isAnswerSubmitted && option.text === currentQuestion.correctAnswer
-                        ? 'bg-green-50 border-green-500'
-                        : ''
-                    } ${
-                      isAnswerSubmitted && 
-                      selectedOption === option.id && 
-                      option.text !== currentQuestion.correctAnswer
-                        ? 'bg-red-50 border-red-500'
-                        : ''
-                    }`}
-                    onClick={() => handleOptionSelect(option.id)}
-                  >
-                    {contentLoading ? (
-                      <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4"></div>
+                
+                {/* Timer and status display */}
+                <div className="mb-4 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block px-3 py-1 rounded ${
+                      timeLeft > 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    } font-medium text-sm`}>
+                      Time: {formatTime(timeLeft)}
+                    </span>
+                    <button
+                      className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                      onClick={togglePause}
+                    >
+                      {isPaused ? 'Resume' : 'Pause'}
+                    </button>
+                    {renderAdaptiveIndicator()}
+                  </div>
+                  <span className={`inline-block px-3 py-1 rounded ${
+                    currentQuestion.status === 'Mastered' ? 'bg-green-100 text-green-800' :
+                    currentQuestion.status === 'Learning' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  } font-medium text-sm`}>
+                    {currentQuestion.status}
+                  </span>
+                </div>
+                
+                {/* Question */}
+                <div className="mb-6 question-container">
+                  {contentLoading ? (
+                    <>
+                      <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4 mb-2"></div>
+                      <div className="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
+                    </>
+                  ) : (
+                    <div className="text-lg">
+                      <FixedQuizMathRenderer content={currentQuestion.question} />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Options */}
+                <div className="space-y-3 mb-6 options-container" style={{ 
+                    opacity: contentLoading ? 0.6 : 1,
+                    transition: 'opacity 0.3s ease-in-out'
+                  }}>
+                    {currentQuestion.options.map((option,index) => (
+                      <div
+                        key={option.id}
+                        className={`p-3 border rounded cursor-pointer transition-colors ${
+                          contentLoading ? 'pointer-events-none' : ''
+                        } ${
+                          selectedOption === option.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        } ${
+                          isAnswerSubmitted && option.text === currentQuestion.correctAnswer
+                            ? 'bg-green-50 border-green-500'
+                            : ''
+                        } ${
+                          isAnswerSubmitted && 
+                          selectedOption === option.id && 
+                          option.text !== currentQuestion.correctAnswer
+                            ? 'bg-red-50 border-red-500'
+                            : ''
+                        }`}
+                        onClick={() => handleOptionSelect(option.id)}
+                      >
+                        {contentLoading ? (
+                          <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4"></div>
+                        ) : (
+                            <div className="flex items-center w-full">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-800 font-medium">
+                                {String.fromCharCode(65 + index)} {/* A, B, C, D */}
+                              </div>
+                              <div className="option-text-container flex-grow">
+                                {option.text}
+                              </div>
+                            </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Action buttons */}
+                <div className="flex justify-between">
+                  <div>
+                    {/* Current progress */}
+                    <div className="text-sm text-gray-500">
+                      {results.correctCount} correct of {results.totalCount} answered
+                    </div>
+                  </div>
+                  
+                  <div className="space-x-3">
+                    {!isAnswerSubmitted ? (
+                      <button
+                        onClick={checkAnswer}
+                        disabled={!selectedOption || contentLoading}
+                        className={`px-4 py-2 rounded ${
+                          selectedOption && !contentLoading
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        {contentLoading ? 'Loading...' : 'Check Answer'}
+                      </button>
                     ) : (
-                        <div className="flex items-center w-full">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-800 font-medium">
-                            {String.fromCharCode(65 + index)} {/* A, B, C, D */}
-                          </div>
-                          <div className="option-text-container flex-grow">
-                            {option.text}
-                          </div>
-                        </div>
+                      <button
+                        onClick={nextQuestion}
+                        className="px-4 py-2 bg-blue-600 text-white rounded"
+                      >
+                        {currentQuestionIndex === questions.length - 1 ? 'Complete Quiz' : 'Next Question'}
+                      </button>
                     )}
                   </div>
-                ))}
-              </div>
-
-              {/* Action buttons */}
-            <div className="flex justify-between">
-              <div>
-                {/* Current progress */}
-                <div className="text-sm text-gray-500">
-                  {results.correctCount} correct of {results.totalCount} answered
                 </div>
-              </div>
-              
-              <div className="space-x-3">
-                {!isAnswerSubmitted ? (
-                  <button
-                    onClick={checkAnswer}
-                    disabled={!selectedOption || contentLoading}
-                    className={`px-4 py-2 rounded ${
-                      selectedOption && !contentLoading
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {contentLoading ? 'Loading...' : 'Check Answer'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={nextQuestion}
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
-                  >
-                    {currentQuestionIndex === questions.length - 1 ? 'Complete Quiz' : 'Next Question'}
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {/* Explanation (shown after answering) */}
-            {isAnswerSubmitted && currentQuestion.formula && !contentLoading && (
+                
+                {/* Explanation (shown after answering)
+                {/* Explanation (shown after answering) */}
+                {isAnswerSubmitted && currentQuestion.formula && !contentLoading && (
                   <div className="formula-container mt-4 mb-5 p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
                     <div className="text-sm text-blue-700 mb-2 font-medium">Formula:</div>
                     <div className="formula-display overflow-x-auto">
@@ -672,59 +824,49 @@ const QuizPage: React.FC<QuizPageProps> = ({
                   </div>
                 )}
 
-            {isAnswerSubmitted && (
-              
-              <div className={`p-4 mb-6 rounded ${isAnswerCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
-                <div className="font-medium mb-2">
-                  {isAnswerCorrect ? 'Correct!' : 'Incorrect!'}
-                </div>
-                <div>
-                  <MathJax hideUntilTypeset="first">
-                    {currentQuestion.explanation}
-                  </MathJax>
-                </div>
-              </div>
-            )}
-            
-            
-          </div>
-        ) : (
-          <div className="p-6">
-            {/* Quiz completed summary */}
-            {!showQuizSummary ? (
-              <div className="text-center py-6">
-                <h3 className="text-xl font-semibold mb-4">Quiz Completed!</h3>
-                <p className="mb-6">
-                  You scored {results.correctCount} out of {questions.length} questions.
-                </p>
-                <div className="text-lg font-medium mb-2">
-                  {(results.correctCount / questions.length) * 100 >= 80
-                    ? 'Great job! 🎉'
-                    : (results.correctCount / questions.length) * 100 >= 60
-                    ? 'Good effort! 👍'
-                    : 'Keep practicing! 💪'}
-                </div>
-                <button
-                  onClick={completeQuiz}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  View Summary
-                </button>
+                {isAnswerSubmitted && (
+                  <>
+                    <div className={`p-4 mb-6 rounded ${isAnswerCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                      <div className="font-medium mb-2">
+                        {isAnswerCorrect ? 'Correct!' : 'Incorrect!'}
+                      </div>
+                      <div>
+                        <MathJax hideUntilTypeset="first">
+                          {currentQuestion.explanation}
+                        </MathJax>
+                      </div>
+                    </div>
+                    {renderAdaptiveRecommendations()}
+                  </>
+                )}                        
               </div>
             ) : (
-              <QuizSummary 
-        questions={results.questions}
-        correctCount={results.correctCount}
-        onBackToTopics={goBackToTopics}
-        //onTryAgain={resetQuiz}
-        moduleTitle={subtopicName}
-        testAttemptId={currentSessionId ?? undefined}
-        subjectType={subjectType} 
-      />
+              <div className="p-6">
+                {/* Quiz completed summary */}
+                <div className="text-center py-6">
+                  <h3 className="text-xl font-semibold mb-4">Quiz Completed!</h3>
+                  <p className="mb-6">
+                    You scored {results.correctCount} out of {questions.length} questions.
+                  </p>
+                  <div className="text-lg font-medium mb-2">
+                    {(results.correctCount / questions.length) * 100 >= 80
+                      ? 'Great job! 🎉'
+                      : (results.correctCount / questions.length) * 100 >= 60
+                      ? 'Good effort! 👍'
+                      : 'Keep practicing! 💪'}
+                  </div>
+                  <button
+                    onClick={completeQuiz}
+                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                  >
+                    View Summary
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };

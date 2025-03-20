@@ -20,7 +20,6 @@ import {
     verbalTestAttempts,
     verbalQuestionAttempts
 } from "@/db/schema";
-
 import {
     quantTopics,
     quantSubtopics,
@@ -46,7 +45,11 @@ import { mathQuestionAttempts,
   mathTestAttemptsRelations,
   mathTopicsRelations, 
 } from "./maths-schema";
-
+import {
+  userAdaptiveSettings,
+  learningGaps,
+  adaptiveQuestionSelection,
+} from "@/db/adaptive-schema";
 // Define the full schema
 const schema = {
     categories,
@@ -89,6 +92,10 @@ const schema = {
     mathTestAttemptsRelations,
     mathTopicsRelations,
     
+    // Add these new adaptive learning tables
+    userAdaptiveSettings,
+    learningGaps,
+    adaptiveQuestionSelection,
 
 };
 

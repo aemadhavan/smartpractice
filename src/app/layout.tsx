@@ -151,8 +151,22 @@ export default function RootLayout({
           ahrefs_analytics_script.setAttribute("data-key", "prC1gJHHzvNKUadRBmmK+A");
           document.getElementsByTagName("head")[0].appendChild(ahrefs_analytics_script);
         `}
-      </Script>
-
+        </Script>
+      
+        {/* Microsoft Clarity analytics */}
+        <Script
+          id="microsoft-clarity"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(c,l,a,r,i,t,y){
+                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i+"?ref=bwt";
+                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "qr4f8twv1i");
+            `,
+          }}
+        />
       </head>
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

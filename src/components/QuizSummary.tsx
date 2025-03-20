@@ -5,6 +5,23 @@ import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
 import { MathJax } from 'better-react-mathjax';
 import AiTestFeedback from './AiTestFeedback';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Brain, AlertTriangle, Activity, LightbulbIcon } from 'lucide-react';
+
+// Define the LearningGap interface for proper typing
+interface LearningGap {
+  id: number;
+  subtopicId: number;
+  conceptDescription: string;
+  severity: number;
+  status: string;
+}
+
+// Define the Recommendation interface for proper typing
+interface Recommendation {
+  type: string;
+  message: string;
+  action: string;
+}
 
 type QuizSummaryProps = {
   questions: QuizQuestionResult[];
@@ -16,6 +33,9 @@ type QuizSummaryProps = {
   subjectType?: 'maths' | 'quantitative';
   topicId?: number;
   subtopicId?: number;
+  learningGaps?: LearningGap[]; // Fixed the typo: earningGaps -> learningGaps
+  adaptiveRecommendations?: Recommendation[]; 
+  adaptiveLearningEnabled?: boolean;
 };
 
 // Type definitions for topic and subtopic data
@@ -41,7 +61,10 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
   testAttemptId,
   subjectType = 'maths',
   topicId,
-  subtopicId
+  subtopicId,
+  learningGaps = [],
+  adaptiveRecommendations = [],
+  adaptiveLearningEnabled = true
 }) => {
   const totalCount = questions.length;
   const incorrectCount = totalCount - correctCount;
@@ -193,24 +216,92 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
         return null;
     }
   };
+
+  // 3. Add a new section to display adaptive learning information
+  const renderAdaptiveLearningSection = () => {
+    if (!adaptiveLearningEnabled) {
+      return null;
+    }
+    return (
+      <div className="mb-8 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+        <h3 className="flex items-center gap-2 text-lg font-medium text-indigo-800 mb-3">
+          <Brain className="h-5 w-5 text-indigo-600" />
+          Adaptive Learning Insights
+        </h3>
+
+        {learningGaps.length > 0 ? (
+          <div className="mb-4">
+            <h4 className="text-sm font-medium text-indigo-700 mb-2">Learning Gaps Identified</h4>
+            <div className="space-y-2">
+              {learningGaps.map((gap) => (
+                <div key={gap.id} className="bg-white p-3 rounded-md border border-indigo-200">
+                  <div className="flex items-start">
+                    <div className="shrink-0 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        gap.severity > 7 ? 'bg-red-500' : 
+                        gap.severity > 4 ? 'bg-amber-500' : 
+                        'bg-yellow-500'
+                      }`}></div>
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-sm text-indigo-800">
+                        {gap.conceptDescription}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 bg-white p-3 rounded-md border border-indigo-200">
+            <p className="text-sm text-indigo-800">
+              No specific learning gaps identified from this practice session.
+            </p>
+          </div>
+        )}
+
+        {adaptiveRecommendations.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-indigo-700 mb-2">Recommendations</h4>
+            <div className="space-y-2">
+              {adaptiveRecommendations.map((rec, index) => (
+                <div key={index} className="bg-white p-3 rounded-md border border-indigo-200">
+                  <div className="flex items-start">
+                    <div className="shrink-0 mt-0.5">
+                      {rec.type === 'learning_gap' ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      ) : rec.type === 'performance' ? (
+                        <Activity className="h-4 w-4 text-blue-500" />
+                      ) : (
+                        <LightbulbIcon className="h-4 w-4 text-green-500" />
+                      )}
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-sm font-medium text-indigo-800">{rec.message}</p>
+                      <p className="text-xs text-indigo-600 mt-1">{rec.action}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 text-xs text-indigo-600">
+          <p>
+            Our adaptive learning system analyzes your performance patterns to provide personalized recommendations 
+            and identify areas that may need more practice.
+          </p>
+        </div>
+      </div>
+    );
+  };
   
   const commonMistakesAdvice = analyzeCommonMistakes();
   
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Back button 
-      <div className="p-4 flex items-center">
-        <button 
-          onClick={onBackToTopics}
-          className="flex items-center text-blue-600 hover:text-blue-800"
-        >
-          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Topics
-        </button>
-      </div> */}
-
       <div className="bg-white rounded-lg shadow-lg p-6">
         {/* Title section with topic/subtopic info */}
         <h2 className={`text-2xl font-semibold mb-2 ${questions.length > 6 ? 'sticky top-0 bg-white pt-2 pb-2 z-10' : ''}`}>
@@ -332,6 +423,9 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
             <AiTestFeedback testAttemptId={testAttemptId} subjectType={subjectType}/>
           </div>
         )}
+
+        {/* Adaptive Learning Section */}
+        {renderAdaptiveLearningSection()}
 
         {/* Questions List */}
         <h3 className="text-xl font-medium mb-4">Question Details</h3>
