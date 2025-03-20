@@ -50,6 +50,13 @@ import {
   learningGaps,
   adaptiveQuestionSelection,
 } from "@/db/adaptive-schema";
+import {
+  userQuantAdaptiveSettings ,
+  quantLearningGaps ,
+  quantAdaptiveQuestionSelection ,
+} from "@/db/quantitative-adaptive-schema";
+
+
 // Define the full schema
 const schema = {
     categories,
@@ -97,6 +104,10 @@ const schema = {
     learningGaps,
     adaptiveQuestionSelection,
 
+    //
+    userQuantAdaptiveSettings ,
+    quantLearningGaps ,
+    quantAdaptiveQuestionSelection ,
 };
 
 // Singleton pool and db instances
