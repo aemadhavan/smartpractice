@@ -528,6 +528,12 @@ const QuizPage: React.FC<QuizPageProps> = ({
             <h2 className="text-xl font-semibold mb-4">
               {subtopicName} - Question {currentQuestionIndex + 1} of {questions.length}
             </h2>
+            <div className="w-full bg-gray-200 h-2 mb-4 rounded-full overflow-hidden">
+              <div 
+                className="bg-blue-600 h-full transition-all duration-300 ease-out" 
+                style={{ width: `${(currentQuestionIndex / questions.length) * 100}%` }}
+              />
+            </div>
             
             {/* Timer and status display */}
             <div className="mb-4 flex justify-between items-center">
@@ -573,12 +579,6 @@ const QuizPage: React.FC<QuizPageProps> = ({
                   <FixedQuizMathRenderer content={currentQuestion.question} />
                 </div>
               )}
-              
-              {currentQuestion.formula && !contentLoading && (
-                <div className="formula-container mt-2">
-                  <MathFormula formula={currentQuestion.formula} />
-                </div>
-              )}
             </div>
             
             {/* Options */}
@@ -586,7 +586,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
                 opacity: contentLoading ? 0.6 : 1,
                 transition: 'opacity 0.3s ease-in-out'
               }}>
-                {currentQuestion.options.map((option) => (
+                {currentQuestion.options.map((option,index) => (
                   <div
                     key={option.id}
                     className={`p-3 border rounded cursor-pointer transition-colors ${
@@ -611,29 +611,20 @@ const QuizPage: React.FC<QuizPageProps> = ({
                     {contentLoading ? (
                       <div className="h-6 bg-gray-100 rounded animate-pulse w-3/4"></div>
                     ) : (
-                      <div className="option-text-container">
-                        {option.text}
-                      </div>
+                        <div className="flex items-center w-full">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-800 font-medium">
+                            {String.fromCharCode(65 + index)} {/* A, B, C, D */}
+                          </div>
+                          <div className="option-text-container flex-grow">
+                            {option.text}
+                          </div>
+                        </div>
                     )}
                   </div>
                 ))}
               </div>
-            
-            {/* Explanation (shown after answering) */}
-            {isAnswerSubmitted && (
-              <div className={`p-4 mb-6 rounded ${isAnswerCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
-                <div className="font-medium mb-2">
-                  {isAnswerCorrect ? 'Correct!' : 'Incorrect!'}
-                </div>
-                <div>
-                  <MathJax hideUntilTypeset="first">
-                    {currentQuestion.explanation}
-                  </MathJax>
-                </div>
-              </div>
-            )}
-            
-            {/* Action buttons */}
+
+              {/* Action buttons */}
             <div className="flex justify-between">
               <div>
                 {/* Current progress */}
@@ -665,6 +656,37 @@ const QuizPage: React.FC<QuizPageProps> = ({
                 )}
               </div>
             </div>
+            
+            {/* Explanation (shown after answering) */}
+            {isAnswerSubmitted && currentQuestion.formula && !contentLoading && (
+                  <div className="formula-container mt-4 mb-5 p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
+                    <div className="text-sm text-blue-700 mb-2 font-medium">Formula:</div>
+                    <div className="formula-display overflow-x-auto">
+                      <MathFormula 
+                        formula={currentQuestion.formula} 
+                        className="text-lg block" 
+                        style={{ margin: '0 auto' }}
+                        hideUntilTypeset="first"
+                      />
+                    </div>
+                  </div>
+                )}
+
+            {isAnswerSubmitted && (
+              
+              <div className={`p-4 mb-6 rounded ${isAnswerCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                <div className="font-medium mb-2">
+                  {isAnswerCorrect ? 'Correct!' : 'Incorrect!'}
+                </div>
+                <div>
+                  <MathJax hideUntilTypeset="first">
+                    {currentQuestion.explanation}
+                  </MathJax>
+                </div>
+              </div>
+            )}
+            
+            
           </div>
         ) : (
           <div className="p-6">

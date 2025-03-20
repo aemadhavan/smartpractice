@@ -105,7 +105,7 @@ const MathsPage = () => {
     <div className="p-6 bg-white max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Mathematical Practice</h1>
       
-      {/* Practice button */}
+      {/* Practice button 
       <div className="mb-6">
         <Link href="/maths/practice">
           <button className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50">
@@ -113,7 +113,7 @@ const MathsPage = () => {
             Practice
           </button>
         </Link>
-      </div>
+      </div>*/}
       
       {/* Stats section */}
       <div className="flex flex-wrap gap-4 mb-8">

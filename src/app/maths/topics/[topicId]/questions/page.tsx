@@ -191,10 +191,11 @@ export default function QuestionsPage() {
         console.log('Selected subtopic:', selectedSubtopic.name, 'ID:', selectedSubtopic.id);
         setSubtopic(selectedSubtopic);
         // Process the questions
-const processed = selectedSubtopic.questions.map((question) => {
-  console.log('Processing question:', question);
-  return processOptions(question);
-});
+        const processed = selectedSubtopic.questions.map((question) => {
+          console.log('Processing question:', question);
+          return processOptions(question);
+        });
+          
         setProcessedQuestions(processed);
       } else {
         throw new Error('No subtopics found for this topic');
