@@ -137,6 +137,15 @@ export default function RootLayout({
           src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
           strategy="afterInteractive"
         />
+        <script src="https://analytics.ahrefs.com/analytics.js" data-key="prC1gJHHzvNKUadRBmmK+A" async></script>
+        <script>
+          var ahrefs_analytics_script = document.createElement('script');
+          ahrefs_analytics_script.async = true;
+          ahrefs_analytics_script.src = 'https://analytics.ahrefs.com/analytics.js';
+          ahrefs_analytics_script.setAttribute('data-key', 'prC1gJHHzvNKUadRBmmK+A');
+          document.getElementsByTagName('head')[0].appendChild(ahrefs_analytics_script);
+        </script>
+
       </head>
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
