@@ -137,7 +137,7 @@ const QuizSummary: React.FC<QuizSummaryProps> = ({
       return null;
     }
     
-    let patterns = {
+    const patterns = {
       calculationErrors: 0,
       conceptualErrors: 0,
       carelessMistakes: 0
