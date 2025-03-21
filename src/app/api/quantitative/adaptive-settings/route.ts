@@ -8,7 +8,7 @@ import { userQuantAdaptiveSettings } from '@/db/quantitative-adaptive-schema';
 export const dynamic = 'force-dynamic';
 
 // GET user's adaptive learning settings for Quantitative module
-export async function GET(request: NextRequest) {
+export async function GET()  {
   try {
     // Remove the console.log(request) - this might be causing issues
     // console.log(request);  // REMOVE THIS LINE

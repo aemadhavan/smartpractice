@@ -6,7 +6,7 @@ import { auth } from '@clerk/nextjs/server';
 import { updateQuantLearningGaps } from '@/lib/quantitative-adaptive-learning';
 // Uncomment these imports to ensure schema references are available
 //import { quantTestAttempts } from '@/db/quantitative-schema';
-import { quantLearningGaps, type QuantLearningGap } from '@/db/quantitative-adaptive-schema';
+import { type QuantLearningGap } from '@/db/quantitative-adaptive-schema';
 
 export const dynamic = 'force-dynamic';
 

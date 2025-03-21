@@ -115,7 +115,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   topicId,
   onQuestionsUpdate,
   onSessionIdUpdate,
-  testSessionId,
+  //testSessionId,
   apiEndpoints,
   calculateNewStatus,
   subjectType,
@@ -606,7 +606,8 @@ const fetchAdaptiveSettings = async () => {
         const errorText = await response.text();
         console.error(`[${subjectType}] Error fetching adaptive settings (${response.status}):`, errorText);
       } catch (e) {
-        console.error(`[${subjectType}] Error fetching adaptive settings (${response.status})`);
+        console.error(`[${subjectType}] Error fetching adaptive settings (${response.status})`, e);
+        return;
       }
       
       // Graceful fallback
