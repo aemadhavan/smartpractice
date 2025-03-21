@@ -86,7 +86,7 @@ export async function detectQuantLearningGaps(userId: string, subtopicId: number
           subtopicId,
           conceptDescription: conceptId,
           severity,
-          evidenceQuestionIds: conceptAttempts.map(a => a.quantQuestionAttempts.questionId).join(','),
+          evidenceQuestionIds: [...new Set(conceptAttempts.map(a => a.quantQuestionAttempts.questionId))].join(','),
           status: 'active'
         });
       }
