@@ -1,18 +1,15 @@
-// File: /src/components/QuizPage.tsx
-
+// src/components/QuizPage.tsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Option, formatOptionText } from '@/lib/options';
-import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
-import ImprovedLatexRenderer from './ImprovedLatexRenderer';
-import sessionManager from '@/lib/session-manager';
-import { MathJax } from 'better-react-mathjax';
-import MathFormula from './MathFormula';
-import { useMathJax, containsLatex } from '@/hooks/useMathJax';
-import QuizSummary from './QuizSummary';
 import { Brain } from 'lucide-react';
+import MathFormula from './MathFormula';
 
-// Define the QuizQuestion type
+// Generic types for quiz components
+export type Option = {
+  id: string;
+  text: string;
+};
+
 export type QuizQuestion = {
   id: number;
   question: string;
@@ -29,19 +26,20 @@ export type QuizQuestion = {
   subtopicId: number;
 };
 
-// Define the QuizQuestionResult type to include user answers
 export type QuizQuestionResult = QuizQuestion & {
   userAnswer: string;
 };
 
 // API endpoints configuration
-interface ApiEndpoints {
+export interface ApiEndpoints {
   initSession: string;
   trackAttempt: string;
   completeSession: string;
+  adaptiveFeedback: string;
+  adaptiveSettings: string;
 }
 
-interface LearningGap {
+export interface LearningGap {
   id: number;
   subtopicId: number;
   conceptDescription: string;
@@ -49,14 +47,14 @@ interface LearningGap {
   status: string;
 }
 
-interface Recommendation {
+export interface Recommendation {
   type: string;
   message: string;
   action: string;
 }
 
 // QuizPage props
-type QuizPageProps = {
+export type QuizPageProps = {
   subtopicName: string;
   questions: QuizQuestion[];
   userId: string;
@@ -73,6 +71,41 @@ type QuizPageProps = {
   ) => 'Mastered' | 'Learning' | 'To Start';
   subjectType: 'maths' | 'quantitative';
   useAdaptiveLearning?: boolean;
+  sessionManager: {
+    initSession: (userId: string, subtopicId: number, initSessionEndpoint: string) => Promise<number | null>;
+    trackAttempt: (attemptData: {
+      userId: string;
+      questionId: number;
+      topicId: number;
+      subtopicId: number;
+      isCorrect: boolean;
+      userAnswer: string;
+      timeSpent: number;
+  }, trackAttemptEndpoint: string) => Promise<void>;
+    completeSession: (userId: string, sessionId: number, completeSessionEndpoint: string) => Promise<boolean>;
+  };
+  QuizSummaryComponent: React.ComponentType<QuizSummaryProps>;
+  renderers: {
+    optionTextRenderer?: (text: string | Option | null | undefined) => React.ReactNode;
+    questionRenderer: (content: string) => React.ReactNode;
+    mathJaxRenderer: (content: string) => React.ReactNode;
+  };
+};
+
+// Type for QuizSummary component
+export type QuizSummaryProps = {
+  questions: QuizQuestionResult[];
+  correctCount: number;
+  onBackToTopics: () => void;
+  onTryAgain?: () => void;
+  moduleTitle?: string;
+  testAttemptId?: number;
+  subjectType?: 'maths' | 'quantitative';
+  topicId?: number;
+  subtopicId?: number;
+  learningGaps?: LearningGap[];
+  adaptiveRecommendations?: Recommendation[]; 
+  adaptiveLearningEnabled?: boolean;
 };
 
 const QuizPage: React.FC<QuizPageProps> = ({
@@ -87,10 +120,13 @@ const QuizPage: React.FC<QuizPageProps> = ({
   calculateNewStatus,
   subjectType,
   useAdaptiveLearning = true,
+  sessionManager,
+  QuizSummaryComponent,
+  renderers,
 }) => {
   const router = useRouter();
   
-  // Core quiz state
+  // State management (similar to previous implementation)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
@@ -119,9 +155,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
-  // For debugging purposes only
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_timeSpentOnQuestion, setTimeSpentOnQuestion] = useState<number>(0);
+  const [timeSpentOnQuestion, setTimeSpentOnQuestion] = useState<number>(0);
   
   // UI state
   const [contentLoading, setContentLoading] = useState(true);
@@ -134,33 +168,26 @@ const QuizPage: React.FC<QuizPageProps> = ({
     questions[currentQuestionIndex] || null, 
     [questions, currentQuestionIndex]
   );
-  
-  // Set up MathJax processing with a single hook call
-  const { /* containerRef */ } = useMathJax(
-    [
-      currentQuestionIndex,
-      currentQuestion?.question,
-      currentQuestion?.options?.map(o => o.text).join(''),
-      currentQuestion?.explanation,
-      isAnswerSubmitted
-    ],
-    {
-      delay: 100,
-      fallbackDelay: 1000,
-      debugLabel: `${subjectType}-question`,
-      onProcessed: () => {
-        setContentLoading(false);
-      }
-    }
-  );
-  
+
+  // Debugging: Log time spent on each question during development
+useEffect(() => {
+  if (isAnswerSubmitted || isPaused || timeSpentOnQuestion === 0) return;
+
+  console.log(`Time spent on current question (${currentQuestionIndex + 1}): ${timeSpentOnQuestion} seconds`);
+}, [isAnswerSubmitted, isPaused, timeSpentOnQuestion, currentQuestionIndex]);
+
   // Initialize session when component mounts
   useEffect(() => {
     if (questions.length === 0 || currentSessionId) return;
     
-    const initSession = async () => {
+    const initSession = async (retryCount = 0) => {
       try {
-        // Prevent multiple initializations
+        console.log("Initializing session with:", {
+          userId,
+          subtopicId: questions.length > 0 ? questions[0].subtopicId : 'No questions available',
+          endpoint: apiEndpoints.initSession
+        });
+        
         if (sessionInitializationRef.current) return;
         sessionInitializationRef.current = true;
         
@@ -180,12 +207,17 @@ const QuizPage: React.FC<QuizPageProps> = ({
         }
       } catch (error) {
         console.error(`[${subjectType}] Error initializing test session:`, error);
+        // Retry up to 3 times with a delay
+        if (retryCount < 3) {
+          console.log(`Retrying session initialization (${retryCount + 1}/3)...`);
+          setTimeout(() => initSession(retryCount + 1), 1000);
+          return;
+        }
         setInitError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    };
-    
+    };    
     initSession();
-  }, [questions, userId, apiEndpoints.initSession, currentSessionId, subjectType, onSessionIdUpdate]);
+  }, [questions, userId, apiEndpoints.initSession, currentSessionId, subjectType, onSessionIdUpdate, sessionManager]);
   
   // Handle testSessionId changes from parent if provided
   useEffect(() => {
@@ -289,10 +321,10 @@ const QuizPage: React.FC<QuizPageProps> = ({
       }
     }
 
+    // Adaptive learning feedback
     if (currentSessionId && adaptiveLearningEnabled) {
       try {
-        // Send results to adaptive feedback API
-        const adaptiveResponse = await fetch('/api/maths/adaptive-feedback', {
+        const adaptiveResponse = await fetch(apiEndpoints.adaptiveFeedback, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -329,9 +361,11 @@ const QuizPage: React.FC<QuizPageProps> = ({
     currentSessionId, 
     userId, 
     topicId, 
+    apiEndpoints.adaptiveFeedback,
     apiEndpoints.trackAttempt,
     subjectType,
-    adaptiveLearningEnabled
+    adaptiveLearningEnabled,
+    sessionManager
   ]);
   
   // Auto-submit when timer runs out
@@ -436,12 +470,12 @@ const QuizPage: React.FC<QuizPageProps> = ({
     // Complete the session
     if (currentSessionId) {
       try {
-        const completed = await sessionManager.completeSession(userId, apiEndpoints.completeSession);
+        const completed = await sessionManager.completeSession(userId, currentSessionId, apiEndpoints.completeSession);
         
         // If adaptive learning is enabled, send the full results for analysis
         if (adaptiveLearningEnabled) {
           try {
-            await fetch('/api/maths/adaptive-feedback', {
+            await fetch(apiEndpoints.adaptiveFeedback, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -475,18 +509,20 @@ const QuizPage: React.FC<QuizPageProps> = ({
     currentSessionId, 
     userId, 
     apiEndpoints.completeSession,
+    apiEndpoints.adaptiveFeedback,
     calculateNewStatus, 
     subjectType,
-    adaptiveLearningEnabled
+    adaptiveLearningEnabled,
+    sessionManager
   ]);
   
-  // Add a useEffect to fetch adaptive learning settings when component mounts
+  // Fetch adaptive learning settings when component mounts
   useEffect(() => {
     const fetchAdaptiveSettings = async () => {
       if (!userId) return;
 
       try {
-        const response = await fetch('/api/maths/adaptive-settings');
+        const response = await fetch(apiEndpoints.adaptiveSettings);
         
         if (response.ok) {
           const data = await response.json();
@@ -503,9 +539,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
     };
 
     fetchAdaptiveSettings();
-  }, [userId, subjectType, useAdaptiveLearning]);
+  }, [userId, subjectType, useAdaptiveLearning, apiEndpoints.adaptiveSettings]);
 
-  // Add an AdaptiveRecommendations component to display during the quiz
+  // Render adaptive recommendations
   const renderAdaptiveRecommendations = useCallback(() => {
     if (!adaptiveLearningEnabled || adaptiveRecommendations.length === 0) {
       return null;
@@ -527,8 +563,8 @@ const QuizPage: React.FC<QuizPageProps> = ({
     );
   }, [adaptiveLearningEnabled, adaptiveRecommendations]);
 
-   // Add an adaptive learning indicator to the UI
-   const renderAdaptiveIndicator = useCallback(() => {
+  // Render adaptive learning indicator
+  const renderAdaptiveIndicator = useCallback(() => {
     if (!adaptiveLearningEnabled) {
       return null;
     }
@@ -562,7 +598,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
           }
           
           setCurrentSessionId(null);
-          sessionInitializationRef.current = false;
+          sessionInitializationRef.current = true;
           
           if (onSessionIdUpdate) {
             onSessionIdUpdate(null);
@@ -579,37 +615,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
     }
   }, [currentSessionId, apiEndpoints.completeSession, userId, subjectType, onSessionIdUpdate, router, topicId]);
   
-  // Memoized option text renderer
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _renderOptionText = useCallback((text: string | Option | null | undefined) => {
-    // Get the text value
-    let textValue: string;
-    
-    if (typeof text === 'string') {
-      textValue = text;
-    } else if (typeof text === 'object' && text && 'text' in text) {
-      textValue = String((text as Option).text);
-    } else {
-      textValue = text ? String(text) : '';
-    }
-    
-    textValue = formatOptionText ? formatOptionText(textValue) : textValue;
-    
-    // Handle different content types
-    if (/^\$\d+(\.\d+)?$/.test(textValue)) {
-      return <span className="currency-value">{textValue}</span>;
-    }
-    
-    if (containsLatex(textValue)) {
-      return <ImprovedLatexRenderer formula={textValue} />;
-    }
-    
-    return <FixedQuizMathRenderer content={textValue} />;
-  }, []);
-
-  // Prepare quiz summary content - move this outside of conditional rendering
+  // Prepare quiz summary content
   const quizSummaryContent = (
-    <QuizSummary 
+    <QuizSummaryComponent 
       questions={results.questions}
       correctCount={results.correctCount}
       onBackToTopics={goBackToTopics}
@@ -727,7 +735,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
                     </>
                   ) : (
                     <div className="text-lg">
-                      <FixedQuizMathRenderer content={currentQuestion.question} />
+                      {renderers.questionRenderer(currentQuestion.question)}
                     </div>
                   )}
                 </div>
@@ -737,7 +745,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
                     opacity: contentLoading ? 0.6 : 1,
                     transition: 'opacity 0.3s ease-in-out'
                   }}>
-                    {currentQuestion.options.map((option,index) => (
+                    {currentQuestion.options.map((option, index) => (
                       <div
                         key={option.id}
                         className={`p-3 border rounded cursor-pointer transition-colors ${
@@ -767,7 +775,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
                                 {String.fromCharCode(65 + index)} {/* A, B, C, D */}
                               </div>
                               <div className="option-text-container flex-grow">
-                                {option.text}
+                                {renderers.optionTextRenderer 
+                                  ? renderers.optionTextRenderer(option) 
+                                  : option.text}
                               </div>
                             </div>
                         )}
@@ -808,22 +818,22 @@ const QuizPage: React.FC<QuizPageProps> = ({
                   </div>
                 </div>
                 
-                {/* Explanation (shown after answering)
-                {/* Explanation (shown after answering) */}
+                {/* Formula (if exists) */}
                 {isAnswerSubmitted && currentQuestion.formula && !contentLoading && (
                   <div className="formula-container mt-4 mb-5 p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
                     <div className="text-sm text-blue-700 mb-2 font-medium">Formula:</div>
                     <div className="formula-display overflow-x-auto">
-                      <MathFormula 
-                        formula={currentQuestion.formula} 
-                        className="text-lg block" 
-                        style={{ margin: '0 auto' }}
-                        hideUntilTypeset="first"
-                      />
+                        <MathFormula 
+                            formula={currentQuestion.formula} 
+                            className="text-lg block" 
+                            style={{ margin: '0 auto' }}
+                            hideUntilTypeset="first"
+                          />
                     </div>
                   </div>
                 )}
 
+                {/* Explanation after answering */}
                 {isAnswerSubmitted && (
                   <>
                     <div className={`p-4 mb-6 rounded ${isAnswerCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -831,9 +841,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
                         {isAnswerCorrect ? 'Correct!' : 'Incorrect!'}
                       </div>
                       <div>
-                        <MathJax hideUntilTypeset="first">
-                          {currentQuestion.explanation}
-                        </MathJax>
+                        {renderers.mathJaxRenderer(currentQuestion.explanation)}
                       </div>
                     </div>
                     {renderAdaptiveRecommendations()}

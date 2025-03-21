@@ -137,24 +137,26 @@ export default function RootLayout({
           src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
           strategy="afterInteractive"
         />
-        <Script 
-          id="ahrefs-analytics"
-          src="https://analytics.ahrefs.com/analytics.js"
-          data-key="prC1gJHHzvNKUadRBmmK+A"
-          strategy="afterInteractive"
-        />
-        <Script id="ahrefs-analytics-alt" strategy="afterInteractive">
-        {`
-          var ahrefs_analytics_script = document.createElement("script");
-          ahrefs_analytics_script.async = true;
-          ahrefs_analytics_script.src = "https://analytics.ahrefs.com/analytics.js";
-          ahrefs_analytics_script.setAttribute("data-key", "prC1gJHHzvNKUadRBmmK+A");
-          document.getElementsByTagName("head")[0].appendChild(ahrefs_analytics_script);
-        `}
-        </Script>
-      
-        {/* Microsoft Clarity analytics */}
-        <Script
+        
+        {process.env.NODE_ENV === 'production' && (
+          <>          <Script 
+            id="ahrefs-analytics"
+            src="https://analytics.ahrefs.com/analytics.js"
+            data-key="prC1gJHHzvNKUadRBmmK+A"
+            strategy="afterInteractive"
+          />
+
+            <Script id="ahrefs-analytics-alt" strategy="afterInteractive">
+          {`
+            var ahrefs_analytics_script = document.createElement("script");
+            ahrefs_analytics_script.async = true;
+            ahrefs_analytics_script.src = "https://analytics.ahrefs.com/analytics.js";
+            ahrefs_analytics_script.setAttribute("data-key", "prC1gJHHzvNKUadRBmmK+A");
+            document.getElementsByTagName("head")[0].appendChild(ahrefs_analytics_script);
+          `}
+          </Script>
+                  {/* Microsoft Clarity analytics */}
+          <Script
           id="microsoft-clarity"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
@@ -167,6 +169,14 @@ export default function RootLayout({
             `,
           }}
         />
+          </>
+
+
+        )}
+        
+      
+
+        
       </head>
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
