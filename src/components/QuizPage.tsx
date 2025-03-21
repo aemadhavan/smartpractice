@@ -25,10 +25,10 @@ export type QuizQuestion = {
   status: 'Mastered' | 'Learning' | 'To Start';
   subtopicId: number;
 };
-
 export type QuizQuestionResult = QuizQuestion & {
   userAnswer: string;
 };
+
 
 // API endpoints configuration
 export interface ApiEndpoints {
@@ -72,7 +72,7 @@ export type QuizPageProps = {
   subjectType: 'maths' | 'quantitative';
   useAdaptiveLearning?: boolean;
   sessionManager: {
-    initSession: (userId: string, subtopicId: number, initSessionEndpoint: string) => Promise<number | null>;
+    initSession: (userId: string, subtopicId: number, initSessionEndpoint: string, retryCount?: number) => Promise<number | null>;
     trackAttempt: (attemptData: {
       userId: string;
       questionId: number;
@@ -194,15 +194,18 @@ useEffect(() => {
         const sessionId = await sessionManager.initSession(
           userId,
           questions[0].subtopicId,
-          apiEndpoints.initSession
+          apiEndpoints.initSession,
+          retryCount
         );
         
         if (sessionId) {
+          console.log("Session successfully initialized with ID:", sessionId);
           setCurrentSessionId(sessionId);
           if (onSessionIdUpdate) {
             onSessionIdUpdate(sessionId);
           }
         } else {
+          console.error("Failed to initialize session - no session ID returned");
           setInitError('Failed to initialize session');
         }
       } catch (error) {
@@ -221,10 +224,14 @@ useEffect(() => {
   
   // Handle testSessionId changes from parent if provided
   useEffect(() => {
-    if (testSessionId && testSessionId !== currentSessionId && !sessionInitializationRef.current) {
-      setCurrentSessionId(testSessionId);
+    if (currentQuestion) {
+      setTimeLeft(currentQuestion.timeAllocation);
+      setQuestionStartTime(Date.now());
+      setIsPaused(false);
+      setContentLoading(true);
     }
-  }, [testSessionId, currentSessionId]);
+  }, [currentQuestion]);
+
   
   // Initialize timer when question changes
   useEffect(() => {
@@ -324,29 +331,48 @@ useEffect(() => {
     // Adaptive learning feedback
     if (currentSessionId && adaptiveLearningEnabled) {
       try {
+        console.log("Preparing to send adaptive feedback with testAttemptId:", currentSessionId);
+
+        const adaptivePayload = {
+          testAttemptId: currentSessionId,
+          questionResults: [{
+            questionId: currentQuestion.id,
+            isCorrect: isCorrect,
+            timeSpent
+          }]
+        };
+        
+        console.log("Adaptive feedback payload:", JSON.stringify(adaptivePayload, null, 2));
+
         const adaptiveResponse = await fetch(apiEndpoints.adaptiveFeedback, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            testAttemptId: currentSessionId,
-            questionResults: [{
-              questionId: currentQuestion.id,
-              isCorrect: isCorrect,
-              timeSpent
-            }]
-          })
+          body: JSON.stringify(adaptivePayload)
         });
         
-        if (adaptiveResponse.ok) {
-          const adaptiveData = await adaptiveResponse.json();
-          
-          if (adaptiveData.success) {
-            // Store any learning gaps or recommendations
-            setLearningGaps(adaptiveData.gaps || []);
-            setAdaptiveRecommendations(adaptiveData.recommendations || []);
-          }
+        if (!adaptiveResponse.ok) {
+          const errorText = await adaptiveResponse.text();
+          console.error(`Adaptive feedback request failed with status ${adaptiveResponse.status}:`, errorText);
+          return;
+        }
+
+        let adaptiveData;
+        try {
+          adaptiveData = await adaptiveResponse.json();
+        } catch (e) {
+          console.error("Failed to parse adaptive feedback response as JSON:", e);
+          return;
+        }
+        
+        if (adaptiveData.success) {
+          console.log("Adaptive feedback successful:", adaptiveData);
+          // Store any learning gaps or recommendations
+          setLearningGaps(adaptiveData.gaps || []);
+          setAdaptiveRecommendations(adaptiveData.recommendations || []);
+        } else {
+          console.error("Adaptive feedback returned error:", adaptiveData);
         }
       } catch (error) {
         console.error(`[${subjectType}] Error submitting adaptive feedback:`, error);
@@ -382,13 +408,13 @@ useEffect(() => {
     }
   }, [isAnswerSubmitted]);
   
-  // Function to format time
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
-  };
-  
+ // Function to format time
+ const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m ${secs}s`;
+};
+
   // Function to toggle pause
   const togglePause = useCallback(() => {
     setIsPaused(prev => !prev);
@@ -475,20 +501,51 @@ useEffect(() => {
         // If adaptive learning is enabled, send the full results for analysis
         if (adaptiveLearningEnabled) {
           try {
-            await fetch(apiEndpoints.adaptiveFeedback, {
+            console.log("Sending final adaptive feedback with testAttemptId:", currentSessionId);
+            
+            const finalResults = results.questions.map(q => ({
+              questionId: q.id,
+              isCorrect: q.correctAnswer === q.userAnswer,
+              timeSpent: 0 // Time spent not tracked per question in this context
+            }));
+            
+            console.log("Final adaptive feedback payload:", {
+              testAttemptId: currentSessionId,
+              questionResults: finalResults
+            });
+            
+            const adaptiveResponse = await fetch(apiEndpoints.adaptiveFeedback, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
                 testAttemptId: currentSessionId,
-                questionResults: results.questions.map(q => ({
-                  questionId: q.id,
-                  isCorrect: q.correctAnswer === q.userAnswer,
-                  timeSpent: 0 // Time spent not tracked per question in this context
-                }))
+                questionResults: finalResults
               })
             });
+            
+            if (!adaptiveResponse.ok) {
+              const errorText = await adaptiveResponse.text();
+              console.error(`Final adaptive feedback request failed with status ${adaptiveResponse.status}:`, errorText);
+              return;
+            }
+            
+            let adaptiveData;
+            try {
+              adaptiveData = await adaptiveResponse.json();
+            } catch (e) {
+              console.error("Failed to parse final adaptive feedback response as JSON:", e);
+              return;
+            }
+            
+            if (adaptiveData.success) {
+              console.log("Final adaptive feedback successful:", adaptiveData);
+              setLearningGaps(adaptiveData.gaps || []);
+              setAdaptiveRecommendations(adaptiveData.recommendations || []);
+            } else {
+              console.error("Final adaptive feedback returned error:", adaptiveData);
+            }
           } catch (error) {
             console.error(`[${subjectType}] Error submitting final adaptive feedback:`, error);
           }
@@ -518,29 +575,75 @@ useEffect(() => {
   
   // Fetch adaptive learning settings when component mounts
   useEffect(() => {
-    const fetchAdaptiveSettings = async () => {
-      if (!userId) return;
+    
+const fetchAdaptiveSettings = async () => {
+  if (!userId) return;
 
+  try {
+    console.log(`[${subjectType}] Fetching adaptive settings from: ${apiEndpoints.adaptiveSettings}`);
+    
+    const response = await fetch(apiEndpoints.adaptiveSettings);
+    
+    if (response.ok) {
       try {
-        const response = await fetch(apiEndpoints.adaptiveSettings);
+        const data = await response.json();
         
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.success) {
-            setAdaptiveLearningEnabled(data.settings.enableAdaptiveLearning);
-          }
+        if (data.success) {
+          console.log(`[${subjectType}] Adaptive settings fetched successfully`);
+          setAdaptiveLearningEnabled(data.settings.enableAdaptiveLearning);
+        } else {
+          console.warn(`[${subjectType}] Adaptive settings response not successful:`, data);
+          // Fall back to default
+          setAdaptiveLearningEnabled(useAdaptiveLearning);
         }
-      } catch (error) {
-        console.error(`[${subjectType}] Error fetching adaptive settings:`, error);
-        // Default to using whatever was passed in props
+      } catch (parseError) {
+        console.error(`[${subjectType}] Error parsing adaptive settings response:`, parseError);
         setAdaptiveLearningEnabled(useAdaptiveLearning);
       }
-    };
+    } else {
+      // Handle server error
+      try {
+        const errorText = await response.text();
+        console.error(`[${subjectType}] Error fetching adaptive settings (${response.status}):`, errorText);
+      } catch (e) {
+        console.error(`[${subjectType}] Error fetching adaptive settings (${response.status})`);
+      }
+      
+      // Graceful fallback
+      console.info(`[${subjectType}] Using default adaptive learning setting: ${useAdaptiveLearning}`);
+      setAdaptiveLearningEnabled(useAdaptiveLearning);
+    }
+  } catch (error) {
+    console.error(`[${subjectType}] Error fetching adaptive settings:`, error);
+    // Default to using whatever was passed in props
+    console.info(`[${subjectType}] Using default adaptive learning setting due to error: ${useAdaptiveLearning}`);
+    setAdaptiveLearningEnabled(useAdaptiveLearning);
+  }
+};
 
     fetchAdaptiveSettings();
   }, [userId, subjectType, useAdaptiveLearning, apiEndpoints.adaptiveSettings]);
 
+  const verifyAdaptiveStatus = useCallback(() => {
+    // This function helps diagnose the state of adaptive learning
+    console.info(`[${subjectType}] Adaptive learning status:
+      - Enabled from settings: ${adaptiveLearningEnabled}
+      - Default setting from props: ${useAdaptiveLearning}
+      - Current recommendations: ${adaptiveRecommendations.length}
+      - Current learning gaps: ${learningGaps.length}
+    `);
+  }, [adaptiveLearningEnabled, useAdaptiveLearning, adaptiveRecommendations.length, learningGaps.length, subjectType]);
+  
+  // Add this to your component before the return statement
+  useEffect(() => {
+    // Add a small delay to check adaptive status after settings are fetched
+    const timer = setTimeout(() => {
+      verifyAdaptiveStatus();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [adaptiveLearningEnabled, verifyAdaptiveStatus]);
+  
   // Render adaptive recommendations
   const renderAdaptiveRecommendations = useCallback(() => {
     if (!adaptiveLearningEnabled || adaptiveRecommendations.length === 0) {

@@ -302,45 +302,76 @@ export async function updateQuantLearningGaps(
   subtopicId: number,
   questionResults: { id: number; isCorrect: boolean; }[]
 ): Promise<void> {
-  // 1. Get active learning gaps for this subtopic
-  const activeGaps = await db.select().from(quantLearningGaps).where(
-    and(
-      eq(quantLearningGaps.userId, userId),
-      eq(quantLearningGaps.subtopicId, subtopicId),
-      isNull(quantLearningGaps.resolvedAt)
-    )
-  );
+  try {
+    // Get active learning gaps for this subtopic
+    let activeGaps: typeof quantLearningGaps.$inferSelect[] = [];
+    try {
+      activeGaps = await db.select().from(quantLearningGaps).where(
+        and(
+          eq(quantLearningGaps.userId, userId),
+          eq(quantLearningGaps.subtopicId, subtopicId),
+          isNull(quantLearningGaps.resolvedAt)
+        )
+      );
+    } catch (error) {
+      console.error('Error fetching active learning gaps:', error);
+      activeGaps = []; // Fallback to empty array
+    }
 
-  // 2. For each gap, check if recent performance suggests the gap is addressed
-  for (const gap of activeGaps) {
-    // Get question IDs associated with this gap
-    const gapQuestionIds = gap.evidenceQuestionIds
-      ? gap.evidenceQuestionIds.split(',').map(id => parseInt(id.trim(), 10))
-      : [];
-    
-    // Find question results relevant to this gap
-    const relevantResults = questionResults.filter(result => 
-      gapQuestionIds.includes(result.id)
-    );
-    
-    // If the user answered enough relevant questions correctly, mark the gap as resolved
-    if (relevantResults.length >= 2) {
-      const correctCount = relevantResults.filter(r => r.isCorrect).length;
-      const correctPercentage = (correctCount / relevantResults.length) * 100;
-      
-      if (correctPercentage >= 75) {
-        await db.update(quantLearningGaps)
-          .set({ 
-            resolvedAt: new Date(),
-            status: 'resolved'
-          })
-          .where(eq(quantLearningGaps.id, gap.id));
+    // Process each gap with individual error handling
+    for (const gap of activeGaps) {
+      try {
+        // Get question IDs associated with this gap
+        if (!gap.evidenceQuestionIds) continue;
+        
+        const gapQuestionIds = gap.evidenceQuestionIds
+          .split(',')
+          .map((id: string) => parseInt(id.trim(), 10))
+          .filter((id: number) => !isNaN(id)); // Filter out invalid IDs
+        
+        if (gapQuestionIds.length === 0) continue;
+        
+        // Find question results relevant to this gap
+        const relevantResults = questionResults.filter(result => 
+          gapQuestionIds.includes(result.id)
+        );
+        
+        // If the user answered enough relevant questions correctly, mark the gap as resolved
+        if (relevantResults.length >= 2) {
+          const correctCount = relevantResults.filter(r => r.isCorrect).length;
+          const correctPercentage = (correctCount / relevantResults.length) * 100;
+          
+          if (correctPercentage >= 75) {
+            try {
+              await db.update(quantLearningGaps)
+                .set({ 
+                  resolvedAt: new Date(),
+                  status: 'resolved'
+                })
+                .where(eq(quantLearningGaps.id, gap.id));
+            } catch (updateError) {
+              console.error(`Error updating learning gap ${gap.id}:`, updateError);
+              // Continue with next gap
+            }
+          }
+        }
+      } catch (gapError) {
+        console.error(`Error processing gap ${gap.id}:`, gapError);
+        // Continue with next gap to maintain partial functionality
       }
     }
+    
+    // Detect any new learning gaps with error handling
+    try {
+      await detectQuantLearningGaps(userId, subtopicId);
+    } catch (detectError) {
+      console.error('Error detecting new learning gaps:', detectError);
+      // Continue execution - not critical for response
+    }
+  } catch (error) {
+    console.error('Error in updateQuantLearningGaps:', error);
+    throw error; // Rethrow for the API to handle
   }
-  
-  // 3. Detect any new learning gaps
-  await detectQuantLearningGaps(userId, subtopicId);
 }
 
 /**

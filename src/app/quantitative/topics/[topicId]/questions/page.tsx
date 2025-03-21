@@ -7,12 +7,16 @@ import { useUser } from '@clerk/nextjs';
 import QuizPage from '@/components/QuizPage';
 import { Option } from '@/lib/options';
 import { processMathExpression } from '@/lib/mathjax-config';
+import QuizSummary from '@/components/QuizSummary';
+import { QuizSummaryProps } from '@/components/QuizPage';
 
 // API endpoints for quantitative
 const QUANTITATIVE_ENDPOINTS = {
   initSession: '/api/quantitative/init-session',
   trackAttempt: '/api/quantitative/track-attempt',
   completeSession: '/api/quantitative/complete-session',
+  adaptiveFeedback: '/api/quantitative/adaptive-feedback',
+  adaptiveSettings: '/api/quantitative/adaptive-settings',
 };
 
 // QuizQuestion type
@@ -323,18 +327,93 @@ export default function QuestionsPage() {
   // Render the quiz
   return (
     <div className="p-4">
-      <QuizPage
-        subtopicName={subtopic.name}
-        questions={processedQuestions}
-        userId={user.id}
-        topicId={Number(topicId)}
-        onQuestionsUpdate={handleQuestionsUpdate}
-        onSessionIdUpdate={handleSessionIdUpdate}
-        apiEndpoints={QUANTITATIVE_ENDPOINTS}
-        renderFormula={renderFormula}
-        calculateNewStatus={calculateNewStatus}
-        subjectType={subjectType}
-      />
-    </div>
+    <QuizPage
+      subtopicName={subtopic.name}
+      questions={processedQuestions}
+      userId={user.id}
+      topicId={Number(topicId)}
+      onQuestionsUpdate={handleQuestionsUpdate}
+      onSessionIdUpdate={handleSessionIdUpdate}
+      apiEndpoints={QUANTITATIVE_ENDPOINTS}
+      renderFormula={renderFormula}
+      calculateNewStatus={calculateNewStatus}
+      subjectType={subjectType}
+      QuizSummaryComponent={QuizSummary as React.ComponentType<QuizSummaryProps>}
+      sessionManager={{
+        initSession: async (userId, subtopicId, endpoint) => {
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, subtopicId })
+            });
+            if (response.ok) {
+              const data = await response.json();
+              console.log("Session initialization response:", data);
+              // Accept either testAttemptId or sessionId
+              const sessionId = data.testAttemptId || data.sessionId;
+              if (!sessionId) {
+                console.error("No valid session ID found in response:", data);
+                return null;
+              }
+              
+              return sessionId;
+            }
+            return null;
+          } catch (error) {
+            console.error('Error initializing session:', error);
+            return null;
+          }
+        },
+        trackAttempt: async (attemptData, endpoint) => {
+          try {
+            await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(attemptData)
+            });
+          } catch (error) {
+            console.error('Error tracking attempt:', error);
+          }
+        },
+        completeSession: async (userId, sessionId, endpoint) => {
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ testSessionId: sessionId, userId })
+            });
+            return response.ok;
+          } catch (error) {
+            console.error('Error completing session:', error);
+            return false;
+          }
+        }
+      }}
+      renderers={{
+        questionRenderer: (content: string) => (
+          <div className="text-lg">
+            {processMathExpression(content)}
+          </div>
+        ),
+        optionTextRenderer: (text: string | Option | null | undefined) => {
+          let textValue: string;
+          
+          if (typeof text === 'string') {
+            textValue = text;
+          } else if (typeof text === 'object' && text && 'text' in text) {
+            textValue = String((text as Option).text);
+          } else {
+            textValue = text ? String(text) : '';
+          }
+          
+          return <div dangerouslySetInnerHTML={{ __html: processMathExpression(textValue) }} />;
+        },
+        mathJaxRenderer: (content: string) => {
+          return <div dangerouslySetInnerHTML={{ __html: processMathExpression(content) }} />;
+        }
+      }}
+    />
+  </div>
   );
 }
