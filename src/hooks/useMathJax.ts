@@ -206,43 +206,5 @@ export function useMathJaxLegacy(content: string, dependencies: DependencyList =
   return containerRef;
 }
 
-/**
- * Checks if a string contains LaTeX content
- * @param content The string to check
- * @returns boolean indicating if the string contains LaTeX
- */
-export function containsLatex(text: string): boolean {
-  if (!text) return false;
-  
-  // More reliable LaTeX detection
-  const commonPatterns = text.includes('$') || 
-                        text.includes('\\') || 
-                        text.includes('^') || 
-                        text.includes('_');
-  
-  if (!commonPatterns) return false;
-  
-  // Check for common LaTeX patterns
-  return /(\$|\\\(|\\\[|\\begin\{|\\frac|\\text)/.test(text);
-}
 
-/**
- * Ensures LaTeX content has proper delimiters
- * @param content The content to process
- * @returns The content with proper LaTeX delimiters
- */
-export function ensureLatexDelimiters(content: string): string {
-  if (!content) return '';
-  
-  // Check if already has delimiters
-  const hasDelimiters = 
-    (content.startsWith('$') && content.endsWith('$')) ||
-    (content.startsWith('\\(') && content.endsWith('\\)')) ||
-    (content.startsWith('\\[') && content.endsWith('\\]')) ||
-    (content.startsWith('$$') && content.endsWith('$$'));
-    
-  if (hasDelimiters) return content;
-  
-  // Add inline math delimiters
-  return `$${content}$`;
-}
+

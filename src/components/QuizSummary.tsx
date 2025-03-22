@@ -1,27 +1,11 @@
 // File: /src/components/QuizSummary.tsx
 import React, { useEffect, useState } from 'react';
-import { QuizQuestionResult } from './QuizPage';
+import { QuizQuestionResult, LearningGap, Recommendation } from '@/types/quiz';
 import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
 import { MathJax } from 'better-react-mathjax';
 import AiTestFeedback from './AiTestFeedback';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Brain, AlertTriangle, Activity, LightbulbIcon } from 'lucide-react';
-
-// Define the LearningGap interface for proper typing
-interface LearningGap {
-  id: number;
-  subtopicId: number;
-  conceptDescription: string;
-  severity: number;
-  status: string;
-}
-
-// Define the Recommendation interface for proper typing
-interface Recommendation {
-  type: string;
-  message: string;
-  action: string;
-}
 
 type QuizSummaryProps = {
   questions: QuizQuestionResult[];

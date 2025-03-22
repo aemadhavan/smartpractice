@@ -26,6 +26,11 @@ interface MathFormulaProps {
   hideUntilTypeset?: "first" | "every";
   
   /**
+   * Whether to dynamically update on changes
+   */
+  dynamic?: boolean;
+  
+  /**
    * Custom style props
    */
   style?: React.CSSProperties;
@@ -33,13 +38,16 @@ interface MathFormulaProps {
 
 /**
  * Unified MathFormula component for rendering LaTeX formulas
- * Handles null/undefined formulas gracefully
+ * 
+ * This component renders mathematical formulas using MathJax with proper typesetting.
+ * It handles null/undefined formulas gracefully and ensures proper LaTeX delimiters.
  */
-export const MathFormula: React.FC<MathFormulaProps> = ({
+const MathFormula: React.FC<MathFormulaProps> = ({
   formula,
   inline = false,
   className = "math-formula",
   hideUntilTypeset = "first",
+  dynamic = true,
   style
 }) => {
   // Return placeholder div if no formula to prevent errors
@@ -71,6 +79,7 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
     <MathJax
       inline={inline}
       hideUntilTypeset={hideUntilTypeset}
+      dynamic={dynamic}
       className={className}
       style={style}
     >
@@ -78,3 +87,5 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
     </MathJax>
   );
 };
+
+export default MathFormula;

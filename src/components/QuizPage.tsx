@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain } from 'lucide-react';
-import MathFormula from './MathFormula';
+import MathFormula from './math/MathFormula';
 
 // Custom hooks
 import { useQuizSession } from '@/hooks/useQuizSession';
@@ -129,13 +129,13 @@ const QuizPage: React.FC<QuizPageProps> = ({
     questions[currentQuestionIndex] || null, 
     [questions, currentQuestionIndex]
   );
-
+  const [sessionManuallyEnded, setSessionManuallyEnded] = useState(false);
   // Initialize session on component mount
   React.useEffect(() => {
-    if (questions.length > 0 && !currentSessionId) {
+    if (questions.length > 0 && !currentSessionId && !sessionManuallyEnded) {
       initSession();
     }
-  }, [questions, initSession, currentSessionId]);
+  }, [questions, initSession, currentSessionId,sessionManuallyEnded]);
   
   // Update timer when question changes
   React.useEffect(() => {
@@ -174,6 +174,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   // Go back to topics page
   const goBackToTopics = React.useCallback(() => {
     if (currentSessionId) {
+      setSessionManuallyEnded(true); // Set flag before ending session
       completeSession(userId, currentSessionId, apiEndpoints.completeSession)
         .then(() => {
           if (onSessionIdUpdate) {

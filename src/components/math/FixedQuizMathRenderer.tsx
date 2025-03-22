@@ -1,3 +1,5 @@
+//File: /src/components/math/FixedQuizMathRenderer.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
