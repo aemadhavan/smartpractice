@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain } from 'lucide-react';
-import MathFormula from './math/MathFormula';
+import MathFormula from '../math/MathFormula';
 
 // Custom hooks
 import { useQuizSession } from '@/hooks/useQuizSession';
@@ -11,14 +11,14 @@ import { useQuizState } from '@/hooks/useQuizState';
 import { useAdaptiveLearning as useAdaptiveHook } from '@/hooks/useAdaptiveLearning';
 
 // Components
-import QuizHeader from './quiz/QuizHeader';
-import QuizProgress from './quiz/QuizProgress';
-import QuizQuestion from './quiz/QuizQuestion';
-import QuizOptions from './quiz/QuizOptions';
-import QuizActions from './quiz/QuizActions';
-import QuizFeedback from './quiz/QuizFeedback';
-import QuizLoading from './quiz/QuizLoading';
-import QuizError from './quiz/QuizError';
+import QuizHeader from './QuizHeader';
+import QuizProgress from './QuizProgress';
+import QuizQuestion from './QuizQuestion';
+import QuizOptions from './QuizOptions';
+import QuizActions from './QuizActions';
+import QuizFeedback from './QuizFeedback';
+import QuizLoading from './QuizLoading';
+import QuizError from './QuizError';
 
 // Types
 import {

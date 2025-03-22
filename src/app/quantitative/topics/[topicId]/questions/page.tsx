@@ -4,11 +4,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import QuizPage from '@/components/QuizPage';
+import QuizPage from '@/components/quiz/QuizPage';
 import { Option } from '@/lib/options';
 import { processMathExpression } from '@/lib/mathjax-config';
-import QuizSummary from '@/components/QuizSummary';
-import { QuizSummaryProps } from '@/components/QuizPage';
+import QuizSummary from '@/components/quiz/QuizSummary';
+import { QuizSummaryProps } from '@/components/quiz/QuizPage';
 
 // API endpoints for quantitative
 const QUANTITATIVE_ENDPOINTS = {

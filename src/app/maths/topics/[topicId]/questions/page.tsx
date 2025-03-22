@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import QuizPage from '@/components/QuizPage';
-import QuizSummary from '@/components/QuizSummary';
-import { QuizSummaryProps } from '@/components/QuizPage';
+import QuizPage from '@/components/quiz/QuizPage';
+import QuizSummary from '@/components/quiz/QuizSummary';
+import { QuizSummaryProps } from '@/components/quiz/QuizPage';
 import { processMathExpression } from '@/lib/mathjax-config';
 import { Option } from '@/lib/options';
 

@@ -1,9 +1,9 @@
 // File: /src/components/QuizSummary.tsx
 import React, { useEffect, useState } from 'react';
 import { QuizQuestionResult, LearningGap, Recommendation } from '@/types/quiz';
-import FixedQuizMathRenderer from './math/FixedQuizMathRenderer';
+import FixedQuizMathRenderer from '../math/FixedQuizMathRenderer';
 import { MathJax } from 'better-react-mathjax';
-import AiTestFeedback from './AiTestFeedback';
+import AiTestFeedback from '../AiTestFeedback';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Brain, AlertTriangle, Activity, LightbulbIcon } from 'lucide-react';
 
