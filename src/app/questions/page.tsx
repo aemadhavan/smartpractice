@@ -6,6 +6,7 @@ import { GenerateQuestions } from "./components/generate-questions";
 import { QuestionBank } from "./components/question-bank";
 import Container from '@/components/Container';
 import { AddQuestions } from "./components/add-questions";
+import QuestionBankQM from "./components/question-bank-qm";
 
 export default function QuestionsPage() {
   return (
@@ -32,7 +33,7 @@ export default function QuestionsPage() {
                 <CardTitle>Question Bank</CardTitle>
               </CardHeader>
               <CardContent>
-                <QuestionBank />
+                <QuestionBankQM />
               </CardContent>
             </Card>
           </TabsContent>

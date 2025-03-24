@@ -69,6 +69,7 @@ export function QuestionBank() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="Maths">Maths</SelectItem>
             <SelectItem value="Quantitative">Quantitative</SelectItem>
             <SelectItem value="Verbal">Verbal</SelectItem>
             <SelectItem value="Reading">Reading</SelectItem>
