@@ -539,7 +539,7 @@ export default function QuantitativeTopicPage() {
   const handleCloseQuizModal = async (): Promise<void> => {
     if (activeSessionId && needsCompletionRef.current && user) {
       try {
-        const success = await sessionManager.completeSession(user.id, QUANTITATIVE_ENDPOINTS.completeSession);
+        const success = await sessionManager.completeSession(user.id, activeSessionId, QUANTITATIVE_ENDPOINTS.completeSession);
         if (success) {
           console.log('[DEBUG SESSION] Successfully completed session ID:', activeSessionId);
         } else {

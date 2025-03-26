@@ -1,10 +1,13 @@
-// File: /src/lib/session-manager.ts
+// src/lib/session-manager.ts
+// Modified to align with the SessionManager interface
+
+import { SessionManager as SessionManagerInterface, AttemptData } from '@/types/quiz';
+
 /**
  * SessionManager - Handles test session initialization, tracking and completion
  * This utility prevents duplicate session creation
  */
-
-class SessionManager {
+class SessionManager implements SessionManagerInterface {
     private static instance: SessionManager;
     private activeSessionId: number | null = null;
     private isInitializing: boolean = false;
@@ -21,11 +24,13 @@ class SessionManager {
   
     /**
      * Initialize a new session if one doesn't already exist
+     * Implementation aligned with the SessionManagerInterface
      */
     public async initSession(
       userId: string,
       subtopicId: number,
-      apiEndpoint: string
+      initSessionEndpoint: string,
+      retryCount: number = 3
     ): Promise<number | null> {
       console.log('SessionManager.initSession called', { 
         userId, 
@@ -52,7 +57,7 @@ class SessionManager {
       console.log('Initializing new session for subtopic:', subtopicId);
       this.pendingPromise = new Promise<number | null>(async (resolve, reject) => {
         try {
-          const initResponse = await fetch(apiEndpoint, {
+          const initResponse = await fetch(initSessionEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -66,6 +71,15 @@ class SessionManager {
           if (!initResponse.ok) {
             const errorText = await initResponse.text();
             console.error('Failed to initialize test session:', errorText);
+            
+            // Retry logic
+            if (retryCount > 0) {
+              this.isInitializing = false;
+              const result = await this.initSession(userId, subtopicId, initSessionEndpoint, retryCount - 1);
+              resolve(result);
+              return;
+            }
+            
             reject(new Error(`Failed to initialize session: ${initResponse.status} ${errorText}`));
             return;
           }
@@ -92,18 +106,11 @@ class SessionManager {
   
     /**
      * Track an attempt in the current session
+     * Aligned with the SessionManagerInterface
      */
     public async trackAttempt(
-      options: {
-        userId: string;
-        questionId: number;
-        topicId: number;
-        subtopicId: number;
-        isCorrect: boolean;
-        userAnswer: string;
-        timeSpent: number;
-      },
-      apiEndpoint: string
+      attemptData: AttemptData,
+      trackAttemptEndpoint: string
     ): Promise<boolean> {
       if (!this.activeSessionId) {
         console.error('Cannot track attempt - no valid session ID');
@@ -111,15 +118,15 @@ class SessionManager {
       }
   
       try {
-        console.log('Tracking attempt for question:', options.questionId, 'with session:', this.activeSessionId);
-        const apiResponse = await fetch(apiEndpoint, {
+        console.log('Tracking attempt for question:', attemptData.questionId, 'with session:', this.activeSessionId);
+        const apiResponse = await fetch(trackAttemptEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             testSessionId: this.activeSessionId,
-            ...options
+            ...attemptData
           })
         });
         
@@ -138,49 +145,49 @@ class SessionManager {
   
     /**
      * Complete the current session
+     * Aligned with the SessionManagerInterface
      */
     public async completeSession(
-        userId: string | null | undefined,
-        apiEndpoint: string
-      ): Promise<boolean> {
-        if (!this.activeSessionId) {
-          console.log('No active session to complete');
-          return true;
-        }
+      userId: string,
+      sessionId: number | null,
+      completeSessionEndpoint: string
+    ): Promise<boolean> {
+      // Use the passed sessionId if provided, otherwise use active session
+      const idToComplete = sessionId || this.activeSessionId;
       
-        if (!userId) {
-          console.warn('Cannot complete session - userId is null or undefined');
-          return false;
-        }
-      
-        try {
-          console.log('Completing test session:', this.activeSessionId);
-          const completeResponse = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              testSessionId: this.activeSessionId,
-              userId
-            })
-          });
-          
-          if (completeResponse.ok) {
-            console.log('Test session completed successfully');
-            this.reset(); // Reset the manager
-            return true;
-          } else {
-            const errorText = await completeResponse.text();
-            console.error('Failed to complete test session:', 
-              completeResponse.status, errorText);
-            return false;
-          }
-        } catch (error) {
-          console.error('Error completing test session:', error);
-          return false;
-        }
+      if (!idToComplete) {
+        console.log('No session ID to complete');
+        return true;
       }
+      
+      try {
+        console.log('Completing test session:', idToComplete);
+        const completeResponse = await fetch(completeSessionEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            testSessionId: idToComplete,
+            userId
+          })
+        });
+        
+        if (completeResponse.ok) {
+          console.log('Test session completed successfully');
+          this.reset(); // Reset the manager
+          return true;
+        } else {
+          const errorText = await completeResponse.text();
+          console.error('Failed to complete test session:', 
+            completeResponse.status, errorText);
+          return false;
+        }
+      } catch (error) {
+        console.error('Error completing test session:', error);
+        return false;
+      }
+    }
   
     /**
      * Get the current session ID

@@ -8,7 +8,7 @@ import QuizPage from '@/components/quiz/QuizPage';
 import { Option } from '@/lib/options';
 import { processMathExpression } from '@/lib/mathjax-config';
 import QuizSummary from '@/components/quiz/QuizSummary';
-import { QuizSummaryProps } from '@/components/quiz/QuizPage';
+import { AttemptData, QuizSummaryProps } from '@/types/quiz';
 
 // API endpoints for quantitative
 const QUANTITATIVE_ENDPOINTS = {
@@ -365,15 +365,17 @@ export default function QuestionsPage() {
             return null;
           }
         },
-        trackAttempt: async (attemptData, endpoint) => {
+        trackAttempt: async (attemptData: AttemptData, endpoint: string): Promise<boolean> => {
           try {
-            await fetch(endpoint, {
+            const response = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(attemptData)
+              body: JSON.stringify(attemptData),
             });
+            return response.ok;
           } catch (error) {
             console.error('Error tracking attempt:', error);
+            return false;
           }
         },
         completeSession: async (userId, sessionId, endpoint) => {
