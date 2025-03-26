@@ -2,7 +2,6 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain } from 'lucide-react';
-import MathFormula from '../math/MathFormula';
 
 // Custom hooks
 import { useQuizSession } from '@/hooks/useQuizSession';
@@ -32,6 +31,7 @@ import {
   Recommendation,
   AttemptData
 } from '@/types/quiz';
+import { MathJax } from 'better-react-mathjax';
 
 const QuizPage: React.FC<QuizPageProps> = ({
   subtopicName,
@@ -363,12 +363,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
               <div className="formula-container mt-4 mb-5 p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
                 <div className="text-sm text-blue-700 mb-2 font-medium">Formula:</div>
                 <div className="formula-display overflow-x-auto">
-                  <MathFormula 
-                    formula={currentQuestion.formula} 
-                    className="text-lg block" 
-                    style={{ margin: '0 auto' }}
-                    hideUntilTypeset="first"
-                  />
+                  <MathJax>{currentQuestion.formula}</MathJax>
                 </div>
               </div>
             )}

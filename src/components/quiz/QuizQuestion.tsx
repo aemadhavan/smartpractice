@@ -1,4 +1,5 @@
 // src/components/quiz/QuizQuestion.tsx
+import { MathJax } from 'better-react-mathjax';
 import React from 'react';
 
 interface QuizQuestionProps {
@@ -24,7 +25,8 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
   return (
     <div className="mb-6 question-container">
       <div className="text-lg">
-        {renderer(question)}
+        {/* {renderer(question)} */}
+        <MathJax>{question}</MathJax>
       </div>
     </div>
   );

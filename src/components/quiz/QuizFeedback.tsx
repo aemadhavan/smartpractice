@@ -1,4 +1,5 @@
 // src/components/quiz/QuizFeedback.tsx
+import { MathJax } from 'better-react-mathjax';
 import React from 'react';
 
 interface QuizFeedbackProps {
@@ -21,7 +22,8 @@ const QuizFeedback: React.FC<QuizFeedbackProps> = ({
           {isCorrect ? 'Correct!' : 'Incorrect!'}
         </div>
         <div>
-          {renderer(explanation)}
+          {/* {renderer(explanation)} */}
+          <MathJax>{explanation}</MathJax>
         </div>
       </div>
       {adaptiveRecommendations}

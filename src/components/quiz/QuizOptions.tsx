@@ -1,6 +1,7 @@
 // src/components/quiz/QuizOptions.tsx
 import React from 'react';
 import { Option } from '@/types/quiz';
+import { MathJax } from 'better-react-mathjax';
 
 interface QuizOptionsProps {
   options: Option[];
@@ -21,6 +22,11 @@ const QuizOptions: React.FC<QuizOptionsProps> = ({
   loading,
   renderer
 }) => {
+  // Helper to extract text from option object
+  const getOptionText = (option: Option): string => {
+    return typeof option === 'string' ? option : option.text;
+  };
+
   return (
     <div 
       className="space-y-3 mb-6 options-container" 
@@ -59,9 +65,7 @@ const QuizOptions: React.FC<QuizOptionsProps> = ({
                 {String.fromCharCode(65 + index)} {/* A, B, C, D */}
               </div>
               <div className="option-text-container flex-grow">
-                {renderer 
-                  ? renderer(option) 
-                  : option.text}
+                <MathJax>{getOptionText(option)}</MathJax>
               </div>
             </div>
           )}
