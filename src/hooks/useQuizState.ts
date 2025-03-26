@@ -1,25 +1,11 @@
 // src/hooks/useQuizState.ts
 import { useState, useCallback } from 'react';
-import { QuizQuestion, QuizQuestionResult } from '@/types/quiz';
-
-interface UseQuizStateProps {
-  questions: QuizQuestion[];
-  userId: string;
-  topicId: number;
-  currentSessionId: number | null;
-  trackAttempt: (attemptData: any) => Promise<boolean>;
-  completeSession: (userId: string, sessionId: number | null, endpoint: string) => Promise<boolean>;
-  onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
-  calculateNewStatus?: (
-    question: QuizQuestion,
-    isCorrect: boolean,
-    successRate: number
-  ) => 'Mastered' | 'Learning' | 'To Start';
-  apiEndpoints: {
-    completeSession: string;
-  };
-  subjectType: string;
-}
+import { 
+  QuizQuestion, 
+  QuizQuestionResult, 
+  AttemptData,
+  UseQuizStateProps 
+} from '@/types/quiz';
 
 export const useQuizState = ({
   questions,
@@ -71,10 +57,12 @@ export const useQuizState = ({
     if (!selectedOption || isAnswerSubmitted || !questions[currentQuestionIndex]) return;
     
     const currentQuestion = questions[currentQuestionIndex];
-    const correctAnswerValue = currentQuestion.correctAnswer;
-    const selectedOptionValue = currentQuestion.options.find(opt => opt.id === selectedOption)?.text || '';
     
-    const isCorrect = selectedOptionValue  === currentQuestion.correctAnswer;
+    // Find the selected option and its text value
+    const selectedOptionObj = currentQuestion.options.find(opt => opt.id === selectedOption);
+    const selectedOptionValue = selectedOptionObj?.text || '';
+    
+    const isCorrect = selectedOptionValue === currentQuestion.correctAnswer;
     
     setIsAnswerSubmitted(true);
     setIsAnswerCorrect(isCorrect);
@@ -94,7 +82,7 @@ export const useQuizState = ({
     const timeSpent = 0; // This would come from timer
     
     if (currentSessionId) {
-      await trackAttempt({
+      const attemptData: AttemptData = {
         userId,
         questionId: currentQuestion.id,
         topicId,
@@ -102,7 +90,8 @@ export const useQuizState = ({
         isCorrect,
         userAnswer: selectedOptionValue,
         timeSpent
-      });
+      };
+      await trackAttempt(attemptData);
     }
   }, [
     selectedOption,

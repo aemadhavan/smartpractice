@@ -1,5 +1,5 @@
 // src/app/questions/components/QuestionEditDialogQM.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -93,6 +93,59 @@ const QuestionEditDialogQM: React.FC<QuestionEditDialogProps> = ({
   // JSON string for options
   const [optionsJson, setOptionsJson] = useState('');
 
+  // Fetch topics when practice area changes
+  const fetchTopics = useCallback(async () => {
+    if (!formData.practiceArea) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/questions/practice-area?practiceArea=${formData.practiceArea}&dataType=topics`);
+      if (!response.ok) throw new Error('Failed to fetch topics');
+      
+      const data = await response.json();
+      setTopics(data.topics);
+      // Reset topic and subtopic if changing practice area
+      if (!question || formData.practiceArea !== question.practiceArea) {
+        setFormData(prev => ({
+          ...prev,
+          topicId: data.topics[0]?.id || 0,
+          subtopicId: 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [formData.practiceArea, question]);
+
+  // Fetch subtopics when topic changes
+  const fetchSubtopics = useCallback(async () => {
+    if (!formData.topicId) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/questions/practice-area?practiceArea=${formData.practiceArea}&topicId=${formData.topicId}&dataType=subtopics`
+      );
+      if (!response.ok) throw new Error('Failed to fetch subtopics');
+      
+      const data = await response.json();
+      setSubtopics(data.subtopics);
+      // Set first subtopic as default if changing topic
+      if (!question || formData.topicId !== question.topicId) {
+        setFormData(prev => ({
+          ...prev,
+          subtopicId: data.subtopics[0]?.id || 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching subtopics:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [formData.topicId, formData.practiceArea, question]);
+
   // Load existing question data if editing
   useEffect(() => {
     if (question) {
@@ -101,68 +154,17 @@ const QuestionEditDialogQM: React.FC<QuestionEditDialogProps> = ({
     }
   }, [question]);
 
-  // Fetch topics when practice area changes
+  // Trigger topic fetch when practice area changes
   useEffect(() => {
-    if (!formData.practiceArea) return;
-    
-    const fetchTopics = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/questions/practice-area?practiceArea=${formData.practiceArea}&dataType=topics`);
-        if (!response.ok) throw new Error('Failed to fetch topics');
-        
-        const data = await response.json();
-        setTopics(data.topics);
-        // Reset topic and subtopic if changing practice area
-        if (!question || formData.practiceArea !== question.practiceArea) {
-          setFormData(prev => ({
-            ...prev,
-            topicId: data.topics[0]?.id || 0,
-            subtopicId: 0
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching topics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTopics();
-  }, [formData.practiceArea]);
+  }, [fetchTopics]);
 
-  // Fetch subtopics when topic changes
+  // Trigger subtopic fetch when topic changes
   useEffect(() => {
-    if (!formData.topicId) return;
-    
-    const fetchSubtopics = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/questions/practice-area?practiceArea=${formData.practiceArea}&topicId=${formData.topicId}&dataType=subtopics`
-        );
-        if (!response.ok) throw new Error('Failed to fetch subtopics');
-        
-        const data = await response.json();
-        setSubtopics(data.subtopics);
-        // Set first subtopic as default if changing topic
-        if (!question || formData.topicId !== question.topicId) {
-          setFormData(prev => ({
-            ...prev,
-            subtopicId: data.subtopics[0]?.id || 0
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching subtopics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSubtopics();
-  }, [formData.topicId, formData.practiceArea]);
+  }, [fetchSubtopics]);
 
-  const handleChange = (field: keyof Question, value: any) => {
+  const handleChange = (field: keyof Question, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -179,8 +181,8 @@ const QuestionEditDialogQM: React.FC<QuestionEditDialogProps> = ({
           options: parsedOptions
         }));
       }
-    } catch (e) {
-      // Invalid JSON, don't update options yet
+    } catch {
+      // Invalid JSON, don't update options
     }
   };
 

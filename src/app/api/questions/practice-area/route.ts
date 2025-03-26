@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     let questions = [];
     
     if (practiceArea === 'Maths') {
-      let conditions = [eq(mathQuestions.isActive, true)];
+      const conditions = [eq(mathQuestions.isActive, true)];
       
       if (topicId) {
         conditions.push(eq(mathQuestions.topicId, topicId));
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         .from(mathQuestions)
         .where(conditions.length > 1 ? and(...conditions) : conditions[0]);
     } else if (practiceArea === 'Quantitative') {
-      let conditions = [eq(quantQuestions.isActive, true)];
+      const conditions = [eq(quantQuestions.isActive, true)];
       
       if (topicId) {
         conditions.push(eq(quantQuestions.topicId, topicId));

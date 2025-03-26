@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { QuizQuestionResult, LearningGap, Recommendation, UseAdaptiveLearningProps } from '@/types/quiz';
 
 export const useAdaptiveLearning = ({
-  enableAdaptiveLearning, // Renamed from useAdaptiveLearning to avoid naming conflict
+  enableAdaptiveLearning,
   userId,
   apiEndpoints,
-  subjectType,
+  subjectType, // Keep for potential future use or logging
 }: UseAdaptiveLearningProps): {
   adaptiveLearningEnabled: boolean;
   adaptiveRecommendations: Recommendation[];
@@ -42,19 +42,22 @@ export const useAdaptiveLearning = ({
           } else {
             // Fall back to default
             setAdaptiveLearningEnabled(enableAdaptiveLearning);
+            console.warn(`[${subjectType}] Failed to fetch adaptive settings, using default`);
           }
         } else {
           // Graceful fallback
           setAdaptiveLearningEnabled(enableAdaptiveLearning);
+          console.warn(`[${subjectType}] Error fetching adaptive settings, using default`);
         }
       } catch (error) {
         // Default to using whatever was passed in props
         setAdaptiveLearningEnabled(enableAdaptiveLearning);
+        console.error(`[${subjectType}] Exception in fetching adaptive settings:`, error);
       }
     };
   
     fetchAdaptiveSettings();
-  }, [userId, enableAdaptiveLearning, apiEndpoints.adaptiveSettings]);
+  }, [userId, enableAdaptiveLearning, apiEndpoints.adaptiveSettings, subjectType]);
 
   // Process adaptive feedback for a single question
   const processAdaptiveFeedback = useCallback(async (
@@ -83,7 +86,10 @@ export const useAdaptiveLearning = ({
         body: JSON.stringify(adaptivePayload)
       });
       
-      if (!response.ok) return false;
+      if (!response.ok) {
+        console.warn(`[${subjectType}] Adaptive feedback request failed`);
+        return false;
+      }
       
       const data = await response.json();
       
@@ -93,11 +99,13 @@ export const useAdaptiveLearning = ({
         return true;
       }
       
+      console.warn(`[${subjectType}] Adaptive feedback processing unsuccessful`);
       return false;
     } catch (error) {
+      console.error(`[${subjectType}] Exception in processing adaptive feedback:`, error);
       return false;
     }
-  }, [adaptiveLearningEnabled, apiEndpoints.adaptiveFeedback]);
+  }, [adaptiveLearningEnabled, apiEndpoints.adaptiveFeedback, subjectType]);
 
   // Process adaptive feedback for all questions at the end
   const processFinalAdaptiveFeedback = useCallback(async (
@@ -124,7 +132,10 @@ export const useAdaptiveLearning = ({
         })
       });
       
-      if (!response.ok) return false;
+      if (!response.ok) {
+        console.warn(`[${subjectType}] Final adaptive feedback request failed`);
+        return false;
+      }
       
       const data = await response.json();
       
@@ -134,11 +145,13 @@ export const useAdaptiveLearning = ({
         return true;
       }
       
+      console.warn(`[${subjectType}] Final adaptive feedback processing unsuccessful`);
       return false;
     } catch (error) {
+      console.error(`[${subjectType}] Exception in processing final adaptive feedback:`, error);
       return false;
     }
-  }, [adaptiveLearningEnabled, apiEndpoints.adaptiveFeedback]);
+  }, [adaptiveLearningEnabled, apiEndpoints.adaptiveFeedback, subjectType]);
 
   return {
     adaptiveLearningEnabled,

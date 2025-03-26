@@ -21,15 +21,7 @@ import QuizError from './QuizError';
 
 // Types
 import {
-  Option,
-  QuizQuestion as QuizQuestionType,
-  QuizQuestionResult,
-  ApiEndpoints,
-  QuizPageProps,
-  QuizSummaryProps,
-  LearningGap,
-  Recommendation,
-  AttemptData
+  QuizPageProps
 } from '@/types/quiz';
 import { MathJax } from 'better-react-mathjax';
 
@@ -79,7 +71,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     setContentLoading,
     checkAnswer,
     nextQuestion,
-    completeQuiz,
+    //completeQuiz,
     setShowQuizSummary,
   } = useQuizState({
     questions,
@@ -97,7 +89,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const {
     timeLeft,
     isPaused,
-    timeSpentOnQuestion,
+    //timeSpentOnQuestion,
     togglePause,
     startTimer,
     resetTimer,
@@ -115,7 +107,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     adaptiveLearningEnabled,
     adaptiveRecommendations,
     learningGaps,
-    processAdaptiveFeedback,
+    //processAdaptiveFeedback,
     processFinalAdaptiveFeedback,
   } = useAdaptiveHook({
     enableAdaptiveLearning: useAdaptiveLearning, // Changed from useAdaptiveLearning to enableAdaptiveLearning
@@ -334,7 +326,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
             
             <QuizQuestion
               question={currentQuestion.question}
-              renderer={renderers.questionRenderer}
+             // renderer={renderers.questionRenderer}
               loading={contentLoading}
             />
             
@@ -372,7 +364,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
               <QuizFeedback 
                 isCorrect={isAnswerCorrect}
                 explanation={currentQuestion.explanation}
-                renderer={renderers.mathJaxRenderer}
+                //renderer={renderers.mathJaxRenderer}
                 adaptiveRecommendations={renderAdaptiveRecommendations()}
               />
             )}                        

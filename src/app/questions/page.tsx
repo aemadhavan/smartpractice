@@ -3,7 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GenerateQuestions } from "./components/generate-questions";
-import { QuestionBank } from "./components/question-bank";
+//import { QuestionBank } from "./components/question-bank";
 import Container from '@/components/Container';
 import { AddQuestions } from "./components/add-questions";
 import QuestionBankQM from "./components/question-bank-qm";

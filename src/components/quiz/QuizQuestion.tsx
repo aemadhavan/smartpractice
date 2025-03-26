@@ -4,13 +4,13 @@ import React from 'react';
 
 interface QuizQuestionProps {
   question: string;
-  renderer: (content: string) => React.ReactNode;
+  //renderer: (content: string) => React.ReactNode;
   loading: boolean;
 }
 
 const QuizQuestion: React.FC<QuizQuestionProps> = ({
   question,
-  renderer,
+  //renderer,
   loading
 }) => {
   if (loading) {

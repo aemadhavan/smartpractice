@@ -8,10 +8,10 @@ import { eq } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { practiceArea, ...questionData } = body;
+    const { practiceArea, isReviewed, ...questionData } = body;
     
     // Remove fields that shouldn't be directly saved to the database
-    const { id, isReviewed, ...dataToInsert } = questionData;
+    const { id, ...dataToInsert } = questionData;
     
     if (!practiceArea) {
       return NextResponse.json({ error: 'Practice area is required' }, { status: 400 });
@@ -122,6 +122,11 @@ export async function POST(request: NextRequest) {
       }
     } else {
       return NextResponse.json({ error: 'Invalid practice area' }, { status: 400 });
+    }
+
+    // Log the 'isReviewed' status if it's important for tracking
+    if (isReviewed !== undefined) {
+      console.log(`Question ${id} review status: ${isReviewed}`);
     }
 
     return NextResponse.json({ 

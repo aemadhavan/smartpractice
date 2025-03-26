@@ -5,14 +5,14 @@ import React from 'react';
 interface QuizFeedbackProps {
   isCorrect: boolean;
   explanation: string;
-  renderer: (content: string) => React.ReactNode;
+  //renderer: (content: string) => React.ReactNode;
   adaptiveRecommendations: React.ReactNode;
 }
 
 const QuizFeedback: React.FC<QuizFeedbackProps> = ({
   isCorrect,
   explanation,
-  renderer,
+  //renderer,
   adaptiveRecommendations
 }) => {
   return (

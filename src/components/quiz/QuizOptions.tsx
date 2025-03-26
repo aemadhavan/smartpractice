@@ -20,7 +20,7 @@ const QuizOptions: React.FC<QuizOptionsProps> = ({
   correctAnswer,
   onOptionSelect,
   loading,
-  renderer
+  //renderer
 }) => {
   // Helper to extract text from option object
   const getOptionText = (option: Option): string => {

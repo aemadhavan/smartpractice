@@ -54,6 +54,16 @@ type Subtopic = {
   topicId: number;
 };
 
+// Type for the API response of questions
+type QuestionApiResponse = {
+  questions: Array<Omit<Question, 'practiceArea'>>;
+};
+
+// Type for error response
+type ErrorResponse = {
+  error: string;
+};
+
 const QuestionBankQM = () => {
   // State for dropdowns
   const [practiceArea, setPracticeArea] = useState<string>('');
@@ -143,9 +153,11 @@ const QuestionBankQM = () => {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to fetch questions');
         
-        const data = await response.json();
+        const data = response.json() as Promise<QuestionApiResponse>;
+        const apiData = await data;
+        
         // Add practiceArea to each question
-        const questionsWithArea = data.questions.map((q: any) => ({
+        const questionsWithArea: Question[] = apiData.questions.map(q => ({
           ...q,
           practiceArea
         }));
@@ -198,7 +210,7 @@ const QuestionBankQM = () => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as ErrorResponse;
         throw new Error(errorData.error || 'Failed to save question');
       }
       
@@ -216,9 +228,9 @@ const QuestionBankQM = () => {
       const refreshResponse = await fetch(url);
       if (!refreshResponse.ok) throw new Error('Failed to refresh questions');
       
-      const refreshData = await refreshResponse.json();
+      const refreshData = await refreshResponse.json() as QuestionApiResponse;
       // Add practiceArea to each question
-      const questionsWithArea = refreshData.questions.map((q: any) => ({
+      const questionsWithArea: Question[] = refreshData.questions.map(q => ({
         ...q,
         practiceArea
       }));
@@ -234,6 +246,7 @@ const QuestionBankQM = () => {
     }
   };
 
+  // Rest of the component remains the same as in the previous implementation
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
