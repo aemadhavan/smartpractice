@@ -31,7 +31,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   userId,
   topicId,
   onQuestionsUpdate,
-  onSessionIdUpdate,
+  onTestAttemptIdUpdate,
   apiEndpoints,
   calculateNewStatus,
   subjectType,
@@ -44,7 +44,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   
   // Use custom hooks to manage state and side effects
   const {
-    currentSessionId,
+    currentTestAttemptId,
     initError,
     initSession,
     trackAttempt,
@@ -55,7 +55,8 @@ const QuizPage: React.FC<QuizPageProps> = ({
     sessionManager,
     apiEndpoints,
     subjectType,
-    onSessionIdUpdate,
+    onTestAttemptIdUpdate,
+    
   });
 
   const {
@@ -77,7 +78,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     questions,
     userId,
     topicId,
-    currentSessionId,
+    currentTestAttemptId,
     trackAttempt,
     completeSession,
     onQuestionsUpdate,
@@ -124,10 +125,10 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const [sessionManuallyEnded, setSessionManuallyEnded] = useState(false);
   // Initialize session on component mount
   React.useEffect(() => {
-    if (questions.length > 0 && !currentSessionId && !sessionManuallyEnded) {
+    if (questions.length > 0 && !currentTestAttemptId && !sessionManuallyEnded) {
       initSession();
     }
-  }, [questions, initSession, currentSessionId,sessionManuallyEnded]);
+  }, [questions, initSession, currentTestAttemptId,sessionManuallyEnded]);
   
   // Update timer when question changes
   React.useEffect(() => {
@@ -165,12 +166,12 @@ const QuizPage: React.FC<QuizPageProps> = ({
 
   // Go back to topics page
   const goBackToTopics = React.useCallback(() => {
-    if (currentSessionId) {
+    if (currentTestAttemptId) {
       setSessionManuallyEnded(true); // Set flag before ending session
-      completeSession(userId, currentSessionId, apiEndpoints.completeSession)
+      completeSession(userId, currentTestAttemptId, apiEndpoints.completeSession)
         .then(() => {
-          if (onSessionIdUpdate) {
-            onSessionIdUpdate(null);
+          if (onTestAttemptIdUpdate) {
+            onTestAttemptIdUpdate(null);
           }
           router.push(`/${subjectType}/topics/${topicId}`);
         })
@@ -183,19 +184,19 @@ const QuizPage: React.FC<QuizPageProps> = ({
   }, [
     completeSession,
     userId,
-    currentSessionId,
+    currentTestAttemptId,
     apiEndpoints.completeSession,
     router,
     subjectType,
     topicId,
-    onSessionIdUpdate
+    onTestAttemptIdUpdate
   ]);
 
   // Handle quiz completion and show summary
   const handleCompleteQuiz = React.useCallback(async () => {
     try {
       if (typeof processFinalAdaptiveFeedback === 'function') {
-        await processFinalAdaptiveFeedback(currentSessionId, results.questions);
+        await processFinalAdaptiveFeedback(currentTestAttemptId, results.questions);
       }
     } catch (error) {
       console.error("Error processing adaptive feedback:", error);
@@ -203,7 +204,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
     setShowQuizSummary(true);
   }, [
     processFinalAdaptiveFeedback, 
-    currentSessionId, 
+    currentTestAttemptId, 
     results.questions, 
     setShowQuizSummary
   ]);
@@ -237,7 +238,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
       correctCount={results.correctCount}
       onBackToTopics={goBackToTopics}
       moduleTitle={subtopicName}
-      testAttemptId={currentSessionId ?? undefined}
+      testAttemptId={currentTestAttemptId ?? undefined}
       subjectType={subjectType}
       learningGaps={learningGaps}
       adaptiveRecommendations={adaptiveRecommendations}

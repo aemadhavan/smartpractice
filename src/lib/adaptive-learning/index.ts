@@ -98,7 +98,7 @@ export async function selectAdaptiveQuestions(
   if (availableQuestions.length === 0) {
     return [];
   }
-
+  console.log("Adaptive Question : ",sessionId);
   // 1. Get user's adaptive settings
   const userSettings = await db.select().from(userAdaptiveSettings).where(
     eq(userAdaptiveSettings.userId, userId)
@@ -242,6 +242,8 @@ export async function selectAdaptiveQuestions(
   const selectedQuestions = scoredQuestions
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
+
+    
 
   // 7. If we have a session ID, log the selection for analysis
   if (sessionId) {

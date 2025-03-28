@@ -12,13 +12,13 @@ export const useAdaptiveLearning = ({
   adaptiveRecommendations: Recommendation[];
   learningGaps: LearningGap[];
   processAdaptiveFeedback: (
-    sessionId: number | null,
+    testAttemptId: number | null,
     questionId: number,
     isCorrect: boolean,
     timeSpent: number
   ) => Promise<boolean | undefined>;
   processFinalAdaptiveFeedback: (
-    sessionId: number | null,
+    testAttemptId: number | null,
     questions: QuizQuestionResult[]
   ) => Promise<boolean>;
 } => {
@@ -61,16 +61,16 @@ export const useAdaptiveLearning = ({
 
   // Process adaptive feedback for a single question
   const processAdaptiveFeedback = useCallback(async (
-    sessionId: number | null,
+    testAttemptId: number | null,
     questionId: number,
     isCorrect: boolean,
     timeSpent: number
   ): Promise<boolean | undefined> => {
-    if (!sessionId || !adaptiveLearningEnabled) return false;
+    if (!testAttemptId || !adaptiveLearningEnabled) return false;
     
     try {
       const adaptivePayload = {
-        testAttemptId: sessionId,
+        testAttemptId: testAttemptId,
         questionResults: [{
           questionId,
           isCorrect,
@@ -109,10 +109,10 @@ export const useAdaptiveLearning = ({
 
   // Process adaptive feedback for all questions at the end
   const processFinalAdaptiveFeedback = useCallback(async (
-    sessionId: number | null,
+    testAttemptId: number | null,
     questions: QuizQuestionResult[]
   ): Promise<boolean> => {
-    if (!sessionId || !adaptiveLearningEnabled || questions.length === 0) return false;
+    if (!testAttemptId || !adaptiveLearningEnabled || questions.length === 0) return false;
     
     try {
       const questionResults = questions.map(q => ({
@@ -127,7 +127,7 @@ export const useAdaptiveLearning = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          testAttemptId: sessionId,
+          testAttemptId: testAttemptId,
           questionResults
         })
       });

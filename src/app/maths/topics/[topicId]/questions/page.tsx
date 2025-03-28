@@ -221,7 +221,7 @@ export default function QuestionsPage() {
         const response = await fetch(MATH_ENDPOINTS.completeSession, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testSessionId: sessionId, userId: user.id }),
+          body: JSON.stringify({ testAttemptId: sessionId, userId: user.id }),
         });
         if (response.ok) {
           console.log('Successfully completed test session');
@@ -334,7 +334,7 @@ return (
         userId={user.id}
         topicId={Number(topicId)}
         onQuestionsUpdate={handleQuestionsUpdate}
-        onSessionIdUpdate={handleSessionIdUpdate}
+        onTestAttemptIdUpdate={handleSessionIdUpdate}
         apiEndpoints={MATH_ENDPOINTS}
         renderFormula={renderFormula}
         calculateNewStatus={calculateNewStatus}
@@ -386,7 +386,7 @@ return (
               const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({  testSessionId: sessionId,userId })
+                body: JSON.stringify({  testAttemptId: sessionId,userId })
               });
               return response.ok;
             } catch (error) {

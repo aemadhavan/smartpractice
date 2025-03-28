@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
 
     const data = await request.json();
-    const { subtopicId, sessionId } = data;
+    const { subtopicId, testAttemptId  } = data;
 
     if (!subtopicId) {
       return NextResponse.json(
@@ -170,13 +170,13 @@ export async function POST(request: NextRequest) {
 
     // 8. Select questions adaptively if enabled, or randomly if not
     let selectedQuestions;
-    
+    console.log('Adaptive learning API,Call Sessionid:', testAttemptId ); 
     if (isAdaptiveLearningEnabled) {
       selectedQuestions = await selectAdaptiveQuestions(
         userId,
         subtopicId,
         questionStats,
-        sessionId
+        testAttemptId 
       );
     } else {
       // Shuffle questions and select 10

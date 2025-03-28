@@ -61,7 +61,7 @@ export interface AttemptData {
 export interface SessionManager {
   initSession: (userId: string, subtopicId: number, initSessionEndpoint: string, retryCount?: number) => Promise<number | null>;
   trackAttempt: (attemptData: AttemptData, trackAttemptEndpoint: string) => Promise<boolean>;
-  completeSession: (userId: string, sessionId: number, completeSessionEndpoint: string) => Promise<boolean>;
+  completeSession: (userId: string, testAttemptId: number, completeSessionEndpoint: string) => Promise<boolean>;
 }
 
 export interface QuizRenderers {
@@ -91,7 +91,7 @@ export interface UseQuizSessionProps {
   sessionManager: SessionManager;
   apiEndpoints: ApiEndpoints;
   subjectType: string;
-  onSessionIdUpdate?: (sessionId: number | null) => void;
+  onTestAttemptIdUpdate?: (testAttemptId: number | null) => void;
 }
 
 export interface UseQuizTimerProps {
@@ -104,9 +104,9 @@ export interface UseQuizStateProps {
   questions: QuizQuestion[];
   userId: string;
   topicId: number;
-  currentSessionId: number | null;
+  currentTestAttemptId: number | null;
   trackAttempt: (attemptData: AttemptData) => Promise<boolean>;
-  completeSession: (userId: string, sessionId: number | null, endpoint: string) => Promise<boolean>;
+  completeSession: (userId: string, testAttemptId: number | null, endpoint: string) => Promise<boolean>;
   onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
   calculateNewStatus?: (
     question: QuizQuestion,
@@ -125,8 +125,8 @@ export interface QuizPageProps {
   userId: string;
   topicId: number;
   onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
-  onSessionIdUpdate?: (sessionId: number | null) => void;
-  testSessionId?: number | null;
+  onTestAttemptIdUpdate?: (testAttemptId: number | null) => void;
+  testAttemptId?: number | null;
   apiEndpoints: ApiEndpoints;
   renderFormula?: (formula: string) => React.ReactNode;
   calculateNewStatus?: (

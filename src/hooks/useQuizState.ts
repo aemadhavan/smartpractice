@@ -11,7 +11,7 @@ export const useQuizState = ({
   questions,
   userId,
   topicId,
-  currentSessionId,
+  currentTestAttemptId,
   trackAttempt,
   completeSession,
   onQuestionsUpdate,
@@ -81,7 +81,7 @@ export const useQuizState = ({
     
     const timeSpent = 0; // This would come from timer
     
-    if (currentSessionId) {
+    if (currentTestAttemptId) {
       const attemptData: AttemptData = {
         userId,
         questionId: currentQuestion.id,
@@ -100,7 +100,7 @@ export const useQuizState = ({
     currentQuestionIndex,
     userId,
     topicId,
-    currentSessionId,
+    currentTestAttemptId,
     trackAttempt
   ]);
 
@@ -161,15 +161,15 @@ export const useQuizState = ({
     }
     
     // Complete the session
-    if (currentSessionId) {
-      await completeSession(userId, currentSessionId, apiEndpoints.completeSession);
+    if (currentTestAttemptId) {
+      await completeSession(userId, currentTestAttemptId, apiEndpoints.completeSession);
     }
   }, [
     questions,
     results,
     calculateNewStatus,
     onQuestionsUpdate,
-    currentSessionId,
+    currentTestAttemptId,
     userId,
     apiEndpoints.completeSession,
     subjectType,

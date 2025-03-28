@@ -12,7 +12,7 @@ interface UseQuizSessionProps {
     completeSession: string;
   };
   subjectType: string;
-  onSessionIdUpdate?: (sessionId: number | null) => void;
+  onTestAttemptIdUpdate?: (testAttemptId: number | null) => void;
 }
 
 export const useQuizSession = ({
@@ -21,9 +21,9 @@ export const useQuizSession = ({
   sessionManager,
   apiEndpoints,
   subjectType,
-  onSessionIdUpdate,
+  onTestAttemptIdUpdate,
 }: UseQuizSessionProps) => {
-  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [currentTestAttemptId, setCurrentTestAttemptId] = useState<number | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const sessionInitializationRef = useRef<boolean>(false);
 
@@ -33,19 +33,19 @@ export const useQuizSession = ({
     try {
       sessionInitializationRef.current = true;
       
-      const sessionId = await sessionManager.initSession(
+      const testAttemptId = await sessionManager.initSession(
         userId,
         questions[0].subtopicId,
         apiEndpoints.initSession,
         retryCount
       );
       
-      if (sessionId) {
-        setCurrentSessionId(sessionId);
-        if (onSessionIdUpdate) {
-          onSessionIdUpdate(sessionId);
+      if (testAttemptId) {
+        setCurrentTestAttemptId(testAttemptId);
+        if (onTestAttemptIdUpdate) {
+          onTestAttemptIdUpdate(testAttemptId);
         }
-        return sessionId;
+        return testAttemptId;
       } else {
         setInitError('Failed to initialize session');
         return null;
@@ -58,10 +58,10 @@ export const useQuizSession = ({
       setInitError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     }
-  }, [questions, userId, apiEndpoints.initSession, sessionManager, onSessionIdUpdate]);
+  }, [questions, userId, apiEndpoints.initSession, sessionManager, onTestAttemptIdUpdate]);
 
   const trackAttempt = useCallback(async (attemptData: AttemptData): Promise<boolean> => {
-    if (!currentSessionId) return false;
+    if (!currentTestAttemptId) return false;
     
     try {
       await sessionManager.trackAttempt(
@@ -73,21 +73,21 @@ export const useQuizSession = ({
       console.error(`[${subjectType}] Error submitting answer:`, error);
       return false;
     }
-  }, [currentSessionId, apiEndpoints.trackAttempt, sessionManager, subjectType]);
+  }, [currentTestAttemptId, apiEndpoints.trackAttempt, sessionManager, subjectType]);
 
-  const completeSession = useCallback(async (userId: string, sessionId: number | null, endpoint: string): Promise<boolean> => {
-    if (!sessionId) return false;
+  const completeSession = useCallback(async (userId: string, testAttemptId: number | null, endpoint: string): Promise<boolean> => {
+    if (!testAttemptId) return false;
     
     try {
       const completed = await sessionManager.completeSession(
         userId,
-        sessionId,
+        testAttemptId,
         endpoint
       );
       
       if (completed) {
         sessionInitializationRef.current = false;
-        setCurrentSessionId(null);
+        setCurrentTestAttemptId(null);
       }
       
       return completed;
@@ -98,7 +98,7 @@ export const useQuizSession = ({
   }, [sessionManager, subjectType]);
 
   return {
-    currentSessionId,
+    currentTestAttemptId,
     initError,
     initSession,
     trackAttempt,

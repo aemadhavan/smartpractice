@@ -9,7 +9,7 @@ import { SessionManager as SessionManagerInterface, AttemptData } from '@/types/
  */
 class SessionManager implements SessionManagerInterface {
     private static instance: SessionManager;
-    private activeSessionId: number | null = null;
+    private activeTestAttemptId: number | null = null;
     private isInitializing: boolean = false;
     private pendingPromise: Promise<number | null> | null = null;
   
@@ -35,14 +35,14 @@ class SessionManager implements SessionManagerInterface {
       console.log('SessionManager.initSession called', { 
         userId, 
         subtopicId, 
-        existingSessionId: this.activeSessionId,
+        existingSessionId: this.activeTestAttemptId,
         isInitializing: this.isInitializing 
       });
   
       // If we already have an active session, return it
-      if (this.activeSessionId !== null) {
-        console.log('Using existing session:', this.activeSessionId);
-        return this.activeSessionId;
+      if (this.activeTestAttemptId !== null) {
+        console.log('Using existing session:', this.activeTestAttemptId);
+        return this.activeTestAttemptId;
       }
   
       // If initialization is in progress, return the pending promise
@@ -87,8 +87,8 @@ class SessionManager implements SessionManagerInterface {
           const initResult = await initResponse.json();
           if (initResult.testAttemptId) {
             console.log('Session initialized with ID:', initResult.testAttemptId);
-            this.activeSessionId = initResult.testAttemptId;
-            resolve(this.activeSessionId);
+            this.activeTestAttemptId = initResult.testAttemptId;
+            resolve(this.activeTestAttemptId);
           } else {
             console.error('Invalid response from init-session API:', initResult);
             reject(new Error('Invalid response from server'));
@@ -112,20 +112,20 @@ class SessionManager implements SessionManagerInterface {
       attemptData: AttemptData,
       trackAttemptEndpoint: string
     ): Promise<boolean> {
-      if (!this.activeSessionId) {
+      if (!this.activeTestAttemptId) {
         console.error('Cannot track attempt - no valid session ID');
         return false;
       }
   
       try {
-        console.log('Tracking attempt for question:', attemptData.questionId, 'with session:', this.activeSessionId);
+        console.log('Tracking attempt for question:', attemptData.questionId, 'with session:', this.activeTestAttemptId);
         const apiResponse = await fetch(trackAttemptEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            testSessionId: this.activeSessionId,
+            testAttemptId: this.activeTestAttemptId,
             ...attemptData
           })
         });
@@ -153,7 +153,7 @@ class SessionManager implements SessionManagerInterface {
       completeSessionEndpoint: string
     ): Promise<boolean> {
       // Use the passed sessionId if provided, otherwise use active session
-      const idToComplete = sessionId || this.activeSessionId;
+      const idToComplete = sessionId || this.activeTestAttemptId;
       
       if (!idToComplete) {
         console.log('No session ID to complete');
@@ -168,7 +168,7 @@ class SessionManager implements SessionManagerInterface {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            testSessionId: idToComplete,
+            testAttemptId: idToComplete,
             userId
           })
         });
@@ -193,21 +193,21 @@ class SessionManager implements SessionManagerInterface {
      * Get the current session ID
      */
     public getSessionId(): number | null {
-      return this.activeSessionId;
+      return this.activeTestAttemptId;
     }
   
     /**
      * Set the session ID manually (useful when loading from props)
      */
     public setSessionId(sessionId: number | null): void {
-      this.activeSessionId = sessionId;
+      this.activeTestAttemptId = sessionId;
     }
   
     /**
      * Reset the session manager
      */
     public reset(): void {
-      this.activeSessionId = null;
+      this.activeTestAttemptId = null;
       this.isInitializing = false;
       this.pendingPromise = null;
     }
