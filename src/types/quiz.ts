@@ -20,6 +20,8 @@ export type QuizQuestion = {
   successRate: number;
   status: 'Mastered' | 'Learning' | 'To Start';
   subtopicId: number;
+  selectionReason?: string;
+  adaptivelySelected?: boolean;
 };
 
 export type QuizQuestionResult = QuizQuestion & {

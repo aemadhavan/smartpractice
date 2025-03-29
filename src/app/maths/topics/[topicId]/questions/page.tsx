@@ -6,7 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import QuizPage from '@/components/quiz/QuizPage';
 import QuizSummary from '@/components/quiz/QuizSummary';
-import { AttemptData, QuizSummaryProps } from '@/types/quiz';
+import { AttemptData, QuizSummaryProps, QuizQuestion } from '@/types/quiz';
 import { processMathExpression } from '@/lib/mathjax-config';
 import { Option } from '@/lib/options';
 
@@ -17,24 +17,77 @@ const MATH_ENDPOINTS = {
   completeSession: '/api/maths/complete-session',
   adaptiveFeedback: '/api/maths/adaptive-feedback',
   adaptiveSettings: '/api/maths/adaptive-settings',
+  adaptiveQuestions: '/api/maths/adaptive-questions',
 };
 
-// QuizQuestion type
-type QuizQuestion = {
-  id: number;
-  question: string;
-  options: Option[];
-  correctAnswer: string;
-  explanation: string;
-  formula?: string;
-  difficultyLevelId: number;
-  questionTypeId: number;
-  timeAllocation: number;
-  attemptCount: number;
-  successRate: number;
-  status: 'Mastered' | 'Learning' | 'To Start';
-  subtopicId: number;
-};
+// Updated getQuestionsForQuiz function using the API endpoint
+async function getQuestionsForQuiz(
+  subtopicId: number,
+  userId: string,
+  questions: QuizQuestion[],
+  testAttemptId: number | null,
+  useAdaptiveLearning: boolean = true
+): Promise<QuizQuestion[]> {
+  // Skip adaptive selection if disabled or no testAttemptId
+  if (!useAdaptiveLearning || !testAttemptId || questions.length === 0) {
+    console.log('ADAPTIVE: Skipping adaptive selection', {
+      useAdaptiveLearning,
+      testAttemptId,
+      questionsCount: questions.length
+    });
+    return questions;
+  }
+
+  try {
+    console.log('ADAPTIVE: Calling adaptive questions API', {
+      testAttemptId,
+      subtopicId,
+      userId,
+      regularQuestionsCount: questions.length
+    });
+    
+    // Call the adaptive-questions API endpoint
+    const response = await fetch('/api/maths/adaptive-questions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subtopicId,
+        testAttemptId
+        // Note: We don't need to pass the questions here since 
+        // the API endpoint fetches them directly from the database
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Unknown error from adaptive questions API');
+    }
+    
+    console.log('ADAPTIVE: API response received', {
+      questionCount: data.questions?.length || 0,
+      isAdaptiveLearningEnabled: data.isAdaptiveLearningEnabled
+    });
+    
+    // If the API returned questions, use them
+    if (data.questions && data.questions.length > 0) {
+      return data.questions as QuizQuestion[];
+    }
+    
+    // Fallback to the original questions if the API didn't return any
+    return questions;
+  } catch (error) {
+    console.error('ADAPTIVE: Error applying adaptive selection', error);
+    // Fallback to regular questions on error
+    return questions;
+  }
+}
 
 // Subtopic type
 type Subtopic = {
@@ -194,13 +247,54 @@ export default function QuestionsPage() {
         }
         console.log('Selected subtopic:', selectedSubtopic.name, 'ID:', selectedSubtopic.id);
         setSubtopic(selectedSubtopic);
+        
         // Process the questions
         const processed = selectedSubtopic.questions.map((question) => {
           console.log('Processing question:', question);
           return processOptions(question);
         });
           
+        // First set the initial questions
         setProcessedQuestions(processed);
+        
+        // Then get testAttemptId after initializing a session
+        try {
+          const sessionResponse = await fetch(MATH_ENDPOINTS.initSession, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subtopicId: selectedSubtopic.id })
+          });
+          
+          if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            console.log("Test session initialization response:", sessionData);
+            const testAttemptId = sessionData.testAttemptId;
+            
+            if (testAttemptId) {
+              // Update with adaptive questions if we have a testAttemptId
+              const adaptiveQuestions = await getQuestionsForQuiz(
+                selectedSubtopic.id,
+                user.id,
+                processed,
+                testAttemptId,
+                true // enable adaptive learning
+              );
+              
+              // Update questions with adaptive selection
+              setProcessedQuestions(adaptiveQuestions);
+              
+              // Set active test attempt ID
+              setActiveTestAttemptId(testAttemptId);
+            } else {
+              console.error("No valid test attempt ID found in response:", sessionData);
+            }
+          } else {
+            console.error("Error initializing session:", sessionResponse.status, sessionResponse.statusText);
+          }
+        } catch (error) {
+          console.error('Error initializing session for adaptive learning:', error);
+          // We still have the regular questions, so we can continue
+        }
       } else {
         throw new Error('No subtopics found for this topic');
       }

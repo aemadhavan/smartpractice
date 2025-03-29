@@ -196,6 +196,10 @@ const QuizPage: React.FC<QuizPageProps> = ({
   // Handle quiz completion and show summary
   const handleCompleteQuiz = React.useCallback(async () => {
     try {
+      console.log('ADAPTIVE DEBUG: Starting processFinalAdaptiveFeedback', {
+        testAttemptId: currentTestAttemptId,
+        questionsCount: results.questions.length
+      });
       if (typeof processFinalAdaptiveFeedback === 'function') {
         await processFinalAdaptiveFeedback(currentTestAttemptId, results.questions);
       }
@@ -314,6 +318,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
                   <div className="inline-flex items-center text-xs gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
                     <Brain className="h-3 w-3" />
                     <span>Adaptive</span>
+                    <span>Adaptive{currentQuestion?.selectionReason ? `: ${currentQuestion.selectionReason}` : ''}</span>
                   </div>
                 )}
               </div>
@@ -396,6 +401,17 @@ const QuizPage: React.FC<QuizPageProps> = ({
           </div>
         )}
       </div>
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 p-3 bg-gray-100 rounded">
+          <h3 className="font-medium">Adaptive Learning Debug</h3>
+          <div className="text-sm">
+            <p>Adaptive Enabled: {adaptiveLearningEnabled ? 'Yes' : 'No'}</p>
+            <p>Current testAttemptId: {currentTestAttemptId || 'None'}</p>
+            <p>Learning Gaps: {learningGaps?.length || 0}</p>
+            <p>Adaptive Recommendations: {adaptiveRecommendations?.length || 0}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

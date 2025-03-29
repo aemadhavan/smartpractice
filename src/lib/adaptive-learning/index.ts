@@ -3,21 +3,10 @@
 import { db } from '@/db';
 import { mathQuestionAttempts, mathSubtopics, mathSubtopicProgress, mathQuestions, mathTestAttempts } from '@/db/maths-schema';
 import { learningGaps, userAdaptiveSettings, adaptiveQuestionSelection } from '@/db/adaptive-schema';
-import { eq, and, desc, isNull,  inArray } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
+import { AdaptiveQuestion, LearningGap, AdaptiveSettings, AdaptiveRecommendation, AdaptiveLearningResponse } from './types';
 
-
-/**
- * Type for question with metadata needed for adaptive selection
- */
-export interface AdaptiveQuestion {
-  id: number;
-  difficultyLevelId: number;
-  question: string;
-  options: Array<{ id: string; text: string }>;
-  correctAnswer: string;
-  explanation: string;
-  successRate?: number;
-}
+// Remove the conflicting AdaptiveQuestion interface since we're importing it
 
 /**
  * Analyzes user performance to identify learning gaps
@@ -112,6 +101,7 @@ export async function selectAdaptiveQuestions(
   if (availableQuestions.length === 0) {
     return [];
   }
+  console.log('ADAPTIVE: selectAdaptiveQuestions called with testAttemptId:', testAttemptId);
   console.log('Adaptive Selection Input:', {
     userId, 
     subtopicId, 
@@ -408,11 +398,7 @@ export async function updateLearningGaps(
 export async function getAdaptiveLearningRecommendations(
   userId: string,
   topicId: number
-): Promise<{
-  recommendedSubtopics: { id: number; name: string; reason: string; }[];
-  learningGapsCount: number;
-  hasAdaptiveLearningEnabled: boolean;
-}> {
+): Promise<AdaptiveLearningResponse> {
   // 1. Check if adaptive learning is enabled
   const userSettingsData = await db.select().from(userAdaptiveSettings).where(
     eq(userAdaptiveSettings.userId, userId)
@@ -462,7 +448,7 @@ export async function getAdaptiveLearningRecommendations(
     .map(progress => progress.subtopicId);
 
   // 7. Generate recommendations
-  const recommendedSubtopics: { id: number; name: string; reason: string; }[] = [];
+  const recommendedSubtopics: AdaptiveRecommendation[] = [];
   
   // Prioritize subtopics with gaps
   for (const subtopicId of subtopicsWithGaps) {

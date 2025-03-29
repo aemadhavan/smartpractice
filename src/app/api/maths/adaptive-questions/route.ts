@@ -8,7 +8,6 @@ import {
 } from '@/db/maths-schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { currentUser } from '@clerk/nextjs/server';
-import { selectAdaptiveQuestions } from '@/lib/adaptive-learning';
 import { adaptiveQuestionSelection } from '@/db/adaptive-schema';
 
 export const dynamic = 'force-dynamic';
@@ -25,11 +24,28 @@ type RawOption =
   | string 
   | number;
 
+// Define types for database records
+interface TestAttempt {
+  id: number;
+}
+
+interface QuestionAttempt {
+  testAttemptId: number;
+  questionId: number;
+  isCorrect: boolean;
+  // Add other fields as needed
+}
+
 export async function POST(request: NextRequest) {
+  let currentStep = 'initializing';
+  
   try {
+    console.log('Adaptive Questions API - Request received');
+    currentStep = 'authenticating user';
+    
     const user = await currentUser();
-   
     if (!user) {
+      console.log('Authentication failed - no user found');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -37,10 +53,23 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = user.id;
+    console.log('User authenticated:', userId);
 
-    const data = await request.json();
+    // Parse request body with try/catch
+    currentStep = 'parsing request data';
+    let data;
+    try {
+      data = await request.json();
+      console.log('Request data parsed successfully:', data);
+    } catch (parseError) {
+      console.error('Error parsing request JSON:', parseError);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
+
     const { subtopicId, testAttemptId } = data;
-
     console.log('Adaptive Questions API - Request Details:', {
       userId,
       subtopicId,
@@ -48,44 +77,69 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-    // Check if the schema is properly initialized
-    console.log('Schema Status Check:', {
-      adaptiveQuestionSelectionDefined: !!adaptiveQuestionSelection,
-      tableDetails: adaptiveQuestionSelection ? JSON.stringify(adaptiveQuestionSelection) : 'undefined'
-    });
-
-    // Verify the adaptiveQuestionSelection table exists
-    try {
-      const tableCheck = await db.execute(sql`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'adaptiveQuestionSelection'
-        );
-      `);
-      console.log('adaptiveQuestionSelection table exists check:', tableCheck);
-    } catch (tableCheckError) {
-      console.error('Error checking if table exists:', tableCheckError);
-    }
-
+    // Validate required parameters
     if (!subtopicId) {
+      console.log('Missing subtopicId in request');
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // 1. Get settings to check if adaptive learning is enabled
-    const settings = await db.query.userAdaptiveSettings.findFirst({
-      where: (settings, { eq }) => eq(settings.userId, userId)
+    // Check if we can connect to the database
+    currentStep = 'checking database connection';
+    try {
+      // Simple query to test database connection
+      const dbConnectionTest = await db.execute(sql`SELECT 1 as connection_test`);
+      console.log('Database connection successful:', dbConnectionTest);
+    } catch (dbConnectionError) {
+      console.error('Database connection error:', dbConnectionError);
+      return NextResponse.json(
+        { success: false, error: 'Database connection error' },
+        { status: 500 }
+      );
+    }
+
+    // Check if the schema is properly initialized
+    currentStep = 'checking schema';
+    console.log('Schema Status Check:', {
+      adaptiveQuestionSelectionDefined: !!adaptiveQuestionSelection,
+      tableDetails: adaptiveQuestionSelection ? JSON.stringify(Object.keys(adaptiveQuestionSelection)) : 'undefined'
     });
+
+    // 1. Get settings to check if adaptive learning is enabled
+    currentStep = 'retrieving user settings';
+    let settings;
+    try {
+      settings = await db.query.userAdaptiveSettings.findFirst({
+        where: (settings, { eq }) => eq(settings.userId, userId)
+      });
+      console.log('User settings retrieved:', settings ? 'found' : 'not found');
+    } catch (settingsError) {
+      console.error('Error retrieving user settings:', settingsError);
+      return NextResponse.json(
+        { success: false, error: 'Error retrieving user settings' },
+        { status: 500 }
+      );
+    }
 
     const isAdaptiveLearningEnabled = settings?.enableAdaptiveLearning ?? true;
 
     // 2. Get subtopic info
-    const subtopic = await db.query.mathSubtopics.findFirst({
-      where: (subtopics, { eq }) => eq(subtopics.id, subtopicId)
-    });
+    currentStep = 'retrieving subtopic info';
+    let subtopic;
+    try {
+      subtopic = await db.query.mathSubtopics.findFirst({
+        where: (subtopics, { eq }) => eq(subtopics.id, subtopicId)
+      });
+      console.log('Subtopic info retrieved:', subtopic ? subtopic.name : 'not found');
+    } catch (subtopicError) {
+      console.error('Error retrieving subtopic:', subtopicError);
+      return NextResponse.json(
+        { success: false, error: 'Error retrieving subtopic information' },
+        { status: 500 }
+      );
+    }
 
     if (!subtopic) {
       return NextResponse.json(
@@ -95,13 +149,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Get all questions for this subtopic
-    const allQuestions = await db.query.mathQuestions.findMany({
-      where: (questions, { eq, and }) => 
-        and(
-          eq(questions.subtopicId, subtopicId),
-          eq(questions.isActive, true)
-        )
-    });
+    currentStep = 'retrieving questions';
+    let allQuestions;
+    try {
+      allQuestions = await db.query.mathQuestions.findMany({
+        where: (questions, { eq, and }) => 
+          and(
+            eq(questions.subtopicId, subtopicId),
+            eq(questions.isActive, true)
+          )
+      });
+      console.log(`Retrieved ${allQuestions.length} questions for subtopic`);
+    } catch (questionsError) {
+      console.error('Error retrieving questions:', questionsError);
+      return NextResponse.json(
+        { success: false, error: 'Error retrieving questions' },
+        { status: 500 }
+      );
+    }
 
     if (allQuestions.length === 0) {
       return NextResponse.json(
@@ -111,6 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Process questions to match QuizQuestion format
+    currentStep = 'processing questions';
     const formattedQuestions = allQuestions.map(question => {
       // Parse options (handle both string and array formats)
       let options: QuestionOption[] = [];
@@ -127,8 +193,14 @@ export async function POST(request: NextRequest) {
           return { id: `o${index + 1}`, text: String(opt) };
         });
       } catch (e) {
-        console.error('Error parsing options:', e);
-        options = [];
+        console.error(`Error parsing options for question ${question.id}:`, e);
+        // Create default options if parsing fails
+        options = [
+          { id: 'o1', text: 'Option 1' },
+          { id: 'o2', text: 'Option 2' },
+          { id: 'o3', text: 'Option 3' },
+          { id: 'o4', text: 'Option 4' }
+        ];
       }
 
       return {
@@ -149,19 +221,30 @@ export async function POST(request: NextRequest) {
     });
 
     // 5. Get user's test attempts for this subtopic
-    const testAttempts = await db
-      .select({ id: MathTestAttempts.id })
-      .from(MathTestAttempts)
-      .where(
-        and(
-          eq(MathTestAttempts.userId, userId),
-          eq(MathTestAttempts.subtopicId, subtopicId)
-        )
-      );
+    currentStep = 'retrieving test attempts';
+    let testAttempts: TestAttempt[] = [];
+    try {
+      testAttempts = await db
+        .select({ id: MathTestAttempts.id })
+        .from(MathTestAttempts)
+        .where(
+          and(
+            eq(MathTestAttempts.userId, userId),
+            eq(MathTestAttempts.subtopicId, subtopicId)
+          )
+        );
+      console.log(`Retrieved ${testAttempts.length} test attempts for user`);
+    } catch (testAttemptsError) {
+      console.error('Error retrieving test attempts:', testAttemptsError);
+      // Continue without test attempts data - non-critical
+    }
 
     // 6. Get user's attempt history for these questions
-    const attempts = testAttempts.length > 0 
-      ? await db
+    currentStep = 'retrieving question attempts';
+    let attempts: QuestionAttempt[] = [];
+    if (testAttempts.length > 0) {
+      try {
+        attempts = await db
           .select()
           .from(MathQuestionAttempts)
           .where(
@@ -169,10 +252,16 @@ export async function POST(request: NextRequest) {
               inArray(MathQuestionAttempts.testAttemptId, testAttempts.map(ta => ta.id)),
               inArray(MathQuestionAttempts.questionId, allQuestions.map(q => q.id))
             )
-          )
-      : [];
+          );
+        console.log(`Retrieved ${attempts.length} question attempts`);
+      } catch (attemptsError) {
+        console.error('Error retrieving question attempts:', attemptsError);
+        // Continue without attempts data - non-critical
+      }
+    }
 
     // 7. Calculate attempt count and success rate for each question
+    currentStep = 'calculating statistics';
     const questionStats = formattedQuestions.map(question => {
       const questionAttempts = attempts.filter(a => a.questionId === question.id);
       const attemptCount = questionAttempts.length;
@@ -193,8 +282,9 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // 8. Select questions adaptively if enabled, or randomly if not
-    let selectedQuestions;
+    // 8. Instead of using selectAdaptiveQuestions which might be causing the error,
+    // Implement a simplified selection algorithm directly in this route handler
+    currentStep = 'selecting questions';
     console.log('Adaptive Question Selection - Session Details:', {
       userId,
       subtopicId,
@@ -204,56 +294,85 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-    if (isAdaptiveLearningEnabled) {
+    // Implement a basic adaptive selection algorithm here
+    let selectedQuestions;
+    
+    if (isAdaptiveLearningEnabled && questionStats.length > 0) {
       try {
-        selectedQuestions = await selectAdaptiveQuestions(
-          userId,
-          subtopicId,
-          questionStats,
-          testAttemptId 
-        );
-        console.log('Adaptive selection completed successfully', {
+        // Basic adaptive selection algorithm:
+        // 1. Prioritize questions with lower success rates
+        // 2. Include a mix of different statuses (To Start, Learning, Mastered)
+        // 3. Add some randomization
+        
+        // Sort questions by success rate (ascending) and add some randomness
+        const sortedQuestions = [...questionStats].sort((a, b) => {
+          // Primary sort by status: To Start > Learning > Mastered
+          const statusOrder: Record<string, number> = { 'To Start': 0, 'Learning': 1, 'Mastered': 2 };
+          const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+          
+          if (statusDiff !== 0) return statusDiff;
+          
+          // Secondary sort by success rate
+          const rateDiff = a.successRate - b.successRate;
+          
+          // Add some randomness
+          if (Math.abs(rateDiff) < 10) return Math.random() - 0.5;
+          
+          return rateDiff;
+        });
+        
+        // Take top 10 questions
+        selectedQuestions = sortedQuestions.slice(0, Math.min(10, sortedQuestions.length));
+        
+        // Add selection reason and adaptively selected flag
+        selectedQuestions = selectedQuestions.map(q => ({
+          ...q,
+          selectionReason: 'basic_adaptive_algorithm',
+          adaptivelySelected: true
+        }));
+        
+        console.log('Basic adaptive selection completed successfully', {
           selectedCount: selectedQuestions.length
         });
         
-        // If selectAdaptiveQuestions completed but table is still empty, try a direct insertion
-        if (testAttemptId) {
+        // Log selection to database if needed
+        if (testAttemptId && selectedQuestions.length > 0) {
           try {
-            console.log('Attempting direct test insertion to adaptiveQuestionSelection');
+            console.log('Logging selection to database');
+            
+            // Insert first question as a record
             await db.insert(adaptiveQuestionSelection).values({
               testAttemptId,
               questionId: selectedQuestions[0].id,
-              selectionReason: 'fallback_direct_test',
+              selectionReason: 'basic_adaptive_algorithm',
               difficultyLevel: selectedQuestions[0].difficultyLevelId,
               sequencePosition: 0
             });
-            console.log('Direct test insertion successful');
-          } catch (directInsertError) {
-            console.error('Direct test insertion failed:', directInsertError);
-            // Log detailed error information
-            if (directInsertError instanceof Error) {
-              console.error({
-                errorType: directInsertError.constructor.name,
-                message: directInsertError.message,
-                stack: directInsertError.stack
-              });
-            }
+            
+            console.log('Selection logged successfully');
+          } catch (logError) {
+            console.error('Error logging selection:', logError);
+            // Non-critical, continue
           }
         }
       } catch (selectError) {
-        console.error('Error in selectAdaptiveQuestions:', selectError);
-        // Fall back to random selection if adaptive selection fails
+        console.error('Error in adaptive selection:', selectError);
+        // Fall back to random selection
         selectedQuestions = [...questionStats]
           .sort(() => Math.random() - 0.5)
-          .slice(0, 10);
+          .slice(0, Math.min(10, questionStats.length));
       }
     } else {
-      // Shuffle questions and select 10
+      // Random selection as fallback
       selectedQuestions = [...questionStats]
         .sort(() => Math.random() - 0.5)
-        .slice(0, 10);
+        .slice(0, Math.min(10, questionStats.length));
     }
     
+    currentStep = 'preparing response';
+    console.log('Preparing response with', selectedQuestions.length, 'questions');
+    
+    // Return the response
     return NextResponse.json({
       success: true,
       subtopic: {
@@ -265,7 +384,7 @@ export async function POST(request: NextRequest) {
       isAdaptiveLearningEnabled
     });
   } catch (error) {
-    console.error('Error in adaptive questions API:', error);
+    console.error(`Error in adaptive questions API (step: ${currentStep}):`, error);
     // Log additional error details
     if (error instanceof Error) {
       console.error({
@@ -275,7 +394,7 @@ export async function POST(request: NextRequest) {
       });
     }
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: `Error in ${currentStep}: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
