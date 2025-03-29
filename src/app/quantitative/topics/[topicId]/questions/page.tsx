@@ -17,6 +17,7 @@ const QUANTITATIVE_ENDPOINTS = {
   completeSession: '/api/quantitative/complete-session',
   adaptiveFeedback: '/api/quantitative/adaptive-feedback',
   adaptiveSettings: '/api/quantitative/adaptive-settings',
+  adaptiveQuestions: '/api/maths/adaptive-questions',
 };
 
 // QuizQuestion type
@@ -87,7 +88,7 @@ export default function QuestionsPage() {
   const [processedQuestions, setProcessedQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [activeTestAttemptId, setActiveTestAttemptId] = useState<number | null>(null);
   const topicId = params.topicId as string;
   const subjectType = 'quantitative';
 
@@ -213,14 +214,14 @@ export default function QuestionsPage() {
 
   // Complete session when leaving the page
   const completeTestSession = useCallback(
-    async (sessionId: number) => {
-      if (!sessionId || !user?.id) return;
+    async (testAttemptId: number) => {
+      if (!testAttemptId || !user?.id) return;
       try {
-        console.log('Completing test session:', sessionId);
+        console.log('Completing test session:', testAttemptId);
         const response = await fetch(QUANTITATIVE_ENDPOINTS.completeSession, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testAttemptId: sessionId, userId: user.id }),
+          body: JSON.stringify({ testAttemptId: testAttemptId, userId: user.id }),
         });
         if (response.ok) {
           console.log('Successfully completed test session');
@@ -247,17 +248,17 @@ export default function QuestionsPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (activeSessionId) {
-        completeTestSession(activeSessionId).then(() => {
-          console.log(`Test session ${activeSessionId} completed on unmount`);
+      if (activeTestAttemptId ) {
+        completeTestSession(activeTestAttemptId ).then(() => {
+          console.log(`Test session ${activeTestAttemptId } completed on unmount`);
         });
       }
     };
-  }, [activeSessionId, completeTestSession]);
+  }, [activeTestAttemptId , completeTestSession]);
 
   // Handle session ID update
   const handleSessionIdUpdate = (sessionId: number | null) => {
-    setActiveSessionId(sessionId);
+    setActiveTestAttemptId(sessionId);
   };
 
   // Handle questions update
@@ -351,13 +352,13 @@ export default function QuestionsPage() {
               const data = await response.json();
               console.log("Session initialization response:", data);
               // Accept either testAttemptId or sessionId
-              const sessionId = data.testAttemptId || data.sessionId;
-              if (!sessionId) {
+              const testAttemptId = data.testAttemptId
+              if (!testAttemptId) {
                 console.error("No valid session ID found in response:", data);
                 return null;
               }
               
-              return sessionId;
+              return testAttemptId;
             }
             return null;
           } catch (error) {
@@ -378,12 +379,12 @@ export default function QuestionsPage() {
             return false;
           }
         },
-        completeSession: async (userId, sessionId, endpoint) => {
+        completeSession: async (userId, testAttemptId, endpoint) => {
           try {
             const response = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ testAttemptId: sessionId, userId })
+              body: JSON.stringify({ testAttemptId: testAttemptId, userId })
             });
             return response.ok;
           } catch (error) {
