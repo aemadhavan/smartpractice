@@ -167,8 +167,9 @@ const QuizPage: React.FC<QuizPageProps> = ({
 
   // Go back to topics page
   const goBackToTopics = React.useCallback(() => {
+    console.log('goBackToTopics called. userId:', userId, 'currentTestAttemptId:', currentTestAttemptId); // ADDED LOG
     if (currentTestAttemptId) {
-      setSessionManuallyEnded(true); // Set flag before ending session
+      setSessionManuallyEnded(true);
       completeSession(userId, currentTestAttemptId, apiEndpoints.completeSession)
         .then(() => {
           if (onTestAttemptIdUpdate) {

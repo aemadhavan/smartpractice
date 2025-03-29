@@ -4,11 +4,12 @@ import { db } from '@/db/index';
 import { 
   mathTopics, 
   mathSubtopics,
-  //mathQuestions,
-  //mathTestAttempts,
-  //mathQuestionAttempts
+  mathQuestions,
+  mathTestAttempts,
+  mathQuestionAttempts
 } from '@/db/maths-schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, count, sum } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 // Define types for the question data
 interface QuestionRow {
@@ -92,45 +93,57 @@ export async function GET(
       );
     }
 
-    // Fetch all questions using raw SQL, handling options as JSON
-    const questionsQuery = await db.execute(sql`
-      SELECT 
-        q.id,
-        q.subtopic_id AS "subtopicId",
-        q.question_type_id AS "questionTypeId",
-        q.difficulty_level_id AS "difficultyLevelId",
-        q.question,
-        q.options::jsonb AS options,
-        q.correct_answer AS "correctAnswer",
-        q.explanation,
-        q.time_allocation AS "timeAllocation",
-        q.formula,
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM "mathQuestionAttempts" qqa
-          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
-          WHERE qqa.question_id = q.id 
-          AND qta.user_id = ${userId}
-        ), 0) AS "attemptCount",
-        COALESCE((
-          SELECT CAST(
-            SUM(CASE WHEN qqa.is_correct = true THEN 1.0 ELSE 0.0 END) / 
-            NULLIF(COUNT(*), 0) 
-            AS FLOAT
-          )
-          FROM "mathQuestionAttempts" qqa
-          JOIN "mathTestAttempts" qta ON qqa.test_attempt_id = qta.id
-          WHERE qqa.question_id = q.id 
-          AND qta.user_id = ${userId}
-        ), 0.0) AS "successRate"
-      FROM "mathQuestions" q
-      WHERE q.topic_id = ${topicIdNum}
-      AND q.is_active = true
-      ORDER BY q.id
-    `);
+    const MASTERY_THRESHOLD_PERCENT = 0.8; // 80%
+
+    // Fetch all questions using Drizzle ORM, handling options as JSON
+    const mqa = alias(mathQuestionAttempts, 'mqa');
+    const mta = alias(mathTestAttempts, 'mta');
+
+    const userAttemptsSubquery = db
+      .select({
+        questionId: mqa.questionId,
+        attemptCount: count().as('attemptCount'),
+        correctCount: sum(sql`CASE WHEN ${mqa.isCorrect} = true THEN 1 ELSE 0 END`).as('correctCount')
+      })
+      .from(mqa)
+      .innerJoin(mta, eq(mqa.testAttemptId, mta.id))
+      .where(and(
+        eq(mta.userId, userId),
+        
+      ))
+      .groupBy(mqa.questionId)
+      .as('userAttempts');
+
+    const questionsWithStats = await db
+      .select({
+        id: mathQuestions.id,
+        subtopicId: mathQuestions.subtopicId,
+        questionTypeId: mathQuestions.questionTypeId,
+        difficultyLevelId: mathQuestions.difficultyLevelId,
+        question: mathQuestions.question,
+        options: mathQuestions.options,
+        correctAnswer: mathQuestions.correctAnswer,
+        explanation: mathQuestions.explanation,
+        timeAllocation: mathQuestions.timeAllocation,
+        formula: mathQuestions.formula,
+        attemptCount: sql<number>`COALESCE(${userAttemptsSubquery.attemptCount}, 0)`.mapWith(Number),
+        successRate: sql<number>`
+          CASE 
+            WHEN COALESCE(${userAttemptsSubquery.attemptCount}, 0) = 0 THEN 0
+            ELSE COALESCE(${userAttemptsSubquery.correctCount}, 0) * 100.0 / COALESCE(${userAttemptsSubquery.attemptCount}, 0)
+          END
+        `.mapWith(Number)
+      })
+      .from(mathQuestions)
+      .leftJoin(userAttemptsSubquery, eq(mathQuestions.id, userAttemptsSubquery.questionId))
+      .where(and(
+        eq(mathQuestions.topicId, topicIdNum),
+        eq(mathQuestions.isActive, true)
+      ))
+      .orderBy(mathQuestions.id);
 
     // Proper type conversion with field validation, handling options as JSON
-    const questions: QuestionRow[] = questionsQuery.rows.map(row => {
+    const questions: QuestionRow[] = questionsWithStats.map(row => {
       let parsedOptions: { id: string; text: string }[] = [];
 
       // Handle options as JSON (from jsonb)
@@ -218,10 +231,10 @@ export async function GET(
         const attemptCount = q.attemptCount;
         
         // Determine status
-        const status = successRate >= 0.8 
-          ? 'Mastered' 
-          : attemptCount > 0 
-            ? 'Learning' 
+        const status = successRate >= MASTERY_THRESHOLD_PERCENT
+          ? 'Mastered'
+          : attemptCount > 0
+            ? 'Learning'
             : 'To Start';
         
         return {
@@ -253,7 +266,7 @@ export async function GET(
     // Calculate overall statistics
     const totalQuestions = questions.length;
     const attemptedCount = questions.filter((q) => q.attemptCount > 0).length;
-    const masteredCount = questions.filter((q) => q.successRate >= 0.8).length;
+    const masteredCount = questions.filter((q) => q.successRate >= MASTERY_THRESHOLD_PERCENT).length;
     
     // Calculate mastery level as percentage of mastered questions over total questions
     const masteryLevel = totalQuestions > 0
