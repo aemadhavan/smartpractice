@@ -4,9 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { 
   mathQuestionAttempts as MathQuestionAttempts, 
-  mathTestAttempts as MathTestAttempts 
+  mathTestAttempts as MathTestAttempts,
+  mathQuestions as MathQuestions
 } from '@/db/maths-schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, count, sum } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { currentUser } from '@clerk/nextjs/server';
 import { adaptiveQuestionSelection } from '@/db/adaptive-schema';
 
@@ -148,141 +150,146 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Get all questions for this subtopic
-    currentStep = 'retrieving questions';
-    let allQuestions;
+    // 3. Get all questions for this subtopic with user attempt statistics in a single optimized query
+    currentStep = 'retrieving questions with statistics';
+    
+    // Define constants for status determination
+    const MASTERY_THRESHOLD = 75; // 75% success rate to be considered "Mastered"
+    const STATUS_TO_START = 'To Start';
+    const STATUS_LEARNING = 'Learning';
+    const STATUS_MASTERED = 'Mastered';
+    
+    // Initialize questionStats variable outside the try block so it's accessible later
+    let questionStats: any[] = [];
+    
     try {
-      allQuestions = await db.query.mathQuestions.findMany({
-        where: (questions, { eq, and }) => 
-          and(
-            eq(questions.subtopicId, subtopicId),
-            eq(questions.isActive, true)
-          )
+      // Alias tables for the subquery
+      const mqa = alias(MathQuestionAttempts, 'mqa');
+      const mta = alias(MathTestAttempts, 'mta');
+      
+      // Subquery to get attempt statistics per question for this user and subtopic
+      const userAttemptsSubquery = db
+        .select({
+          questionId: mqa.questionId,
+          // Count total attempts
+          attemptCount: count().as('attempt_count'),
+          // Sum correct attempts (1 for correct, 0 for incorrect)
+          correctCount: sum(
+            sql`CASE WHEN ${mqa.isCorrect} = true THEN 1 ELSE 0 END`
+          ).as('correct_count')
+        })
+        .from(mqa)
+        .innerJoin(mta, eq(mqa.testAttemptId, mta.id))
+        .where(and(
+          eq(mta.userId, userId),
+          eq(mta.subtopicId, subtopicId)
+        ))
+        .groupBy(mqa.questionId)
+        .as('user_attempts');
+      
+      // Main query: Get all active questions for the subtopic with their attempt statistics
+      const questionsWithStats = await db
+        .select({
+          // Question fields
+          id: MathQuestions.id,
+          subtopicId: MathQuestions.subtopicId,
+          question: MathQuestions.question,
+          options: MathQuestions.options,
+          correctAnswer: MathQuestions.correctAnswer,
+          explanation: MathQuestions.explanation,
+          formula: MathQuestions.formula,
+          difficultyLevelId: MathQuestions.difficultyLevelId,
+          questionTypeId: MathQuestions.questionTypeId,
+          timeAllocation: MathQuestions.timeAllocation,
+          // Statistics from subquery (with default values for questions without attempts)
+          attemptCount: sql<number>`COALESCE(${userAttemptsSubquery.attemptCount}, 0)`.mapWith(Number),
+          correctCount: sql<number>`COALESCE(${userAttemptsSubquery.correctCount}, 0)`.mapWith(Number),
+          // Calculate success rate directly in SQL
+          successRate: sql<number>`
+            CASE 
+              WHEN COALESCE(${userAttemptsSubquery.attemptCount}, 0) = 0 THEN 0
+              ELSE COALESCE(${userAttemptsSubquery.correctCount}, 0) * 100.0 / COALESCE(${userAttemptsSubquery.attemptCount}, 0)
+            END
+          `.mapWith(Number)
+        })
+        .from(MathQuestions)
+        .leftJoin(
+          userAttemptsSubquery,
+          eq(MathQuestions.id, userAttemptsSubquery.questionId)
+        )
+        .where(and(
+          eq(MathQuestions.subtopicId, subtopicId),
+          eq(MathQuestions.isActive, true)
+        ));
+      
+      console.log(`Retrieved ${questionsWithStats.length} questions with statistics for subtopic`);
+      
+      if (questionsWithStats.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'No questions available for this subtopic' },
+          { status: 404 }
+        );
+      }
+      
+      // Process questions to match QuizQuestion format and determine status
+      currentStep = 'processing questions';
+      questionStats = questionsWithStats.map(question => {
+        // Parse options (handle both string and array formats)
+        let options: QuestionOption[] = [];
+        
+        try {
+          const rawOptions: RawOption[] = typeof question.options === 'string' 
+            ? JSON.parse(question.options) 
+            : question.options;
+          
+          options = rawOptions.map((opt: RawOption, index: number): QuestionOption => {
+            if (typeof opt === 'object' && opt !== null && 'id' in opt && 'text' in opt) {
+              return { id: String(opt.id), text: String(opt.text) };
+            }
+            return { id: `o${index + 1}`, text: String(opt) };
+          });
+        } catch (e) {
+          console.error(`Error parsing options for question ${question.id}:`, e);
+          // Create default options if parsing fails
+          options = [
+            { id: 'o1', text: 'Option 1' },
+            { id: 'o2', text: 'Option 2' },
+            { id: 'o3', text: 'Option 3' },
+            { id: 'o4', text: 'Option 4' }
+          ];
+        }
+        
+        // Determine question status based on attempt count and success rate
+        let status: 'Mastered' | 'Learning' | 'To Start' = STATUS_TO_START;
+        if (question.attemptCount > 0) {
+          status = question.successRate >= MASTERY_THRESHOLD ? STATUS_MASTERED : STATUS_LEARNING;
+        }
+        
+        return {
+          id: question.id,
+          subtopicId: question.subtopicId,
+          question: question.question,
+          options: options,
+          correctAnswer: question.correctAnswer,
+          explanation: question.explanation,
+          formula: question.formula || '',
+          difficultyLevelId: question.difficultyLevelId,
+          questionTypeId: question.questionTypeId,
+          timeAllocation: question.timeAllocation,
+          attemptCount: question.attemptCount,
+          successRate: question.successRate,
+          status: status
+        };
       });
-      console.log(`Retrieved ${allQuestions.length} questions for subtopic`);
-    } catch (questionsError) {
-      console.error('Error retrieving questions:', questionsError);
+    } catch (error) {
+      console.error('Error retrieving questions with statistics:', error);
       return NextResponse.json(
-        { success: false, error: 'Error retrieving questions' },
+        { success: false, error: 'Error retrieving questions with statistics' },
         { status: 500 }
       );
     }
 
-    if (allQuestions.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No questions available for this subtopic' },
-        { status: 404 }
-      );
-    }
-
-    // 4. Process questions to match QuizQuestion format
-    currentStep = 'processing questions';
-    const formattedQuestions = allQuestions.map(question => {
-      // Parse options (handle both string and array formats)
-      let options: QuestionOption[] = [];
-      
-      try {
-        const rawOptions: RawOption[] = typeof question.options === 'string' 
-          ? JSON.parse(question.options) 
-          : question.options;
-        
-        options = rawOptions.map((opt: RawOption, index: number): QuestionOption => {
-          if (typeof opt === 'object' && opt !== null && 'id' in opt && 'text' in opt) {
-            return { id: String(opt.id), text: String(opt.text) };
-          }
-          return { id: `o${index + 1}`, text: String(opt) };
-        });
-      } catch (e) {
-        console.error(`Error parsing options for question ${question.id}:`, e);
-        // Create default options if parsing fails
-        options = [
-          { id: 'o1', text: 'Option 1' },
-          { id: 'o2', text: 'Option 2' },
-          { id: 'o3', text: 'Option 3' },
-          { id: 'o4', text: 'Option 4' }
-        ];
-      }
-
-      return {
-        id: question.id,
-        subtopicId: question.subtopicId,
-        question: question.question,
-        options: options,
-        correctAnswer: question.correctAnswer,
-        explanation: question.explanation,
-        formula: question.formula || '',
-        difficultyLevelId: question.difficultyLevelId,
-        questionTypeId: question.questionTypeId,
-        timeAllocation: question.timeAllocation,
-        attemptCount: 0, // Will be filled from user data
-        successRate: 0,   // Will be filled from user data
-        status: 'To Start' // Default status
-      };
-    });
-
-    // 5. Get user's test attempts for this subtopic
-    currentStep = 'retrieving test attempts';
-    let testAttempts: TestAttempt[] = [];
-    try {
-      testAttempts = await db
-        .select({ id: MathTestAttempts.id })
-        .from(MathTestAttempts)
-        .where(
-          and(
-            eq(MathTestAttempts.userId, userId),
-            eq(MathTestAttempts.subtopicId, subtopicId)
-          )
-        );
-      console.log(`Retrieved ${testAttempts.length} test attempts for user`);
-    } catch (testAttemptsError) {
-      console.error('Error retrieving test attempts:', testAttemptsError);
-      // Continue without test attempts data - non-critical
-    }
-
-    // 6. Get user's attempt history for these questions
-    currentStep = 'retrieving question attempts';
-    let attempts: QuestionAttempt[] = [];
-    if (testAttempts.length > 0) {
-      try {
-        attempts = await db
-          .select()
-          .from(MathQuestionAttempts)
-          .where(
-            and(
-              inArray(MathQuestionAttempts.testAttemptId, testAttempts.map(ta => ta.id)),
-              inArray(MathQuestionAttempts.questionId, allQuestions.map(q => q.id))
-            )
-          );
-        console.log(`Retrieved ${attempts.length} question attempts`);
-      } catch (attemptsError) {
-        console.error('Error retrieving question attempts:', attemptsError);
-        // Continue without attempts data - non-critical
-      }
-    }
-
-    // 7. Calculate attempt count and success rate for each question
-    currentStep = 'calculating statistics';
-    const questionStats = formattedQuestions.map(question => {
-      const questionAttempts = attempts.filter(a => a.questionId === question.id);
-      const attemptCount = questionAttempts.length;
-      const correctCount = questionAttempts.filter(a => a.isCorrect).length;
-      const successRate = attemptCount > 0 ? (correctCount / attemptCount) * 100 : 0;
-      
-      // Determine question status
-      let status: 'Mastered' | 'Learning' | 'To Start' = 'To Start';
-      if (attemptCount > 0) {
-        status = successRate >= 75 ? 'Mastered' : 'Learning';
-      }
-      
-      return {
-        ...question,
-        attemptCount,
-        successRate,
-        status
-      };
-    });
-
-    // 8. Instead of using selectAdaptiveQuestions which might be causing the error,
+    // 4. Instead of using selectAdaptiveQuestions which might be causing the error,
     // Implement a simplified selection algorithm directly in this route handler
     currentStep = 'selecting questions';
     console.log('Adaptive Question Selection - Session Details:', {

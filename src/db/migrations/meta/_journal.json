@@ -106,6 +106,13 @@
       "when": 1743214979754,
       "tag": "0017_robust_carlie_cooper",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1743215000000,
+      "tag": "0018_add_maths_query_indexes",
+      "breakpoints": true
     }
   ]
 }
