@@ -21,9 +21,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// export const metadata: Metadata = {
+//   title: "Smart Practice",
+//   description: "Smart Practice app",
+// };
+
+// Add these Open Graph tags to your layout.tsx file within the metadata object
+
 export const metadata: Metadata = {
-  title: "Smart Practice",
-  description: "Smart Practice app",
+  title: "Smart Practise | AI-Powered Selective School Exam Preparation",
+  description: "Smart Practise offers personalized AI-powered learning paths for selective entry high school exams with real-time progress tracking and adaptive feedback.",
+  openGraph: {
+    type: "website",
+    url: "https://smartpractise.com",
+    title: "Smart Practise | AI-Powered Selective School Exam Preparation",
+    description: "Personalized learning paths for selective entry exams with real-time progress tracking and adaptive feedback.",
+    siteName: "Smart Practise",
+    images: [
+      {
+        url: "/sp-logo.png", // Replace with your actual image path
+        width: 1200,
+        height: 630,
+        alt: "Smart Practise - Selective School Exam Preparation"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Smart Practise | Selective School Exam Prep",
+    description: "AI-powered practice for mathematics, vocabulary & quantitative reasoning tests.",
+    images: ["/sp-logo.png"], // Replace with your actual image path
+    creator: "@smartpractiseai" // Replace with your Twitter handle if applicable
+  }
 };
 
 export default function RootLayout({
@@ -32,6 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const adSenseId = "pub-2425712839519303";
+
   
   return (
     <html lang="en" suppressHydrationWarning>
