@@ -7,10 +7,11 @@ import {
   mathTestAttempts as MathTestAttempts,
   mathQuestions as MathQuestions
 } from '@/db/maths-schema';
-import { eq, and, inArray, sql, count, sum } from 'drizzle-orm';
+import { eq, and, sql, count, sum } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { currentUser } from '@clerk/nextjs/server';
 import { adaptiveQuestionSelection } from '@/db/adaptive-schema';
+import { QuizQuestion } from '@/types/quiz';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,17 +27,17 @@ type RawOption =
   | string 
   | number;
 
-// Define types for database records
-interface TestAttempt {
-  id: number;
-}
+// // Define types for database records
+// interface TestAttempt {
+//   id: number;
+// }
 
-interface QuestionAttempt {
-  testAttemptId: number;
-  questionId: number;
-  isCorrect: boolean;
-  // Add other fields as needed
-}
+// interface QuestionAttempt {
+//   testAttemptId: number;
+//   questionId: number;
+//   isCorrect: boolean;
+//   // Add other fields as needed
+// }
 
 export async function POST(request: NextRequest) {
   let currentStep = 'initializing';
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
     const STATUS_MASTERED = 'Mastered';
     
     // Initialize questionStats variable outside the try block so it's accessible later
-    let questionStats: any[] = [];
+    let questionStats: Array<QuizQuestion> = [];
     
     try {
       // Alias tables for the subquery

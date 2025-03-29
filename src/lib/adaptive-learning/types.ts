@@ -1,6 +1,6 @@
 // src/lib/adaptive-learning/types.ts
 
-import { QuizQuestion } from '@/types/quiz';
+//import { QuizQuestion } from '@/types/quiz';
 
 // First, let's check what the actual QuizQuestion type looks like
 // Since we need to base our AdaptiveQuestion off this

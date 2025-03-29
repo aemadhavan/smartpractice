@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { mathQuestionAttempts, mathSubtopics, mathSubtopicProgress, mathQuestions, mathTestAttempts } from '@/db/maths-schema';
 import { learningGaps, userAdaptiveSettings, adaptiveQuestionSelection } from '@/db/adaptive-schema';
 import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
-import { AdaptiveQuestion, LearningGap, AdaptiveSettings, AdaptiveRecommendation, AdaptiveLearningResponse } from './types';
+import { AdaptiveQuestion,  AdaptiveRecommendation, AdaptiveLearningResponse } from './types';
 
 // Remove the conflicting AdaptiveQuestion interface since we're importing it
 

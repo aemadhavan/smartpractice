@@ -17,7 +17,7 @@ const QUANTITATIVE_ENDPOINTS = {
   completeSession: '/api/quantitative/complete-session',
   adaptiveFeedback: '/api/quantitative/adaptive-feedback',
   adaptiveSettings: '/api/quantitative/adaptive-settings',
-  adaptiveQuestions: '/api/maths/adaptive-questions',
+  adaptiveQuestions: '/api/quantitative/adaptive-questions',
 };
 
 // QuizQuestion type
@@ -50,6 +50,72 @@ type Subtopic = {
     toStart: number;
   };
 };
+
+async function getQuestionsForQuiz(
+  subtopicId: number,
+  userId: string,
+  questions: QuizQuestion[],
+  testAttemptId: number | null,
+  useAdaptiveLearning: boolean = true
+): Promise<QuizQuestion[]> {
+  // Skip adaptive selection if disabled or no testAttemptId
+  if (!useAdaptiveLearning || !testAttemptId || questions.length === 0) {
+    console.log('ADAPTIVE: Skipping adaptive selection', {
+      useAdaptiveLearning,
+      testAttemptId,
+      questionsCount: questions.length
+    });
+    return questions;
+  }
+
+  try {
+    console.log('ADAPTIVE: Calling adaptive questions API', {
+      testAttemptId,
+      subtopicId,
+      userId,
+      regularQuestionsCount: questions.length
+    });
+    
+    // Call the adaptive-questions API endpoint
+    const response = await fetch('/api/quantitative/adaptive-questions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subtopicId,
+        testAttemptId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Unknown error from adaptive questions API');
+    }
+    
+    console.log('ADAPTIVE: API response received', {
+      questionCount: data.questions?.length || 0,
+      isAdaptiveLearningEnabled: data.isAdaptiveLearningEnabled
+    });
+    
+    // If the API returned questions, use them
+    if (data.questions && data.questions.length > 0) {
+      return data.questions as QuizQuestion[];
+    }
+    
+    // Fallback to the original questions if the API didn't return any
+    return questions;
+  } catch (error) {
+    console.error('ADAPTIVE: Error applying adaptive selection', error);
+    // Fallback to regular questions on error
+    return questions;
+  }
+}
 
 // Function to render math formulas
 const renderFormula = (formula: string): React.ReactNode => {
@@ -201,6 +267,45 @@ export default function QuestionsPage() {
           return processOptions(question);
         });
         setProcessedQuestions(processed);
+
+        try {
+          const sessionResponse = await fetch(QUANTITATIVE_ENDPOINTS.initSession, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subtopicId: selectedSubtopic.id })
+          });
+          
+          if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            console.log("Test session initialization response:", sessionData);
+            const testAttemptId = sessionData.testAttemptId;
+            
+            if (testAttemptId) {
+              // Update with adaptive questions if we have a testAttemptId
+              const adaptiveQuestions = await getQuestionsForQuiz(
+                selectedSubtopic.id,
+                user.id,
+                processed,
+                testAttemptId,
+                true // enable adaptive learning
+              );
+              
+              // Update questions with adaptive selection
+              setProcessedQuestions(adaptiveQuestions);
+              
+              // Set active test attempt ID
+              setActiveTestAttemptId(testAttemptId);
+            } else {
+              console.error("No valid test attempt ID found in response:", sessionData);
+            }
+          } else {
+            console.error("Error initializing session:", sessionResponse.status, sessionResponse.statusText);
+          }
+        } catch (error) {
+          console.error('Error initializing session for adaptive learning:', error);
+          // We still have the regular questions, so we can continue
+        }
+        
       } else {
         throw new Error('No subtopics found for this topic');
       }
