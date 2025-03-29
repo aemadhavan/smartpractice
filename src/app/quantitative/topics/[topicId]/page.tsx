@@ -188,7 +188,7 @@ export default function QuantitativeTopicPage() {
   const [lastFetched, setLastFetched] = useState<number | null>(null);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic<ProcessedQuestion> | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [activeTestAttemptId, setActiveTestAttemptId] = useState<number | null>(null);
   const needsCompletionRef = useRef(false);
   const CACHE_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
   const [processingSubtopic, setProcessingSubtopic] = useState(false);
@@ -241,15 +241,15 @@ export default function QuantitativeTopicPage() {
   );
 
   const completeTestSession = useCallback(
-    async (sessionId: number) => {
-      if (!sessionId || !user?.id) return;
+    async (testAttemptId: number) => {
+      if (!testAttemptId || !user?.id) return;
 
       try {
-        console.log('Completing test session:', sessionId);
+        console.log('Completing test session:', testAttemptId);
         const response = await fetch(QUANTITATIVE_ENDPOINTS.completeSession, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testSessionId: sessionId, userId: user.id }),
+          body: JSON.stringify({ testSessionId: testAttemptId, userId: user.id }),
         });
 
         if (response.ok) {
@@ -269,13 +269,13 @@ export default function QuantitativeTopicPage() {
 
   useEffect(() => {
     return () => {
-      if (needsCompletionRef.current && activeSessionId) {
-        completeTestSession(activeSessionId).then(() => {
-          console.log(`Test session ${activeSessionId} completed on unmount`);
+      if (needsCompletionRef.current && activeTestAttemptId) {
+        completeTestSession(activeTestAttemptId).then(() => {
+          console.log(`Test session ${activeTestAttemptId} completed on unmount`);
         });
       }
     };
-  }, [activeSessionId, completeTestSession]);
+  }, [activeTestAttemptId, completeTestSession]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -495,16 +495,16 @@ export default function QuantitativeTopicPage() {
     }
   };
 
-  const handleSessionIdUpdate = (sessionId: number | null): void => {
-    console.log('[DEBUG SESSION] Received session ID update:', sessionId);
-    if (sessionId) {
-      setActiveSessionId(sessionId);
+  const handleTestAttemptIdUpdate = (testAttemptId: number | null): void => {
+    console.log('[DEBUG SESSION] Received session ID update:', testAttemptId);
+    if (testAttemptId) {
+      setActiveTestAttemptId(testAttemptId);
       needsCompletionRef.current = true;
       
       // Also update the session manager
-      sessionManager.setSessionId(sessionId);
+      sessionManager.setSessionId(testAttemptId);
     } else {
-      setActiveSessionId(null);
+      setActiveTestAttemptId(null);
       needsCompletionRef.current = false;
       
       // Reset the session manager
@@ -537,11 +537,11 @@ export default function QuantitativeTopicPage() {
   };
 
   const handleCloseQuizModal = async (): Promise<void> => {
-    if (activeSessionId && needsCompletionRef.current && user) {
+    if (activeTestAttemptId && needsCompletionRef.current && user) {
       try {
-        const success = await sessionManager.completeSession(user.id, activeSessionId, QUANTITATIVE_ENDPOINTS.completeSession);
+        const success = await sessionManager.completeSession(user.id, activeTestAttemptId, QUANTITATIVE_ENDPOINTS.completeSession);
         if (success) {
-          console.log('[DEBUG SESSION] Successfully completed session ID:', activeSessionId);
+          console.log('[DEBUG SESSION] Successfully completed session ID:', activeTestAttemptId);
         } else {
           console.warn('[DEBUG SESSION] Failed to complete session');
         }
@@ -552,7 +552,7 @@ export default function QuantitativeTopicPage() {
     }
   
     // Reset both the local state and the session manager
-    setActiveSessionId(null);
+    setActiveTestAttemptId(null);
     sessionManager.reset();
     setIsQuizModalOpen(false);
   
@@ -808,8 +808,9 @@ export default function QuantitativeTopicPage() {
             userId={user.id}
             topicId={Number(topicId)}
             onQuestionsUpdate={safeQuestionUpdateAdapter}
-            onSessionIdUpdate={handleSessionIdUpdate}
-            testSessionId={activeSessionId}
+           // onSessionIdUpdate={handleSessionIdUpdate}
+            onTestAttemptIdUpdate={handleTestAttemptIdUpdate}
+            testSessionId={activeTestAttemptId}
             apiEndpoints={QUANTITATIVE_ENDPOINTS}
             renderFormula={renderFormula}
             calculateNewStatus={calculateNewStatus}
@@ -829,7 +830,7 @@ export default function QuantitativeTopicPage() {
             <p>Total questions: {topicData.stats.totalQuestions}</p>
             <p>Data last fetched: {lastFetched ? new Date(lastFetched).toLocaleTimeString() : 'Never'}</p>
             <p>Topic ID: {topicId}</p>
-            <p>Current session ID: {activeSessionId || 'None'}</p>
+            <p>Current session ID: {activeTestAttemptId || 'None'}</p>
             <p>Session needs completion: {needsCompletionRef.current ? 'Yes' : 'No'}</p>
             <p>Selected subtopic: {selectedSubtopicForQuiz?.name || 'None'}</p>
             <p>Selected subtopic ID: {selectedSubtopicForQuiz?.id || 'None'}</p>
