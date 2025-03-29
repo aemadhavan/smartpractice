@@ -101,7 +101,7 @@ export async function selectAdaptiveQuantQuestions(
   userId: string, 
   subtopicId: number, 
   availableQuestions: AdaptiveQuestion[],
-  sessionId: number | null
+  testAttemptId: number | null
 ): Promise<AdaptiveQuestion[]> {
   if (availableQuestions.length === 0) {
     return [];
@@ -247,9 +247,9 @@ export async function selectAdaptiveQuantQuestions(
     .slice(0, 10);
 
   // 7. If we have a session ID, log the selection for analysis
-  if (sessionId) {
+  if (testAttemptId) {
     const selectionLogs = selectedQuestions.map((question, index) => ({
-      sessionId,
+      testAttemptId,
       questionId: question.id,
       selectionReason: question.selectionReason,
       difficultyLevel: question.difficultyLevelId,
