@@ -264,7 +264,7 @@ export async function selectAdaptiveQuestions(
 
     
 
-  // 7. If we have a session ID, log the selection for analysis
+  // 7. If we have a testAttemptId, log the selection for analysis
   if (testAttemptId) {
     const selectionLogs = selectedQuestions.map((question, index) => {
       console.log('Preparing Selection Log:', {

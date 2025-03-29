@@ -189,7 +189,7 @@ export default function MathTopicPage() {
   const [lastFetched, setLastFetched] = useState<number | null>(null);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [selectedSubtopicForQuiz, setSelectedSubtopicForQuiz] = useState<Subtopic<ProcessedQuestion> | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [activeTestAttemptId, setActiveTestAttemptId] = useState<number | null>(null);
   const needsCompletionRef = useRef(false);
   const CACHE_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
   const [processingSubtopic, setProcessingSubtopic] = useState(false);
@@ -270,13 +270,13 @@ export default function MathTopicPage() {
 
   useEffect(() => {
     return () => {
-      if (needsCompletionRef.current && activeSessionId) {
-        completeTestSession(activeSessionId).then(() => {
-          console.log(`Test session ${activeSessionId} completed on unmount`);
+      if (needsCompletionRef.current && activeTestAttemptId) {
+        completeTestSession(activeTestAttemptId).then(() => {
+          console.log(`Test session ${activeTestAttemptId} completed on unmount`);
         });
       }
     };
-  }, [activeSessionId, completeTestSession]);
+  }, [activeTestAttemptId, completeTestSession]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -496,16 +496,16 @@ export default function MathTopicPage() {
     }
   };
 
-  const handleSessionIdUpdate = (testAttemptId: number | null): void => {
-    console.log('[DEBUG SESSION] Received session ID update:', testAttemptId);
+  const handleTestAttemptIdUpdate = (testAttemptId: number | null): void => {
+    console.log('[DEBUG SESSION] Received test attempt ID update:', testAttemptId);
     if (testAttemptId) {
-      setActiveSessionId(testAttemptId);
+      setActiveTestAttemptId(testAttemptId);
       needsCompletionRef.current = true;
       
       // Also update the session manager
       sessionManager.setSessionId(testAttemptId);
     } else {
-      setActiveSessionId(null);
+      setActiveTestAttemptId(null);
       needsCompletionRef.current = false;
       
       // Reset the session manager
@@ -538,13 +538,13 @@ export default function MathTopicPage() {
   };
 
   const handleCloseQuizModal = async (): Promise<void> => {
-    if (activeSessionId && needsCompletionRef.current && user) {
+    if (activeTestAttemptId && needsCompletionRef.current && user) {
       try {
-        const success = await sessionManager.completeSession(user.id, activeSessionId, MATH_ENDPOINTS.completeSession);
+        const success = await sessionManager.completeSession(user.id, activeTestAttemptId, MATH_ENDPOINTS.completeSession);
         if (success) {
-          console.log('[DEBUG SESSION] Successfully completed session ID:', activeSessionId);
+          console.log('[DEBUG SESSION] Successfully completed test attempt ID:', activeTestAttemptId);
         } else {
-          console.warn('[DEBUG SESSION] Failed to complete session');
+          console.warn('[DEBUG SESSION] Failed to complete test session');
         }
       } catch (error) {
         console.error('[DEBUG SESSION] Error completing test session on close:', error);
@@ -553,7 +553,7 @@ export default function MathTopicPage() {
     }
   
     // Reset both the local state and the session manager
-    setActiveSessionId(null);
+    setActiveTestAttemptId(null);
     sessionManager.reset();
     setIsQuizModalOpen(false);
   
@@ -811,8 +811,8 @@ export default function MathTopicPage() {
           userId={user.id}
           topicId={Number(topicId)}
           onQuestionsUpdate={safeQuestionUpdateAdapter}
-          onTestAttemptIdUpdate={handleSessionIdUpdate}
-          testSessionId={activeSessionId}
+          onTestAttemptIdUpdate={handleTestAttemptIdUpdate}
+          testSessionId={activeTestAttemptId}
           apiEndpoints={MATH_ENDPOINTS}
           renderFormula={renderFormula}
           calculateNewStatus={calculateNewStatus}
@@ -822,10 +822,6 @@ export default function MathTopicPage() {
         
       })()}
         
-          
-      
-      
-
       {/* Debug Information */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-8 p-4 bg-gray-100 rounded-lg">
@@ -835,7 +831,7 @@ export default function MathTopicPage() {
             <p>Total questions: {topicData.stats.totalQuestions}</p>
             <p>Data last fetched: {lastFetched ? new Date(lastFetched).toLocaleTimeString() : 'Never'}</p>
             <p>Topic ID: {topicId}</p>
-            <p>Current session ID: {activeSessionId || 'None'}</p>
+            <p>Current test attempt ID: {activeTestAttemptId || 'None'}</p>
             <p>Session needs completion: {needsCompletionRef.current ? 'Yes' : 'No'}</p>
             <p>Selected subtopic: {selectedSubtopicForQuiz?.name || 'None'}</p>
             <p>Selected subtopic ID: {selectedSubtopicForQuiz?.id || 'None'}</p>
