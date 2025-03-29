@@ -29,8 +29,9 @@ const geistMono = Geist_Mono({
 // Add these Open Graph tags to your layout.tsx file within the metadata object
 
 export const metadata: Metadata = {
-  title: "Smart Practise | AI-Powered Selective School Exam Preparation",
+  title: "Smart Practise | Selective School Exam Preparation",
   description: "Smart Practise offers personalized AI-powered learning paths for selective entry high school exams with real-time progress tracking and adaptive feedback.",
+  keywords: "selective entry exam, high school entrance, mathematics practice, vocabulary building, quantitative reasoning, adaptive learning, exam preparation, practice tests",
   openGraph: {
     type: "website",
     url: "https://smartpractise.com",
