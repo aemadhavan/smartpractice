@@ -23,6 +23,12 @@ export interface AdaptiveQuestion {
  * Analyzes user performance to identify learning gaps
  */
 export async function detectLearningGaps(userId: string, subtopicId: number): Promise<void> {
+  console.log('Detailed Learning Gap Detection', {
+    userId,
+    subtopicId,
+    timestamp: new Date().toISOString()
+  });
+
   // 1. Get all question attempts for this subtopic
   const attempts = await db.select()
     .from(mathQuestionAttempts)
@@ -35,6 +41,14 @@ export async function detectLearningGaps(userId: string, subtopicId: number): Pr
       )
     );
 
+    console.log('Attempt Analysis', {
+      totalAttempts: attempts.length,
+      attemptDetails: attempts.map(a => ({
+        questionId: a.mathQuestionAttempts.questionId,
+        isCorrect: a.mathQuestionAttempts.isCorrect,
+        questionTypeId: a.mathQuestions.questionTypeId
+      }))
+    });
   // 2. Analyze for patterns in incorrect answers
   const incorrectAttempts = attempts.filter(attempt => !attempt.mathQuestionAttempts.isCorrect);
   
@@ -93,12 +107,17 @@ export async function selectAdaptiveQuestions(
   userId: string, 
   subtopicId: number, 
   availableQuestions: AdaptiveQuestion[],
-  sessionId: number | null
+  testAttemptId: number | null
 ): Promise<AdaptiveQuestion[]> {
   if (availableQuestions.length === 0) {
     return [];
   }
-  console.log("Adaptive Question : ",sessionId);
+  console.log('Adaptive Selection Input:', {
+    userId, 
+    subtopicId, 
+    questionsCount: availableQuestions.length,
+    testAttemptId
+  });
   // 1. Get user's adaptive settings
   const userSettings = await db.select().from(userAdaptiveSettings).where(
     eq(userAdaptiveSettings.userId, userId)
@@ -246,28 +265,54 @@ export async function selectAdaptiveQuestions(
     
 
   // 7. If we have a session ID, log the selection for analysis
-  if (sessionId) {
-    const selectionLogs = selectedQuestions.map((question, index) => ({
-      sessionId,
-      questionId: question.id,
-      selectionReason: question.selectionReason,
-      difficultyLevel: question.difficultyLevelId,
-      sequencePosition: index
-    }));
+  if (testAttemptId) {
+    const selectionLogs = selectedQuestions.map((question, index) => {
+      console.log('Preparing Selection Log:', {
+        testAttemptId,
+        questionId: question.id,
+        selectionReason: question.selectionReason,
+        difficultyLevel: question.difficultyLevelId,
+        sequencePosition: index
+      });
 
-    await db.insert(adaptiveQuestionSelection).values(selectionLogs);
+      return {
+        testAttemptId,
+        questionId: question.id,
+        selectionReason: question.selectionReason || 'default',
+        difficultyLevel: question.difficultyLevelId,
+        sequencePosition: index
+      };
+    });
+
+    try {
+      console.log('SELECT ADAPTIVE QUESTIONS CALLED', {
+        userId, 
+        subtopicId,
+        testAttemptId,
+        availableQuestionsCount: availableQuestions.length
+      });
+      console.log('Attempting to insert with object type:', typeof adaptiveQuestionSelection);
+      console.log('Object keys:', Object.keys(adaptiveQuestionSelection));
+      console.log('Attempting to insert selection logs:', selectionLogs);
+      await db.insert(adaptiveQuestionSelection).values(selectionLogs);
+      console.log('Successfully inserted selection logs');
+    } catch (error) {
+      console.error('Error inserting selection logs:', error);
+      console.error('Full data being inserted:', JSON.stringify(selectionLogs));
+      // Ensure full error details are logged
+      if (error instanceof Error) {
+        console.error('Error Details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+    }
+  } else {
+    console.warn('No test attempt ID provided for logging');
   }
 
-  // Remove the scoring fields before returning
-  return selectedQuestions.map(({ id, difficultyLevelId, question, options, correctAnswer, explanation, successRate }) => ({
-    id,
-    difficultyLevelId,
-    question,
-    options,
-    correctAnswer,
-    explanation,
-    successRate
-  }));
+  return selectedQuestions;
 }
 
 /**
@@ -301,6 +346,17 @@ export async function updateLearningGaps(
   subtopicId: number,
   questionResults: { id: number; isCorrect: boolean; }[]
 ): Promise<void> {
+  const perfectPerformance = questionResults.length > 0 && 
+    questionResults.every(result => result.isCorrect);
+  
+  console.log(`Learning gap analysis for user ${userId}:`, {
+    subtopicId,
+    questionCount: questionResults.length,
+    correctCount: questionResults.filter(r => r.isCorrect).length,
+    perfectPerformance,
+    timestamp: new Date().toISOString()
+  });
+
   // 1. Get active learning gaps for this subtopic
   const activeGaps = await db.select().from(learningGaps).where(
     and(
@@ -339,7 +395,11 @@ export async function updateLearningGaps(
   }
   
   // 3. Detect any new learning gaps
-  await detectLearningGaps(userId, subtopicId);
+  if (!perfectPerformance) {
+    await detectLearningGaps(userId, subtopicId);
+  } else {
+    console.log(`Perfect performance detected - skipping gap detection for user ${userId}, subtopic ${subtopicId}`);
+  }
 }
 
 /**

@@ -115,6 +115,12 @@ export const useAdaptiveLearning = ({
     if (!testAttemptId || !adaptiveLearningEnabled || questions.length === 0) return false;
     
     try {
+      console.log(`[${subjectType}] Processing final adaptive feedback:`, {
+        testAttemptId,
+        questionsCount: questions.length,
+        correctCount: questions.filter(q => q.correctAnswer === q.userAnswer).length
+      });
+
       const questionResults = questions.map(q => ({
         questionId: q.id,
         isCorrect: q.correctAnswer === q.userAnswer,
@@ -133,9 +139,17 @@ export const useAdaptiveLearning = ({
       });
       
       if (!response.ok) {
-        console.warn(`[${subjectType}] Final adaptive feedback request failed`);
-        return false;
+      const errorText = await response.text();
+      console.error(`[${subjectType}] Final adaptive feedback request failed (${response.status}):`, errorText);
+      
+      // Special handling for perfect quiz in case of API failure
+      const allCorrect = questions.every(q => q.correctAnswer === q.userAnswer);
+      if (allCorrect) {
+        console.warn(`[${subjectType}] API failure on perfect quiz performance - this may cause incorrect learning gaps`);
       }
+      
+      return false;
+    }
       
       const data = await response.json();
       

@@ -56,6 +56,7 @@ export interface AttemptData {
   isCorrect: boolean;
   userAnswer: string;
   timeSpent: number;
+  testAttemptId?: number;
 }
 
 export interface SessionManager {

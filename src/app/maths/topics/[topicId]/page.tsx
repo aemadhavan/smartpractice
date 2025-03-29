@@ -242,15 +242,15 @@ export default function MathTopicPage() {
   );
 
   const completeTestSession = useCallback(
-    async (sessionId: number) => {
-      if (!sessionId || !user?.id) return;
+    async (testAttemptId: number) => {
+      if (!testAttemptId || !user?.id) return;
 
       try {
-        console.log('Completing test session:', sessionId);
+        console.log('Completing test session:', testAttemptId);
         const response = await fetch(MATH_ENDPOINTS.completeSession, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testSessionId: sessionId, userId: user.id }),
+          body: JSON.stringify({ testAttemptId: testAttemptId, userId: user.id }),
         });
 
         if (response.ok) {
@@ -496,14 +496,14 @@ export default function MathTopicPage() {
     }
   };
 
-  const handleSessionIdUpdate = (sessionId: number | null): void => {
-    console.log('[DEBUG SESSION] Received session ID update:', sessionId);
-    if (sessionId) {
-      setActiveSessionId(sessionId);
+  const handleSessionIdUpdate = (testAttemptId: number | null): void => {
+    console.log('[DEBUG SESSION] Received session ID update:', testAttemptId);
+    if (testAttemptId) {
+      setActiveSessionId(testAttemptId);
       needsCompletionRef.current = true;
       
       // Also update the session manager
-      sessionManager.setSessionId(sessionId);
+      sessionManager.setSessionId(testAttemptId);
     } else {
       setActiveSessionId(null);
       needsCompletionRef.current = false;
@@ -811,7 +811,7 @@ export default function MathTopicPage() {
           userId={user.id}
           topicId={Number(topicId)}
           onQuestionsUpdate={safeQuestionUpdateAdapter}
-          onSessionIdUpdate={handleSessionIdUpdate}
+          onTestAttemptIdUpdate={handleSessionIdUpdate}
           testSessionId={activeSessionId}
           apiEndpoints={MATH_ENDPOINTS}
           renderFormula={renderFormula}

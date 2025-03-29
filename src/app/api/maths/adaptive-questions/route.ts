@@ -3,15 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { 
-//   mathQuestions as MathQuestions, 
-//   mathSubtopics as MathSubtopics, 
   mathQuestionAttempts as MathQuestionAttempts, 
   mathTestAttempts as MathTestAttempts 
 } from '@/db/maths-schema';
-//import { userAdaptiveSettings as UserAdaptiveSettings } from '@/db/adaptive-schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { currentUser } from '@clerk/nextjs/server';
 import { selectAdaptiveQuestions } from '@/lib/adaptive-learning';
+import { adaptiveQuestionSelection } from '@/db/adaptive-schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +28,7 @@ type RawOption =
 export async function POST(request: NextRequest) {
   try {
     const user = await currentUser();
-    
+   
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -41,7 +39,34 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
 
     const data = await request.json();
-    const { subtopicId, testAttemptId  } = data;
+    const { subtopicId, testAttemptId } = data;
+
+    console.log('Adaptive Questions API - Request Details:', {
+      userId,
+      subtopicId,
+      testAttemptId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Check if the schema is properly initialized
+    console.log('Schema Status Check:', {
+      adaptiveQuestionSelectionDefined: !!adaptiveQuestionSelection,
+      tableDetails: adaptiveQuestionSelection ? JSON.stringify(adaptiveQuestionSelection) : 'undefined'
+    });
+
+    // Verify the adaptiveQuestionSelection table exists
+    try {
+      const tableCheck = await db.execute(sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'adaptiveQuestionSelection'
+        );
+      `);
+      console.log('adaptiveQuestionSelection table exists check:', tableCheck);
+    } catch (tableCheckError) {
+      console.error('Error checking if table exists:', tableCheckError);
+    }
 
     if (!subtopicId) {
       return NextResponse.json(
@@ -170,21 +195,65 @@ export async function POST(request: NextRequest) {
 
     // 8. Select questions adaptively if enabled, or randomly if not
     let selectedQuestions;
-    console.log('Adaptive learning API,Call Sessionid:', testAttemptId ); 
+    console.log('Adaptive Question Selection - Session Details:', {
+      userId,
+      subtopicId,
+      testAttemptId,
+      isAdaptiveLearningEnabled,
+      availableQuestionsCount: questionStats.length,
+      timestamp: new Date().toISOString()
+    });
+
     if (isAdaptiveLearningEnabled) {
-      selectedQuestions = await selectAdaptiveQuestions(
-        userId,
-        subtopicId,
-        questionStats,
-        testAttemptId 
-      );
+      try {
+        selectedQuestions = await selectAdaptiveQuestions(
+          userId,
+          subtopicId,
+          questionStats,
+          testAttemptId 
+        );
+        console.log('Adaptive selection completed successfully', {
+          selectedCount: selectedQuestions.length
+        });
+        
+        // If selectAdaptiveQuestions completed but table is still empty, try a direct insertion
+        if (testAttemptId) {
+          try {
+            console.log('Attempting direct test insertion to adaptiveQuestionSelection');
+            await db.insert(adaptiveQuestionSelection).values({
+              testAttemptId,
+              questionId: selectedQuestions[0].id,
+              selectionReason: 'fallback_direct_test',
+              difficultyLevel: selectedQuestions[0].difficultyLevelId,
+              sequencePosition: 0
+            });
+            console.log('Direct test insertion successful');
+          } catch (directInsertError) {
+            console.error('Direct test insertion failed:', directInsertError);
+            // Log detailed error information
+            if (directInsertError instanceof Error) {
+              console.error({
+                errorType: directInsertError.constructor.name,
+                message: directInsertError.message,
+                stack: directInsertError.stack
+              });
+            }
+          }
+        }
+      } catch (selectError) {
+        console.error('Error in selectAdaptiveQuestions:', selectError);
+        // Fall back to random selection if adaptive selection fails
+        selectedQuestions = [...questionStats]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+      }
     } else {
       // Shuffle questions and select 10
       selectedQuestions = [...questionStats]
         .sort(() => Math.random() - 0.5)
         .slice(0, 10);
     }
-
+    
     return NextResponse.json({
       success: true,
       subtopic: {
@@ -197,6 +266,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in adaptive questions API:', error);
+    // Log additional error details
+    if (error instanceof Error) {
+      console.error({
+        errorType: error.constructor.name,
+        message: error.message,
+        stack: error.stack
+      });
+    }
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

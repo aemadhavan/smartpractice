@@ -87,7 +87,7 @@ export default function QuestionsPage() {
   const [processedQuestions, setProcessedQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [activeTestAttemptId, setActiveTestAttemptId] = useState<number | null>(null);
   const topicId = params.topicId as string;
   const subjectType = 'maths';
 
@@ -214,14 +214,14 @@ export default function QuestionsPage() {
 
   // Complete session when leaving the page
   const completeTestSession = useCallback(
-    async (sessionId: number) => {
-      if (!sessionId || !user?.id) return;
+    async (testAttemptId: number) => {
+      if (!testAttemptId || !user?.id) return;
       try {
-        console.log('Completing test session:', sessionId);
+        console.log('Completing test session:', testAttemptId);
         const response = await fetch(MATH_ENDPOINTS.completeSession, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testAttemptId: sessionId, userId: user.id }),
+          body: JSON.stringify({ testAttemptId: testAttemptId, userId: user.id }),
         });
         if (response.ok) {
           console.log('Successfully completed test session');
@@ -248,17 +248,17 @@ export default function QuestionsPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (activeSessionId) {
-        completeTestSession(activeSessionId).then(() => {
-          console.log(`Test session ${activeSessionId} completed on unmount`);
+      if (activeTestAttemptId) {
+        completeTestSession(activeTestAttemptId).then(() => {
+          console.log(`Test session ${activeTestAttemptId} completed on unmount`);
         });
       }
     };
-  }, [activeSessionId, completeTestSession]);
+  }, [activeTestAttemptId, completeTestSession]);
 
-  // Handle session ID update
-  const handleSessionIdUpdate = (sessionId: number | null) => {
-    setActiveSessionId(sessionId);
+  // Handle test attempt ID update
+  const handleTestAttemptIdUpdate = (testAttemptId: number | null) => {
+    setActiveTestAttemptId(testAttemptId);
   };
 
   // Handle questions update
@@ -334,7 +334,7 @@ return (
         userId={user.id}
         topicId={Number(topicId)}
         onQuestionsUpdate={handleQuestionsUpdate}
-        onTestAttemptIdUpdate={handleSessionIdUpdate}
+        onTestAttemptIdUpdate={handleTestAttemptIdUpdate}
         apiEndpoints={MATH_ENDPOINTS}
         renderFormula={renderFormula}
         calculateNewStatus={calculateNewStatus}
@@ -350,24 +350,28 @@ return (
               });
               if (response.ok) {
                 const data = await response.json();
-                console.log("Session initialization response:", data);
-                // Accept either testAttemptId or sessionId
-                const sessionId = data.testAttemptId || data.sessionId;
-                if (!sessionId) {
-                  console.error("No valid session ID found in response:", data);
+                console.log("Test session initialization response:", data);
+                const testAttemptId = data.testAttemptId;
+                if (!testAttemptId) {
+                  console.error("No valid test attempt ID found in response:", data);
                   return null;
                 }
                 
-                return sessionId;
+                return testAttemptId;
               }
               return null;
             } catch (error) {
-              console.error('Error initializing session:', error);
+              console.error('Error initializing test session:', error);
               return null;
             }
           },
-          trackAttempt:  async (attemptData: AttemptData, endpoint: string): Promise<boolean> => {
+          trackAttempt: async (attemptData: AttemptData, endpoint: string): Promise<boolean> => {
             try {
+              console.log('Preparing Track Attempt Payload:', {
+                ...attemptData,
+                timestamp: new Date().toISOString()
+              });
+              
               const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -381,16 +385,16 @@ return (
               return false;
             }
           },
-          completeSession: async (userId,sessionId, endpoint) => {
+          completeSession: async (userId, testAttemptId, endpoint) => {
             try {
               const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({  testAttemptId: sessionId,userId })
+                body: JSON.stringify({ testAttemptId, userId })
               });
               return response.ok;
             } catch (error) {
-              console.error('Error completing session:', error);
+              console.error('Error completing test session:', error);
               return false;
             }
           }

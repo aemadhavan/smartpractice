@@ -125,6 +125,7 @@ const QuizPage: React.FC<QuizPageProps> = ({
   const [sessionManuallyEnded, setSessionManuallyEnded] = useState(false);
   // Initialize session on component mount
   React.useEffect(() => {
+    console.log('Quiz Page Test Attempt ID:', currentTestAttemptId)
     if (questions.length > 0 && !currentTestAttemptId && !sessionManuallyEnded) {
       initSession();
     }

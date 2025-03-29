@@ -13,19 +13,19 @@ import { and, eq, sql } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { testSessionId, userId } = body;
+    const { testAttemptId, userId } = body;
 
     const db = await getDb();
 
     console.log('COMPLETE MATH SESSION - Received request:', {
-      testSessionId,
+      testAttemptId,
       userId,
       timestamp: new Date().toISOString(),
     });
 
-    if (!testSessionId || !userId) {
+    if (!testAttemptId || !userId) {
       return NextResponse.json(
-        { error: 'Both testSessionId and userId are required' },
+        { error: 'Both testAttemptId and userId are required' },
         { status: 400 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(mathTestAttempts)
       .where(and(
-        eq(mathTestAttempts.id, testSessionId),
+        eq(mathTestAttempts.id, testAttemptId),
         eq(mathTestAttempts.userId, userId)
       ))
       .limit(1);
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const testAttempt = testAttemptResult[0];
 
     if (!testAttempt) {
-      console.error('COMPLETE MATH SESSION - Test session not found', { testSessionId, userId });
+      console.error('COMPLETE MATH SESSION - Test session not found', { testAttemptId, userId });
       return NextResponse.json(
         { error: 'Test session not found' },
         { status: 404 }
@@ -51,14 +51,14 @@ export async function POST(request: NextRequest) {
 
     if (testAttempt.status !== 'in_progress') {
       console.log('COMPLETE MATH SESSION - Session already completed', {
-        testSessionId,
+        testAttemptId,
         currentStatus: testAttempt.status,
       });
       return NextResponse.json({
         success: true,
         message: 'Test session was already completed',
         sessionStats: {
-          testSessionId,
+          testAttemptId,
           totalQuestions: testAttempt.totalQuestions || 0,
           timeSpent: testAttempt.timeSpent || 0,
           score: testAttempt.score || 0,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         count: sql<number>`COUNT(DISTINCT ${mathQuestionAttempts.questionId})`,
       })
       .from(mathQuestionAttempts)
-      .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
+      .where(eq(mathQuestionAttempts.testAttemptId, testAttemptId));
     
     const totalQuestions = uniqueQuestionsResult[0]?.count || 0;
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         count: sql<number>`COUNT(DISTINCT ${mathQuestionAttempts.questionId}) FILTER (WHERE ${mathQuestionAttempts.isCorrect} = true)`,
       })
       .from(mathQuestionAttempts)
-      .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
+      .where(eq(mathQuestionAttempts.testAttemptId, testAttemptId));
     
     const correctAnswers = correctAnswersResult[0]?.count || 0;
 
@@ -94,12 +94,12 @@ export async function POST(request: NextRequest) {
         isCorrect: mathQuestionAttempts.isCorrect,
       })
       .from(mathQuestionAttempts)
-      .where(eq(mathQuestionAttempts.testAttemptId, testSessionId));
+      .where(eq(mathQuestionAttempts.testAttemptId, testAttemptId));
 
     const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
 
     console.log('COMPLETE MATH SESSION - Detailed Attempt Breakdown', {
-      testSessionId,
+      testAttemptId,
       totalQuestions,
       correctAnswers,
       score,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         score,
       })
       .where(and(
-        eq(mathTestAttempts.id, testSessionId),
+        eq(mathTestAttempts.id, testAttemptId),
         eq(mathTestAttempts.userId, userId)
       ));
 
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('COMPLETE MATH SESSION - Final Update', {
-      testSessionId,
+      testAttemptId,
       totalQuestions,
       correctAnswers,
       score,
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Test session completed successfully',
       sessionStats: {
-        testSessionId,
+        testAttemptId,
         totalQuestions,
         timeSpent: durationInSeconds,
         correctAnswers,

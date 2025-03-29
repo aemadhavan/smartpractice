@@ -38,7 +38,7 @@ type EnhancedQuizModalProps = {
   userId: string;
   topicId: number;
   onQuestionsUpdate?: (questions: QuizQuestion[]) => void;
-  onSessionIdUpdate?: (sessionId: number | null) => void;
+  onTestAttemptIdUpdate?: (sessionId: number | null) => void;
   testSessionId?: number | null;
   apiEndpoints: ApiEndpoints;
   renderFormula?: (formula: string) => React.ReactNode;
@@ -59,7 +59,7 @@ const EnhancedQuizModal: React.FC<EnhancedQuizModalProps> = ({
   isOpen,
   onClose,
   topicId,
-  onSessionIdUpdate,
+  onTestAttemptIdUpdate,
   questions,
   subjectType,
 }) => {
@@ -82,8 +82,8 @@ const EnhancedQuizModal: React.FC<EnhancedQuizModalProps> = ({
       sessionManager.reset();
 
       // Clear session ID in parent component if callback is provided
-      if (onSessionIdUpdate) {
-        onSessionIdUpdate(null);
+      if (onTestAttemptIdUpdate) {
+        onTestAttemptIdUpdate(null);
       }
 
       // Trigger onClose to update parent state (e.g., set isOpen to false)
@@ -94,7 +94,7 @@ const EnhancedQuizModal: React.FC<EnhancedQuizModalProps> = ({
         `/${subjectType}/topics/${topicId}/questions?subtopicId=${questions[0]?.subtopicId || topicId}`
       );
     }
-  }, [isOpen, topicId, router, onClose, onSessionIdUpdate, questions, subjectType]);
+  }, [isOpen, topicId, router, onClose, onTestAttemptIdUpdate, questions, subjectType]);
 
   // Return null as this component is a redirect handler, not a UI renderer
   return null;

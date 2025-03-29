@@ -62,10 +62,15 @@ export const useQuizSession = ({
 
   const trackAttempt = useCallback(async (attemptData: AttemptData): Promise<boolean> => {
     if (!currentTestAttemptId) return false;
-    
+    const validatedData = {
+      ...attemptData,
+      testAttemptId: currentTestAttemptId,
+      userId: userId // Ensure userId is consistent
+    };
+
     try {
       await sessionManager.trackAttempt(
-        attemptData,
+        validatedData,
         apiEndpoints.trackAttempt
       );
       return true;
@@ -73,7 +78,7 @@ export const useQuizSession = ({
       console.error(`[${subjectType}] Error submitting answer:`, error);
       return false;
     }
-  }, [currentTestAttemptId, apiEndpoints.trackAttempt, sessionManager, subjectType]);
+  }, [currentTestAttemptId, apiEndpoints.trackAttempt, sessionManager, subjectType, userId]);
 
   const completeSession = useCallback(async (userId: string, testAttemptId: number | null, endpoint: string): Promise<boolean> => {
     if (!testAttemptId) return false;

@@ -46,7 +46,7 @@ export const quantLearningGaps = pgTable('quantLearningGaps', {
  */
 export const quantAdaptiveQuestionSelection = pgTable('quantAdaptiveQuestionSelection', {
     id: serial('id').primaryKey(),
-    sessionId: integer('session_id').notNull().references(() => quantTestAttempts.id),
+    testAttemptId: integer('test_attempt_id').notNull().references(() => quantTestAttempts.id),
     questionId: integer('question_id').notNull().references(() => quantQuestions.id),
     selectionReason: text('selection_reason').notNull(), // e.g., 'gap', 'progression', 'difficulty'
     difficultyLevel: integer('difficulty_level').notNull(),
@@ -66,7 +66,7 @@ export const quantLearningGapsRelations = relations(quantLearningGaps, ({ one })
 
 export const quantAdaptiveQuestionSelectionRelations = relations(quantAdaptiveQuestionSelection, ({ one }) => ({
     session: one(quantTestAttempts, {
-        fields: [quantAdaptiveQuestionSelection.sessionId],
+        fields: [quantAdaptiveQuestionSelection.testAttemptId],
         references: [quantTestAttempts.id]
     }),
     question: one(quantQuestions, {

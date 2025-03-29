@@ -23,6 +23,13 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
     const { testAttemptId, questionResults } = data;
+    
+    console.log('ADAPTIVE FEEDBACK PROCESSING - DETAILED', {
+      userId,
+      questionResults,
+      timestamp: new Date().toISOString(),
+      rawRequestData: data
+    });
 
     if (!testAttemptId || !questionResults || !Array.isArray(questionResults)) {
       return NextResponse.json(
@@ -65,6 +72,16 @@ export async function POST(request: NextRequest) {
           isNull(gaps.resolvedAt)
         )
     });
+
+    // Add more detailed logging for gap detection and recommendation generation
+    const gapsCreationLog = gaps.map(gap => ({
+      gapId: gap.id,
+      subtopicId: gap.subtopicId,
+      conceptDescription: gap.conceptDescription,
+      severity: gap.severity
+    }));
+
+    console.log('Learning Gaps Created', gapsCreationLog);
 
     // Generate adaptive recommendations
     const recommendations = [];

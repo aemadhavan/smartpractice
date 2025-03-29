@@ -46,7 +46,7 @@ export const learningGaps = pgTable('learningGaps', {
  */
 export const adaptiveQuestionSelection = pgTable('adaptiveQuestionSelection', {
   id: serial('id').primaryKey(),
-  sessionId: integer('session_id').notNull().references(() => mathTestAttempts.id),
+  testAttemptId: integer('test_attempt_id').notNull().references(() => mathTestAttempts.id),
   questionId: integer('question_id').notNull().references(() => mathQuestions.id),
   selectionReason: text('selection_reason').notNull(), // e.g., 'gap', 'progression', 'difficulty'
   difficultyLevel: integer('difficulty_level').notNull(),
@@ -66,7 +66,7 @@ export const learningGapsRelations = relations(learningGaps, ({ one }) => ({
 
 export const adaptiveQuestionSelectionRelations = relations(adaptiveQuestionSelection, ({ one }) => ({
   session: one(mathTestAttempts, {
-    fields: [adaptiveQuestionSelection.sessionId],
+    fields: [adaptiveQuestionSelection.testAttemptId],
     references: [mathTestAttempts.id]
   }),
   question: one(mathQuestions, {

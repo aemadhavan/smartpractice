@@ -7,12 +7,28 @@ import { and, eq, desc, sql } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, questionId, subtopicId, isCorrect, userAnswer, timeSpent, testSessionId } = body;
+    const { userId, questionId, subtopicId, isCorrect, userAnswer, timeSpent, testAttemptId:sessionIdFromRequest } = body;
+
+     // Comprehensive logging
+     console.log('Track Attempt Request Payload:', {
+      fullBody: body,
+      keys: Object.keys(body),
+      userId: body.userId,
+      questionId: body.questionId,
+      subtopicId: body.subtopicId,
+      isCorrect: body.isCorrect,
+      userAnswer: body.userAnswer,
+      timeSpent: body.timeSpent,
+      testAttemptId: body.testAttemptId,
+      timestamp: new Date().toISOString()
+    });
 
     const db = await getDb();
-
+    if (!sessionIdFromRequest) {
+      console.warn('Missing testAttemptId in track attempt request', { userId, questionId });
+    }
     console.log('TRACKING MATH QUESTION ATTEMPT:', {
-      testSessionId,
+      testAttemptId: sessionIdFromRequest,
       userId,
       questionId,
       subtopicId,
@@ -37,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const isCorrectBoolean = isCorrect === true;
 
-    let testAttemptId = testSessionId;
+    let testAttemptId = sessionIdFromRequest  || null;
     let existingTestAttempt;
 
     if (testAttemptId) {
